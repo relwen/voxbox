@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'SIRD',
+        title: 'VoXY',
         theme: ThemeData(
           hoverColor: Color.fromARGB(255, 11, 50, 95),
           colorScheme: ColorScheme.fromSeed(

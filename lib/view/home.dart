@@ -1,10 +1,21 @@
 import 'dart:convert';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:voxbox/functions/styles.dart';
 import 'package:voxbox/models/user.dart';
+import 'package:voxbox/view/actualites/actualites.dart';
+import 'package:voxbox/view/chants/chants.dart';
+import 'package:voxbox/view/creations/creations.dart';
+import 'package:voxbox/view/exercises/exercises.dart';
 import 'package:voxbox/view/login.dart';
+import 'package:voxbox/view/messes/messes.dart';
+import 'package:voxbox/view/vocalize/vocalize.dart';
+import 'package:voxbox/widgets/widgets.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -81,26 +92,41 @@ class _MyHomePageState extends State<HomePage> {
                 "assets/svg/bg.svg",
                 width: MediaQuery.of(context).size.width,
               ),
-              Positioned(
-                  top:
-                      calculatePosition(context, collector.name.toString(), 100)
-                          .dy,
-                  left:
-                      calculatePosition(context, collector.name.toString(), 100)
-                          .dx,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+              const Positioned(
+                  top: 50,
+                  left: 10,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
                         Icons.account_circle,
-                        size: 100,
+                        size: 60,
                         color: Colors.white,
                       ),
-                      Text(
-                        collector.name.toString(),
-                        style: TextStyle(fontSize: 22, color: Colors.white),
-                      )
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            height: 5,
+                          ),
+                          MyText(
+                            text: "Relwendé Jacob",
+                            size: 14,
+                            color: Colors.white,
+                            fontweight: FontWeight.bold,
+                          ),
+                          MyText(
+                            text: "Basse",
+                            size: 13,
+                            color: Colors.white,
+                          ),
+                        ],
+                      ),
+                      SizedBox(
+                        width: 15,
+                      ),
                     ],
                   ))
             ],
@@ -113,7 +139,7 @@ class _MyHomePageState extends State<HomePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       "MENU",
                       style:
                           TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -125,10 +151,7 @@ class _MyHomePageState extends State<HomePage> {
                           gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [
-                                Color.fromARGB(255, 2, 59, 31),
-                                Colors.green
-                              ]),
+                              colors: [theme, theme2]),
                           borderRadius: BorderRadius.circular(50)),
                     )
                   ],
@@ -136,17 +159,74 @@ class _MyHomePageState extends State<HomePage> {
               ],
             ),
           ),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.start,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              cardItem(Icons.woman, "Femmes", context, () {
-                // Navigator.of(context)
-                //     .push(MaterialPageRoute(builder: (_) => WomanForm()));
-              }),
-              cardItem(Icons.groups_2_outlined, "OSC", context, () {
-                // Navigator.of(context)
-                //     .push(MaterialPageRoute(builder: (_) => OSCForm()));
-              }),
+              cardItem(
+                  icon: Icons.switch_access_shortcut_add_outlined,
+                  title: "Vocalise",
+                  context: context,
+                  gradient: true,
+                  onTap: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const VocaliseScreen()));
+                  }),
+              cardItem(
+                  icon: Icons.church_outlined,
+                  title: "Messes",
+                  context: context,
+                  gradient: false,
+                  onTap: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const MessesScreen()));
+                  }),
+              cardItem(
+                  icon: Icons.multitrack_audio,
+                  title: "Chants",
+                  context: context,
+                  gradient: true,
+                  onTap: () {
+                    
+                    Navigator.push(context, MaterialPageRoute(builder: (_)=>const ChantsScreen()));
+                  }),
+            ],
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              cardItem(
+                  icon: Icons.switch_access_shortcut_add_outlined,
+                  title: "Créations",
+                  context: context,
+                  gradient: false,
+                  onTap: () {
+                    
+                    Navigator.push(context, MaterialPageRoute(builder: (_)=>const CreationsScreen()));
+                  }),
+              cardItem(
+                  icon: Icons.queue_music_rounded,
+                  title: "Exercices",
+                  context: context,
+                  gradient: false,
+                  onTap: () {
+                    
+                    Navigator.push(context, MaterialPageRoute(builder: (_)=>const ExercisesScreen()));
+                  }),
+              cardItem(
+                  icon: Icons.my_library_music_outlined,
+                  title: "Actualités",
+                  context: context,
+                  gradient: true,
+                  onTap: () {
+                    
+                    Navigator.push(context, MaterialPageRoute(builder: (_)=>const ActualitesScreen()));
+                  }),
             ],
           ),
         ],
@@ -171,57 +251,4 @@ Offset calculatePosition(BuildContext context, String text, double iconSize) {
   final verticalPosition = MediaQuery.of(context).size.height / 4 - iconSize;
 
   return Offset(horizontalPosition, verticalPosition);
-}
-
-Widget cardItem(icon, title, context, VoidCallback onTap) {
-  return InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(15),
-    child: Card(
-      elevation: 10,
-      child: Container(
-        decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
-            gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color.fromARGB(255, 2, 59, 31), Colors.green])),
-        width: MediaQuery.of(context).size.width - 50,
-        height: 125,
-        padding: EdgeInsets.all(15),
-        child: Row(mainAxisAlignment: MainAxisAlignment.start, children: [
-          Icon(
-            icon,
-            size: MediaQuery.of(context).size.width / 5,
-            color: Colors.white,
-          ),
-          SizedBox(
-            width: MediaQuery.of(context).size.width / 55,
-          ),
-          SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "Inscription",
-                  style: TextStyle(
-                      fontSize: MediaQuery.of(context).size.width / 15,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  title,
-                  style: TextStyle(
-                      fontSize: MediaQuery.of(context).size.width / 25,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold),
-                )
-              ],
-            ),
-          )
-        ]),
-      ),
-    ),
-  );
 }

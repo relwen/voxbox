@@ -85,7 +85,7 @@ class _LoginState extends State<Login> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
-            SizedBox(
+            const SizedBox(
               height: 50,
             ),
             Padding(

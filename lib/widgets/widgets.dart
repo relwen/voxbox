@@ -84,6 +84,82 @@ class _ButtonState extends State<Button> {
   }
 }
 
+AppBar customAppBar({title, color}) {
+  return AppBar(
+    title: MyText(
+      text: title,
+      size: 20,
+      color: Colors.white,
+    ),
+    foregroundColor: Colors.white,
+    backgroundColor: color,
+  );
+}
+
+Widget cardItem({icon, title, context, gradient, VoidCallback? onTap}) {
+  var size = MediaQuery.of(context).size;
+  return InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(15),
+    child: Card(
+      elevation: 10,
+      child: Container(
+        decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            gradient: gradient
+                ? LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [theme, theme2])
+                : const LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [Colors.white, Colors.white])),
+        width: size.width / 3.6,
+        height: size.width / 3.6,
+        padding: const EdgeInsets.all(10),
+        child: Column(mainAxisAlignment: MainAxisAlignment.start, children: [
+          ShaderMask(
+            shaderCallback: (Rect bounds) {
+              return gradient
+                  ? const LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [Colors.white, Colors.white]).createShader(bounds)
+                  : LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [theme, theme2],
+                    ).createShader(bounds);
+            },
+            child: Icon(
+              icon,
+              size: size.width / 7,
+              color: Colors.white,
+            ),
+          ),
+          SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                      fontSize: MediaQuery.of(context).size.width / 25,
+                      color: gradient ? Colors.white : Colors.black,
+                      overflow: TextOverflow.ellipsis,
+                      fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          )
+        ]),
+      ),
+    ),
+  );
+}
+
 //input field style
 
 class InputField extends StatefulWidget {
@@ -179,13 +255,11 @@ class MyText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text == null ? '' : text.toString(),
-      style: GoogleFonts.notoSans(
+      style: GoogleFonts.nunito(
           fontSize: size,
           fontWeight: fontweight ?? FontWeight.normal,
           color: color ?? textColor),
-
       maxLines: maxLines,
-
       // textDirection: TextDirection.RTL,
       overflow: overflow,
       textAlign: textAlign,

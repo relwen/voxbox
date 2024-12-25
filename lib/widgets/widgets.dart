@@ -90,6 +90,7 @@ AppBar customAppBar({title, color}) {
       text: title,
       size: 20,
       color: Colors.white,
+      fontweight: FontWeight.w800,
     ),
     foregroundColor: Colors.white,
     backgroundColor: color,

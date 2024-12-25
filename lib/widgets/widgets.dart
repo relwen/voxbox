@@ -97,6 +97,50 @@ AppBar customAppBar({title, color}) {
   );
 }
 
+Widget listitemSong() {
+  return Container(
+    height: 80,
+    margin: EdgeInsets.all(10),
+    child: InkWell(
+      onTap: () {},
+      child: Material(
+          elevation: 5,
+          shadowColor: Colors.black,
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: EdgeInsets.all(10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(10),
+                      child: Icon(
+                        Icons.play_arrow,
+                        size: 22,
+                      ),
+                      decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(40)),
+                    ),
+                    SizedBox(
+                      width: 5,
+                    ),
+                    MyText(text: "Do Ré Mi Fa ", size: 18),
+                  ],
+                ),
+                InkWell(
+                  child: Icon(Icons.arrow_forward),
+                )
+              ],
+            ),
+          )),
+    ),
+  );
+}
+
 Widget cardItem({icon, title, context, gradient, VoidCallback? onTap}) {
   var size = MediaQuery.of(context).size;
   return InkWell(

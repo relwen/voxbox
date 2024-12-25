@@ -17,7 +17,7 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     Future.delayed(
-      Duration(seconds: 3),
+      const Duration(seconds: 1),
       () {
         checkisConnected();
       },

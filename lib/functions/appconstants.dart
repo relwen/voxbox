@@ -13,7 +13,7 @@ class AppConstance {
 //
 
   static String baseURL = 'http://compendium-mali.ml';
-  static String appName = 'Voxy CCB';
+  static String appName = 'Voxy Box';
   static String loginURL = '$baseURL/api/checkLoginCollector';
 
   static String token =

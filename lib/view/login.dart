@@ -39,7 +39,7 @@ class _LoginState extends State<Login> {
     setState(() {
       loading = false;
     });
-    if (response.error == null) {
+    if (response.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Connecté avec succès'),
           backgroundColor: Colors.green));

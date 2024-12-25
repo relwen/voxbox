@@ -13,10 +13,14 @@ class _VocaliseScreenState extends State<VocaliseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: customAppBar(title: "Vocalise",color: theme),
-      body: const SingleChildScrollView(
+      appBar: customAppBar(title: "Vocalise", color: theme),
+      body: SingleChildScrollView(
         child: Column(
-          
+          children: [
+            listitemSong(),
+            listitemSong(),
+            listitemSong(),
+          ],
         ),
       ),
     );

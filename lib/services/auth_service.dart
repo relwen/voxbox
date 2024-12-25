@@ -17,7 +17,6 @@ Future<ApiResponse> login(String phone, String password) async {
       'password': password
     });
 
-    print(response.statusCode.toString());
     switch (response.statusCode) {
       case 200:
         apiResponse.data = Collector.fromJson(jsonDecode(response.body));

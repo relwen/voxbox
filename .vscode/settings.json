@@ -1,4 +1,7 @@
 {
     "dart.flutterSdkPath": "C:\\Users\\admin\\.puro\\envs\\vtc\\flutter",
-    "dart.sdkPath": "C:\\Users\\admin\\.puro\\envs\\vtc\\flutter\\bin\\cache\\dart-sdk"
+    "dart.sdkPath": "C:\\Users\\admin\\.puro\\envs\\vtc\\flutter\\bin\\cache\\dart-sdk",
+    "flutterTools.displayGetxContextMenu": false,
+    "flutterTools.displayMobxContextMenu": false,
+    "flutterTools.displayRiverpodContextMenu": false
 }

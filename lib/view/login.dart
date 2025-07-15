@@ -18,44 +18,44 @@ class Login extends StatefulWidget {
 
 class _LoginState extends State<Login> {
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController phoneNumberController = TextEditingController();
+  final TextEditingController emailController = TextEditingController(); // Changé de phoneNumberController
   bool isPasswordFilled = true;
-  bool isPhoneNumberFilled = true;
+  bool isEmailFilled = true; // Changé de isPhoneNumberFilled
   final TextEditingController controller = TextEditingController();
   String initialCountry = 'ML';
   String phoneNumber = '';
   bool loading = false;
 
   void loginUser() async {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => HomePage()),
-    );
-
     setState(() {
       loading = true;
     });
-    ApiResponse response = await login(phoneNumber, passwordController.text);
+    
+    // Utiliser le nouveau service Laravel
+    ApiResponse response = await loginWithLaravel(
+      emailController.text, 
+      passwordController.text
+    );
+    
     setState(() {
       loading = false;
     });
-    if (response.error != null) {
+    
+    if (response.error == null && response.data != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Connecté avec succès'),
-          backgroundColor: Colors.green));
-      _saveAndRedirectToHome(response.data as Collector);
+        content: Text('Connecté avec succès'),
+        backgroundColor: Colors.green
+      ));
+      _saveAndRedirectToHome(response.data as User);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erreur lors de la connexion'),
-          backgroundColor: Colors.red));
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => Login()),
-        (route) => false,
-      );
+        content: Text(response.error ?? 'Erreur lors de la connexion'),
+        backgroundColor: Colors.red
+      ));
     }
   }
 
-  void _saveAndRedirectToHome(Collector user) async {
+  void _saveAndRedirectToHome(User user) async {
     print(user.name.toString());
 
     Map<String, dynamic> userMap = user.toJson();
@@ -63,6 +63,7 @@ class _LoginState extends State<Login> {
 
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setString('user', userJson);
+    prefs.setString('token', AppConstance.token ?? '');
     prefs.setBool('isConnected', true);
 
     Navigator.of(context).pushAndRemoveUntil(
@@ -78,16 +79,18 @@ class _LoginState extends State<Login> {
       body: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-            gradient: LinearGradient(begin: Alignment.topCenter, colors: [
-          AppConstance.priGradient,
-          AppConstance.secondary,
-        ])),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter, 
+            colors: [
+              AppConstance.priGradient,
+              AppConstance.secondary,
+            ]
+          )
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
-            const SizedBox(
-              height: 50,
-            ),
+            const SizedBox(height: 50),
             Padding(
               padding: EdgeInsets.all(20),
               child: Column(
@@ -100,134 +103,139 @@ class _LoginState extends State<Login> {
                   Text(
                     AppConstance.appName,
                     style: TextStyle(
-                        color: Colors.white,
-                        fontSize: MediaQuery.of(context).size.width / 18),
+                      color: Colors.white,
+                      fontSize: MediaQuery.of(context).size.width / 18
+                    ),
                   ),
-                  SizedBox(
-                    height: 1,
-                  ),
+                  SizedBox(height: 1),
                 ],
               ),
             ),
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(135),
-                    )),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(135),
+                  )
+                ),
                 child: Padding(
-                    padding: EdgeInsets.all(30),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          SizedBox(
-                            height: 60,
+                  padding: EdgeInsets.all(30),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        SizedBox(height: 60),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color.fromRGBO(8, 34, 105, 0.298),
+                                blurRadius: 20,
+                                offset: Offset(0, 10)
+                              )
+                            ]
                           ),
-                          Container(
-                              decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                        color:
-                                            Color.fromRGBO(8, 34, 105, 0.298),
-                                        blurRadius: 20,
-                                        offset: Offset(0, 10))
-                                  ]),
-                              child: Container(
-                                margin: EdgeInsets.all(20),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    Container(
-                                      margin:
-                                          EdgeInsets.only(top: 15, bottom: 10),
-                                      child: Row(
-                                        children: [
-                                          Text(
-                                            '* ',
-                                            style: TextStyle(color: Colors.red),
-                                          ),
-                                          Text(
-                                            'Numéro de téléphone',
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Container(
-                                      margin:
-                                          EdgeInsets.only(top: 15, bottom: 10),
-                                      child: Row(
-                                        children: [
-                                          Text(
-                                            '* ',
-                                            style: TextStyle(color: Colors.red),
-                                          ),
-                                          Text(
-                                            'Code',
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Container(
-                                      // padding: EdgeInsets.all(10),
-
-                                      child: TextField(
-                                        controller: passwordController,
-                                        textInputAction: TextInputAction.next,
-                                        obscureText: true,
-                                        onChanged: (text) {
-                                          setState(() {
-                                            isPasswordFilled = text.isNotEmpty;
-                                          });
-                                        },
-                                        decoration: InputDecoration(
-                                          isDense: true,
-                                          labelText: ' *********',
-                                          hintText:
-                                              'Saississez votre mot de passe',
-                                          labelStyle: TextStyle(fontSize: 18.0),
-                                          border: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(10.0),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                          child: Container(
+                            margin: EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Container(
+                                  margin: EdgeInsets.only(top: 15, bottom: 10),
+                                  child: Row(
+                                    children: [
+                                      Text('* ', style: TextStyle(color: Colors.red)),
+                                      Text('Email'), // Changé de 'Numéro de téléphone'
+                                    ],
+                                  ),
                                 ),
-                              )),
-                          SizedBox(
-                            height: 40,
-                          ),
-                          if (loading)
-                            SpinKitCircle(
-                              color: AppConstance.primary,
-                              size: 50.0,
+                                Container(
+                                  child: TextField(
+                                    controller: emailController, // Changé
+                                    textInputAction: TextInputAction.next,
+                                    keyboardType: TextInputType.emailAddress, // Ajouté
+                                    onChanged: (text) {
+                                      setState(() {
+                                        isEmailFilled = text.isNotEmpty; // Changé
+                                      });
+                                    },
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      labelText: 'votre@email.com', // Changé
+                                      hintText: 'Saisissez votre email',
+                                      labelStyle: TextStyle(fontSize: 18.0),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10.0),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  margin: EdgeInsets.only(top: 15, bottom: 10),
+                                  child: Row(
+                                    children: [
+                                      Text('* ', style: TextStyle(color: Colors.red)),
+                                      Text('Mot de passe'), // Changé de 'Code'
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  child: TextField(
+                                    controller: passwordController,
+                                    textInputAction: TextInputAction.done,
+                                    obscureText: true,
+                                    onChanged: (text) {
+                                      setState(() {
+                                        isPasswordFilled = text.isNotEmpty;
+                                      });
+                                    },
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      labelText: '*********',
+                                      hintText: 'Saisissez votre mot de passe',
+                                      labelStyle: TextStyle(fontSize: 18.0),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10.0),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          MaterialButton(
-                            onPressed: () async {
-                              loginUser();
-                            },
-                            height: 50,
+                          )
+                        ),
+                        SizedBox(height: 40),
+                        if (loading)
+                          SpinKitCircle(
                             color: AppConstance.primary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(50),
-                            ),
-                            child: Center(
-                              child: Text(
-                                "Connexion",
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold),
+                            size: 50.0,
+                          ),
+                        MaterialButton(
+                          onPressed: () async {
+                            loginUser();
+                          },
+                          height: 50,
+                          color: AppConstance.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(50),
+                          ),
+                          child: Center(
+                            child: Text(
+                              "Connexion",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                    )),
-              ),
+                        ),
+                      ],
+                    )
+                  )
+                ),
+              )
             )
           ],
         ),

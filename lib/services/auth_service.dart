@@ -9,6 +9,10 @@ Future<ApiResponse> loginWithLaravel(String email, String password) async {
   ApiResponse apiResponse = ApiResponse();
 
   try {
+    print('🔄 Tentative de connexion...');
+    print('📧 Email: $email');
+    print('🌐 URL: ${AppConstance.loginURL}');
+    
     final response = await http.post(
       Uri.parse(AppConstance.loginURL),
       headers: {
@@ -21,32 +25,43 @@ Future<ApiResponse> loginWithLaravel(String email, String password) async {
       }),
     );
 
+    print('📡 Status Code: ${response.statusCode}');
+    print('📄 Response Body: ${response.body}');
+
     switch (response.statusCode) {
       case 200:
         final responseData = jsonDecode(response.body);
+        print('✅ Réponse 200 reçue');
         if (responseData['success'] == true) {
           // Sauvegarder le token
           AppConstance.token = responseData['token'];
           apiResponse.data = User.fromJson(responseData['user']);
+          print('🎉 Connexion réussie!');
         } else {
           apiResponse.error = responseData['message'];
+          print('❌ Erreur: ${responseData['message']}');
         }
         break;
       case 422:
         final errors = jsonDecode(response.body)['errors'];
         apiResponse.error = errors[errors.keys.elementAt(0)][0];
+        print('❌ Erreur 422: ${apiResponse.error}');
         break;
       case 401:
         apiResponse.error = jsonDecode(response.body)['message'];
+        print('❌ Erreur 401: ${apiResponse.error}');
         break;
       case 403:
         apiResponse.error = jsonDecode(response.body)['message'];
+        print('❌ Erreur 403: ${apiResponse.error}');
         break;
       default:
-        apiResponse.error = "Erreur serveur";
+        apiResponse.error = "Erreur serveur (${response.statusCode})";
+        print('❌ Erreur ${response.statusCode}: ${response.body}');
     }
   } catch (e) {
-    apiResponse.error = "Erreur de connexion";
+    apiResponse.error = "Erreur de connexion: $e";
+    print('💥 Exception: $e');
   }
 
   return apiResponse;

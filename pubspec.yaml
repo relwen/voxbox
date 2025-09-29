@@ -35,6 +35,9 @@ dependencies:
   shared_preferences: ^2.2.1
   image_picker: ^1.1.2
   url_launcher: ^6.1.14
+  file_picker: ^6.1.1
+  # record: ^5.0.4
+  permission_handler: ^11.3.1
   geolocator: ^10.1.0
   lottie: ^3.1.2
   toastification: ^1.0.0

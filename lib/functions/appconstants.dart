@@ -15,7 +15,7 @@ class AppConstance {
   // Changez cette URL selon votre configuration
   // static String baseURL = 'http://10.0.2.2:8000'; // Pour émulateur Android
   // static String baseURL = 'http://localhost:8000'; // Pour iOS Simulator
-  static String baseURL = 'http://192.168.1.100:8000'; // Pour appareil physique
+  static String baseURL = 'http://192.168.23.143:8000'; // ← remplace par ton IP locale
   
   static String appName = 'Voxy Box';
   

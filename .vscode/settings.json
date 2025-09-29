@@ -1,7 +1,8 @@
 {
-    "dart.flutterSdkPath": "C:\\Users\\admin\\.puro\\envs\\vtc\\flutter",
-    "dart.sdkPath": "C:\\Users\\admin\\.puro\\envs\\vtc\\flutter\\bin\\cache\\dart-sdk",
-    "flutterTools.displayGetxContextMenu": false,
-    "flutterTools.displayMobxContextMenu": false,
-    "flutterTools.displayRiverpodContextMenu": false
+  "dart.flutterSdkPath": ".fvm/versions/3.29.0",
+  "dart.sdkPath": "C:\\Users\\admin\\.puro\\envs\\vtc\\flutter\\bin\\cache\\dart-sdk",
+  "flutterTools.displayGetxContextMenu": false,
+  "flutterTools.displayMobxContextMenu": false,
+  "flutterTools.displayRiverpodContextMenu": false,
+  "flutterTools.displayModularContextMenu": false
 }

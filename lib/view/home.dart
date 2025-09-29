@@ -25,10 +25,12 @@ class HomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<HomePage> {
-  Collector collector = Collector();
+  User user = User();
   Future<void> _logout() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.remove('user');
+    await prefs.remove('token');
+    await prefs.setBool('isConnected', false);
 
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => Login()),
@@ -46,11 +48,13 @@ class _MyHomePageState extends State<HomePage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
     String? userString = prefs.getString('user');
-    Map<String, dynamic> userMap = jsonDecode(userString!);
+    if (userString != null) {
+      Map<String, dynamic> userMap = jsonDecode(userString);
 
-    setState(() {
-      collector = Collector.fromJson(userMap);
-    });
+      setState(() {
+        user = User.fromJson(userMap);
+      });
+    }
   }
 
   void _showLogoutConfirmationDialog() {
@@ -92,7 +96,7 @@ class _MyHomePageState extends State<HomePage> {
                 "assets/svg/bg.svg",
                 width: MediaQuery.of(context).size.width,
               ),
-              const Positioned(
+              Positioned(
                   top: 50,
                   left: 10,
                   child: Row(
@@ -112,13 +116,13 @@ class _MyHomePageState extends State<HomePage> {
                             height: 5,
                           ),
                           MyText(
-                            text: "Relwendé Jacob",
+                            text: user.name ?? "Utilisateur",
                             size: 14,
                             color: Colors.white,
                             fontweight: FontWeight.bold,
                           ),
                           MyText(
-                            text: "Basse",
+                            text: user.voicePart ?? "Pupitre non défini",
                             size: 13,
                             color: Colors.white,
                           ),
@@ -128,7 +132,19 @@ class _MyHomePageState extends State<HomePage> {
                         width: 15,
                       ),
                     ],
-                  ))
+                  )),
+              Positioned(
+                top: 50,
+                right: 10,
+                child: IconButton(
+                  onPressed: _showLogoutConfirmationDialog,
+                  icon: Icon(
+                    Icons.logout,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                ),
+              )
             ],
           ),
           Container(

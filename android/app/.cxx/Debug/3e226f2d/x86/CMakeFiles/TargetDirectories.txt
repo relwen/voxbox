@@ -1,0 +1,2 @@
+/Users/apple/Desktop/Tech/KuilingaTechnologies/ProjectHouse/voxbox/android/app/.cxx/Debug/3e226f2d/x86/CMakeFiles/edit_cache.dir
+/Users/apple/Desktop/Tech/KuilingaTechnologies/ProjectHouse/voxbox/android/app/.cxx/Debug/3e226f2d/x86/CMakeFiles/rebuild_cache.dir

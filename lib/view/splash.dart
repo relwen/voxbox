@@ -4,6 +4,7 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/view/home.dart';
 import 'package:voxbox/view/login.dart';
+import 'package:voxbox/services/vocalise_service.dart';
 
 class SplashScreen extends StatefulWidget {
   @override
@@ -29,6 +30,9 @@ class _SplashScreenState extends State<SplashScreen> {
     bool isConnected = prefs.getBool('isConnected') ?? false;
 
     if (isConnected) {
+      // Synchroniser les vocalises en arrière-plan si l'utilisateur est connecté
+      _syncVocalisesInBackground();
+      
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -40,6 +44,16 @@ class _SplashScreenState extends State<SplashScreen> {
         context,
         MaterialPageRoute(builder: (context) => Login()),
       );
+    }
+  }
+
+  void _syncVocalisesInBackground() async {
+    try {
+      // Synchronisation silencieuse des vocalises
+      await VocaliseService.syncVocalises();
+    } catch (e) {
+      // Ignorer les erreurs de synchronisation en arrière-plan
+      print('Erreur de synchronisation des vocalises: $e');
     }
   }
 

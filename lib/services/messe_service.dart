@@ -139,7 +139,7 @@ class MesseService {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('${AppConstance.baseURL}/api/messes'),
+        Uri.parse(AppConstance.messesURL),
       );
 
       request.headers['Accept'] = 'application/json';
@@ -177,7 +177,7 @@ class MesseService {
       }
       
       final response = await http.get(
-        Uri.parse('${AppConstance.baseURL}/api/messes'),
+        Uri.parse(AppConstance.messesURL),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -220,16 +220,17 @@ class MesseService {
 
   static Future<ApiResponse> getMesseById(int id) async {
     List<Messe> localMessess = await getLocalMessess();
-    Messe? messe = localMessess.firstWhere((m) => m.id == id);
-    
-    ApiResponse apiResponse = ApiResponse();
-    if (messe != null) {
+    try {
+      Messe messe = localMessess.firstWhere((m) => m.id == id);
+      ApiResponse apiResponse = ApiResponse();
       apiResponse.data = messe;
       apiResponse.error = null;
-    } else {
+      return apiResponse;
+    } catch (e) {
+      ApiResponse apiResponse = ApiResponse();
       apiResponse.error = 'Messe non trouvée';
+      return apiResponse;
     }
-    return apiResponse;
   }
 
   static Future<ApiResponse> updateMesse({

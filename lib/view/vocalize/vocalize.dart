@@ -5,6 +5,9 @@ import 'package:voxbox/services/vocalise_service.dart';
 import 'package:voxbox/models/vocalise.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:voxbox/widgets/audio_player_widget.dart';
+import 'package:voxbox/view/vocalize/add_vocalise.dart';
+import 'package:voxbox/widgets/sync_status_widget.dart';
 
 class VocaliseScreen extends StatefulWidget {
   const VocaliseScreen({super.key});
@@ -132,6 +135,95 @@ class _VocaliseScreenState extends State<VocaliseScreen> {
     }
   }
 
+  void _addVocalise() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => AddVocaliseScreen()),
+    );
+    
+    if (result == true) {
+      // Rafraîchir la liste après ajout
+      _refreshVocalises();
+    }
+  }
+
+  // Vérifier si des vocalises ont des fichiers audio
+  bool _hasVocalisesWithAudio(List<Vocalise> vocalises) {
+    return vocalises.any((vocalise) => 
+      (vocalise.audioPath != null && vocalise.audioUrl != null) ||
+      (vocalise.isDownloaded && vocalise.localAudioPath != null)
+    );
+  }
+
+  // Obtenir les vocalises qui ont des fichiers audio
+  List<Vocalise> _getVocalisesWithAudio(List<Vocalise> vocalises) {
+    return vocalises.where((vocalise) => 
+      (vocalise.audioPath != null && vocalise.audioUrl != null) ||
+      (vocalise.isDownloaded && vocalise.localAudioPath != null)
+    ).toList();
+  }
+
+  // Vérifier si une vocalise a un fichier audio disponible
+  bool _hasAudioFile(Vocalise vocalise) {
+    return (vocalise.audioPath != null && vocalise.audioUrl != null) ||
+           (vocalise.isDownloaded && vocalise.localAudioPath != null);
+  }
+
+  void _showAudioPlayer(Vocalise vocalise) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          children: [
+            // Handle
+            Container(
+              margin: EdgeInsets.only(top: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            
+            // Titre
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Lecteur Audio',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppConstance.primary,
+                ),
+              ),
+            ),
+            
+            // Lecteur audio
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: AudioPlayerWidget(
+                  vocalise: vocalise,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,13 +238,24 @@ class _VocaliseScreenState extends State<VocaliseScreen> {
         backgroundColor: theme,
         actions: [
           IconButton(
+            icon: Icon(Icons.add),
+            onPressed: _addVocalise,
+            tooltip: 'Ajouter une vocalise',
+          ),
+          IconButton(
             icon: Icon(Icons.refresh),
             onPressed: hasInternet ? _refreshVocalises : null,
+            tooltip: 'Synchroniser',
           ),
         ],
       ),
       body: Column(
         children: [
+          // Indicateur de synchronisation
+          SyncStatusWidget(
+            onSyncPressed: hasInternet ? _refreshVocalises : null,
+          ),
+          
           // Indicateur de connectivité
           if (!hasInternet)
             Container(
@@ -211,12 +314,29 @@ class _VocaliseScreenState extends State<VocaliseScreen> {
                               ],
                             ),
                           )
-                        : ListView.builder(
-                            itemCount: vocalises.length,
-                            itemBuilder: (context, index) {
-                              final vocalise = vocalises[index];
-                              return _buildVocaliseCard(vocalise);
-                            },
+                        : Column(
+                            children: [
+                              // Lecteur audio (seulement si des vocalises ont des fichiers audio)
+                              if (vocalises.isNotEmpty && _hasVocalisesWithAudio(vocalises))
+                                Container(
+                                  margin: EdgeInsets.all(16),
+                                  child: AudioPlayerWidget(
+                                    playlist: _getVocalisesWithAudio(vocalises),
+                                    showPlaylistControls: true,
+                                  ),
+                                ),
+                              
+                              // Liste des vocalises
+                              Expanded(
+                                child: ListView.builder(
+                                  itemCount: vocalises.length,
+                                  itemBuilder: (context, index) {
+                                    final vocalise = vocalises[index];
+                                    return _buildVocaliseCard(vocalise);
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
           ),
         ],
@@ -279,15 +399,21 @@ class _VocaliseScreenState extends State<VocaliseScreen> {
                 onPressed: () => _downloadAudio(vocalise),
                 tooltip: vocalise.isDownloaded ? 'Supprimer' : 'Télécharger',
               ),
-            IconButton(
-              icon: Icon(Icons.play_arrow, color: AppConstance.primary),
-              onPressed: () {
-                // TODO: Implémenter la lecture audio
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Lecture audio à implémenter')),
-                );
-              },
-            ),
+            if (_hasAudioFile(vocalise))
+              IconButton(
+                icon: Icon(Icons.play_arrow, color: AppConstance.primary),
+                onPressed: () {
+                  // Ouvrir le lecteur audio pour cette vocalise
+                  _showAudioPlayer(vocalise);
+                },
+                tooltip: 'Lire la vocalise',
+              )
+            else
+              IconButton(
+                icon: Icon(Icons.music_off, color: Colors.grey),
+                onPressed: null,
+                tooltip: 'Aucun fichier audio disponible',
+              ),
           ],
         ),
       ),

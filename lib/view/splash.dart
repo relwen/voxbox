@@ -5,6 +5,7 @@ import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/view/home.dart';
 import 'package:voxbox/view/login.dart';
 import 'package:voxbox/services/vocalise_service.dart';
+import 'package:voxbox/services/auto_sync_service.dart';
 
 class SplashScreen extends StatefulWidget {
   @override
@@ -49,6 +50,9 @@ class _SplashScreenState extends State<SplashScreen> {
 
   void _syncVocalisesInBackground() async {
     try {
+      // Initialiser le service de synchronisation automatique
+      AutoSyncService().initialize();
+      
       // Synchronisation silencieuse des vocalises
       await VocaliseService.syncVocalises();
     } catch (e) {

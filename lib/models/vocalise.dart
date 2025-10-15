@@ -1,3 +1,5 @@
+import 'package:voxbox/functions/appconstants.dart';
+
 class Vocalise {
   final int id;
   final String title;
@@ -34,7 +36,7 @@ class Vocalise {
       description: json['description'],
       voicePart: json['voice_part'],
       audioPath: json['audio_path'],
-      audioUrl: json['audio_url'],
+      audioUrl: json['audio_path'] != null ? '${AppConstance.baseURL}/storage/${json['audio_path']}' : null,
       choraleId: json['chorale_id'],
       choraleName: json['chorale']?['name'],
       createdAt: DateTime.parse(json['created_at']),

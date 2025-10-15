@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'appconstants.dart';
 
 //languages code
 dynamic phcode;
@@ -23,8 +24,8 @@ String gender = '';
 String packageName = 'com.kuilingatech.voxbox';
 String signKey = '';
 
-//base url
-String url = 'https://vtc.sdfvoyage.online/public/';
+//base url - utilise maintenant AppConstance.baseURL
+String url = AppConstance.baseURL + '/';
 String mapkey = (Platform.isAndroid)
     ? 'AIzaSyAndV89GbgUhvqjsVOntsz2W-JuI7VclRs'
     : 'AIzaSyAndV89GbgUhvqjsVOntsz2W-JuI7VclRs';

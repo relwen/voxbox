@@ -15,7 +15,7 @@ class AppConstance {
   // Changez cette URL selon votre configuration
   // static String baseURL = 'http://10.0.2.2:8000'; // Pour émulateur Android
   // static String baseURL = 'http://localhost:8000'; // Pour iOS Simulator
-  static String baseURL = 'http://192.168.11.104:8001'; // ← IP locale pour démo sur téléphone
+  static String baseURL = 'http://10.5.27.241:8001'; // ← IP locale mise à jour
   
   static String appName = 'Voxy Box';
   
@@ -24,14 +24,17 @@ class AppConstance {
   static String registerURL = '$baseURL/api/register';
   static String logoutURL = '$baseURL/api/logout';
   static String meURL = '$baseURL/api/me';
-  static String choralesURL = '$baseURL/api/chorales';
-  
-  // Endpoints pour les partitions et voix
   static String partitionsURL = '$baseURL/api/partitions';
   static String voicePartsURL = '$baseURL/api/voice-parts';
   
   // Endpoints pour les vocalises
   static String vocalisesURL = '$baseURL/api/vocalises';
+  
+  // Endpoints pour les catégories
+  static String categoriesURL = '$baseURL/api/categories';
+  
+  // Endpoints pour les messes
+  static String messesURL = '$baseURL/api/messes';
   
   // Token sera géré dynamiquement après connexion
   static String? token;

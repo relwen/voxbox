@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:voxbox/functions/styles.dart';
-import '../../functions/functions.dart';
 import '../../widgets/widgets.dart';
 
 // ignore: must_be_immutable

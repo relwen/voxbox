@@ -75,7 +75,7 @@ class VocaliseService {
       }
       
       final response = await http.get(
-        Uri.parse('${AppConstance.baseURL}/api/vocalises'),
+        Uri.parse(AppConstance.vocalisesURL),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -121,7 +121,7 @@ class VocaliseService {
       String lastSync = await getLastSync();
       
       final response = await http.get(
-        Uri.parse('${AppConstance.baseURL}/api/vocalises/sync?last_sync=$lastSync'),
+        Uri.parse('${AppConstance.vocalisesURL}/sync?last_sync=$lastSync'),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -184,7 +184,7 @@ class VocaliseService {
       }
 
       final response = await http.get(
-        Uri.parse('${AppConstance.baseURL}/api/vocalises/${vocalise.id}/download-audio'),
+        Uri.parse('${AppConstance.vocalisesURL}/${vocalise.id}/download-audio'),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -231,6 +231,88 @@ class VocaliseService {
       print('Erreur lors du téléchargement: $e');
       return false;
     }
+  }
+
+  // Créer une nouvelle vocalise
+  static Future<ApiResponse> createVocalise({
+    required String title,
+    String? description,
+    required String voicePart,
+    required int choraleId,
+    String? audioFilePath,
+  }) async {
+    ApiResponse apiResponse = ApiResponse();
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
+      if (token == null) {
+        apiResponse.error = 'Token non disponible';
+        return apiResponse;
+      }
+
+      // Préparer les données
+      Map<String, dynamic> data = {
+        'title': title,
+        'description': description,
+        'voice_part': voicePart,
+        'chorale_id': choraleId,
+      };
+
+      // Créer la requête multipart si un fichier audio est fourni
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse(AppConstance.vocalisesURL),
+      );
+
+      // Ajouter les headers
+      request.headers.addAll({
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      });
+
+      // Ajouter les champs
+      data.forEach((key, value) {
+        if (value != null) {
+          request.fields[key] = value.toString();
+        }
+      });
+
+      // Ajouter le fichier audio si fourni
+      if (audioFilePath != null) {
+        var audioFile = await http.MultipartFile.fromPath('audio_file', audioFilePath);
+        request.files.add(audioFile);
+      }
+
+      // Envoyer la requête
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      switch (response.statusCode) {
+        case 201:
+          var responseData = jsonDecode(response.body);
+          if (responseData['success'] == true) {
+            apiResponse.data = Vocalise.fromJson(responseData['data']);
+            apiResponse.error = null;
+          } else {
+            apiResponse.error = responseData['message'] ?? 'Erreur lors de la création';
+          }
+          break;
+        case 422:
+          var errors = jsonDecode(response.body)['errors'];
+          apiResponse.error = errors[errors.keys.elementAt(0)][0];
+          break;
+        case 401:
+          apiResponse.error = 'Non autorisé';
+          break;
+        default:
+          apiResponse.error = 'Erreur serveur lors de la création';
+          break;
+      }
+    } catch (e) {
+      apiResponse.error = 'Erreur de connexion lors de la création: $e';
+    }
+    return apiResponse;
   }
 
   // Supprimer un fichier audio téléchargé

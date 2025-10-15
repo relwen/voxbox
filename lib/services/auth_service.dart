@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/models/user.dart';
 import 'package:voxbox/services/api_response.dart';
@@ -33,8 +34,10 @@ Future<ApiResponse> loginWithLaravel(String email, String password) async {
         final responseData = jsonDecode(response.body);
         print('✅ Réponse 200 reçue');
         if (responseData['success'] == true) {
-          // Sauvegarder le token
+          // Sauvegarder le token dans SharedPreferences
           AppConstance.token = responseData['token'];
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setString('token', responseData['token']);
           apiResponse.data = User.fromJson(responseData['user']);
           print('🎉 Connexion réussie!');
         } else {
@@ -72,11 +75,20 @@ Future<ApiResponse> getUserInfo() async {
   ApiResponse apiResponse = ApiResponse();
 
   try {
+    // Récupérer le token depuis SharedPreferences
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('token');
+    
+    if (token == null) {
+      apiResponse.error = 'Token non disponible';
+      return apiResponse;
+    }
+
     final response = await http.get(
       Uri.parse(AppConstance.meURL),
       headers: {
         'Accept': 'application/json',
-        'Authorization': 'Bearer ${AppConstance.token}',
+        'Authorization': 'Bearer $token',
       },
     );
 
@@ -107,16 +119,27 @@ Future<ApiResponse> logout() async {
   ApiResponse apiResponse = ApiResponse();
 
   try {
+    // Récupérer le token depuis SharedPreferences
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('token');
+    
+    if (token == null) {
+      apiResponse.error = 'Token non disponible';
+      return apiResponse;
+    }
+
     final response = await http.post(
       Uri.parse(AppConstance.logoutURL),
       headers: {
         'Accept': 'application/json',
-        'Authorization': 'Bearer ${AppConstance.token}',
+        'Authorization': 'Bearer $token',
       },
     );
 
     if (response.statusCode == 200) {
+      // Supprimer le token
       AppConstance.token = null;
+      await prefs.remove('token');
       apiResponse.data = "Déconnexion réussie";
     } else {
       apiResponse.error = "Erreur lors de la déconnexion";

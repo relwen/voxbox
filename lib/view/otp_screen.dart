@@ -1,7 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/view/user_registration.dart';
+import 'package:voxbox/view/home.dart';
+import 'package:voxbox/view/account_pending.dart';
+import 'package:voxbox/services/auth_service.dart';
 
 class OTPScreen extends StatefulWidget {
   final String phoneNumber;
@@ -114,6 +119,100 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
     });
   }
 
+  // Effectuer une vraie connexion avec le numéro de téléphone
+  Future<void> _performLogin(String phoneNumber) async {
+    try {
+      print('🔄 Tentative de connexion avec le numéro: $phoneNumber');
+      
+      // Utiliser le nouveau service de connexion par téléphone
+      final loginResponse = await loginByPhone(phoneNumber);
+      
+      if (loginResponse.error == null && loginResponse.data != null) {
+        print('🎉 Connexion réussie avec token!');
+        
+        // Sauvegarder les données de connexion
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('isConnected', true);
+        await prefs.setString('user', jsonEncode(loginResponse.data!.toJson()));
+        
+        // Rediriger vers l'accueil
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const HomePage(),
+            ),
+          );
+        }
+      } else {
+        print('❌ Erreur de connexion: ${loginResponse.error}');
+        
+        // Vérifier si c'est un compte en attente
+        if (loginResponse.error?.contains('attente d\'approbation') == true) {
+          // Rediriger vers la page de compte en attente
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AccountPendingScreen(
+                  phoneNumber: phoneNumber,
+                ),
+              ),
+            );
+          }
+        } else {
+          // Afficher un message d'erreur à l'utilisateur
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(loginResponse.error ?? 'Erreur de connexion'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+          
+          // En cas d'erreur, rediriger vers l'inscription
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => UserRegistrationScreen(
+                  phoneNumber: phoneNumber,
+                ),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print('💥 Exception lors de la connexion: $e');
+      
+      // Afficher un message d'erreur à l'utilisateur
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur de connexion: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      
+      // En cas d'exception, rediriger vers l'inscription
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UserRegistrationScreen(
+              phoneNumber: phoneNumber,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   void _verifyOTP() async {
     String otp = _otpControllers.map((controller) => controller.text).join();
     
@@ -137,15 +236,41 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
         loading = false;
       });
 
-      // Simuler la vérification
-       // TODO: Remplacer par la vraie vérification API
-       // Pour l'instant, on redirige toujours vers l'inscription
-       Navigator.pushReplacement(
-         context,
-         MaterialPageRoute(
-           builder: (context) => const UserRegistrationScreen(),
-         ),
-       );
+      // Vérifier si le numéro existe en base de données
+      print('🔍 Vérification de l\'existence du numéro: ${widget.phoneNumber}');
+      final response = await checkPhoneExists(widget.phoneNumber);
+      
+      if (response.error == null && response.data != null) {
+        bool phoneExists = response.data as bool;
+        
+        if (phoneExists) {
+          // Le numéro existe, faire une vraie connexion
+          print('✅ Numéro trouvé, connexion avec token');
+          await _performLogin(widget.phoneNumber);
+        } else {
+          // Le numéro n'existe pas, rediriger vers l'inscription
+          print('📝 Numéro non trouvé, redirection vers l\'inscription');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => UserRegistrationScreen(
+                phoneNumber: widget.phoneNumber,
+              ),
+            ),
+          );
+        }
+      } else {
+        // Erreur lors de la vérification, rediriger vers l'inscription par défaut
+        print('⚠️ Erreur lors de la vérification, redirection vers l\'inscription');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UserRegistrationScreen(
+              phoneNumber: widget.phoneNumber,
+            ),
+          ),
+        );
+      }
       
     } catch (e) {
       setState(() {

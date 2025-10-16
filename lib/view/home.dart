@@ -8,8 +8,8 @@ import 'package:voxbox/view/actualites/actualites.dart';
 import 'package:voxbox/view/chants/chants.dart';
 import 'package:voxbox/view/creations/creations.dart';
 import 'package:voxbox/view/exercises/exercises.dart';
-import 'package:voxbox/view/login.dart';
 import 'package:voxbox/view/messes/messes.dart';
+import 'package:voxbox/view/profile.dart';
 import 'package:voxbox/view/vocalize/vocalize.dart';
 
 class HomePage extends StatefulWidget {
@@ -21,19 +21,6 @@ class HomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<HomePage> {
   User user = User();
-  Future<void> _logout() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('user');
-    await prefs.remove('token');
-    await prefs.setBool('isConnected', false);
-
-    if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const Login()),
-        (route) => false,
-      );
-    }
-  }
 
   @override
   void initState() {
@@ -275,125 +262,6 @@ class _MyHomePageState extends State<HomePage> {
     );
   }
 
-  void _showLogoutConfirmationDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white,
-                  Colors.grey.shade50,
-                ],
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Icône
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.logout_rounded,
-                    color: Colors.red,
-                    size: 32,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                
-                // Titre
-                const Text(
-                  'Déconnexion',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                
-                // Message
-                Text(
-                  'Êtes-vous sûr de vouloir vous déconnecter ?',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                
-                // Boutons
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: Colors.grey.shade300),
-                          ),
-                        ),
-                        child: Text(
-                          'Annuler',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          _logout();
-                          Navigator.of(context).pop();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          'Déconnexion',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -525,16 +393,21 @@ class _MyHomePageState extends State<HomePage> {
               ),
               const SizedBox(width: 8),
               
-              // Bouton de déconnexion
+              // Bouton de profil
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: IconButton(
-                  onPressed: _showLogoutConfirmationDialog,
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                    );
+                  },
                   icon: const Icon(
-                    Icons.logout_rounded,
+                    Icons.person_rounded,
                     color: Colors.white,
                     size: 24,
                   ),
@@ -787,13 +660,27 @@ class _MyHomePageState extends State<HomePage> {
     // Couleurs d'accent pour chaque type de card
     Color accentColor = gradient ? AppConstance.primary : Colors.grey.shade600;
     
+    // Tailles dynamiques basées sur MediaQuery
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
+    // Calculer les tailles en fonction de l'écran
+    final cardHeight = screenWidth * 0.34; // 18% de la hauteur d'écran
+    final iconSize = screenWidth * 0.10; // 12% de la largeur d'écran
+    final iconContainerSize = screenWidth * 0.13; // 13% de la largeur d'écran
+    final fontSize = screenWidth * 0.032; // 3.2% de la largeur d'écran
+    final subtitleFontSize = screenWidth * 0.025; // 2.5% de la largeur d'écran
+    final padding = screenWidth * 0.02; // 4% de la largeur d'écran
+    final margin = screenWidth * 0.01; // 1% de la largeur d'écran
+    final borderRadius = screenWidth * 0.05; // 5% de la largeur d'écran
+    
     return Expanded(
       child: Container(
-        height: 130,
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        height: cardHeight,
+        margin: EdgeInsets.symmetric(horizontal: margin, vertical: margin),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(borderRadius),
           border: Border.all(
             color: gradient ? AppConstance.primary.withOpacity(0.2) : Colors.grey.shade100,
             width: 1,
@@ -812,17 +699,17 @@ class _MyHomePageState extends State<HomePage> {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(borderRadius),
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(padding),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Icône avec gradient
                   Container(
-                    width: 50,
-                    height: 50,
+                    width: iconContainerSize,
+                    height: iconContainerSize,
                     decoration: BoxDecoration(
                       gradient: gradient
                           ? LinearGradient(
@@ -835,7 +722,7 @@ class _MyHomePageState extends State<HomePage> {
                             )
                           : null,
                       color: gradient ? null : Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: BorderRadius.circular(borderRadius * 0.75),
                       border: Border.all(
                         color: accentColor.withOpacity(0.2),
                         width: 1,
@@ -844,46 +731,46 @@ class _MyHomePageState extends State<HomePage> {
                     child: Icon(
                       icon,
                       color: accentColor,
-                      size: 24,
+                      size: iconSize,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: screenHeight * 0.012), // 1.2% de la hauteur d'écran
                   
                   // Titre
                   Text(
                     title,
                     style: TextStyle(
                       color: Colors.black87,
-                      fontSize: 13,
+                      fontSize: fontSize,
                       fontWeight: FontWeight.w600,
                       height: 1.2,
                     ),
                     textAlign: TextAlign.center,
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: screenHeight * 0.005), // 0.5% de la hauteur d'écran
                   
                   // Sous-titre
                   Text(
                     subtitle,
                     style: TextStyle(
                       color: Colors.grey.shade500,
-                      fontSize: 10,
+                      fontSize: subtitleFontSize,
                       fontWeight: FontWeight.w400,
                       height: 1.1,
                     ),
                     textAlign: TextAlign.center,
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   
                   // Indicateur de gradient (petit point)
                   if (gradient) ...[
-                    const SizedBox(height: 8),
+                    SizedBox(height: screenHeight * 0.007), // 0.7% de la hauteur d'écran
                     Container(
-                      width: 6,
-                      height: 6,
+                      width: screenWidth * 0.015, // 1.5% de la largeur d'écran
+                      height: screenWidth * 0.015, // 1.5% de la largeur d'écran
                       decoration: BoxDecoration(
                         color: accentColor,
                         shape: BoxShape.circle,

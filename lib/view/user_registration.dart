@@ -1,44 +1,97 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/models/user.dart';
 import 'package:voxbox/models/chorale.dart';
 import 'package:voxbox/widgets/chorale_selector.dart';
-import 'package:voxbox/view/home.dart';
+import 'package:voxbox/view/login.dart';
+import 'package:voxbox/services/auth_service.dart';
 
 class UserRegistrationScreen extends StatefulWidget {
-  const UserRegistrationScreen({super.key});
+  final String? phoneNumber;
+  
+  const UserRegistrationScreen({
+    super.key,
+    this.phoneNumber,
+  });
 
   @override
   State<UserRegistrationScreen> createState() => _UserRegistrationScreenState();
 }
 
-class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
-  final TextEditingController _firstNameController = TextEditingController();
-  final TextEditingController _lastNameController = TextEditingController();
+class _UserRegistrationScreenState extends State<UserRegistrationScreen> with TickerProviderStateMixin {
+  final TextEditingController _fullNameController = TextEditingController();
   Chorale? _selectedChorale;
   String? _selectedPupitre;
   bool loading = false;
+  
+  // Animations
+  late AnimationController _fadeController;
+  late AnimationController _slideController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
-  // Liste des pupitres disponibles
+  // Liste des pupitres disponibles (valeurs acceptées par le backend)
   final List<Map<String, dynamic>> _pupitres = [
-    {'value': 'soprano', 'label': 'Soprano', 'icon': Icons.person, 'color': Colors.pink},
-    {'value': 'alto', 'label': 'Alto', 'icon': Icons.person, 'color': Colors.orange},
-    {'value': 'tenor', 'label': 'Ténor', 'icon': Icons.person, 'color': Colors.blue},
-    {'value': 'basse', 'label': 'Basse', 'icon': Icons.person, 'color': Colors.brown},
-    {'value': 'tutti', 'label': 'Tutti', 'icon': Icons.group, 'color': Colors.purple},
+    {'value': 'SOPRANE', 'label': 'Soprane', 'icon': Icons.person, 'color': Colors.pink},
+    {'value': 'ALTO', 'label': 'Alto', 'icon': Icons.person, 'color': Colors.orange},
+    {'value': 'TENOR', 'label': 'Ténor', 'icon': Icons.person, 'color': Colors.blue},
+    {'value': 'BASSE', 'label': 'Basse', 'icon': Icons.person, 'color': Colors.brown},
+    {'value': 'BARITON', 'label': 'Baryton', 'icon': Icons.person, 'color': Colors.purple},
   ];
 
 
   @override
+  void initState() {
+    super.initState();
+    
+    // Initialiser les contrôleurs d'animation
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    
+    // Configurer les animations
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeInOut,
+    ));
+    
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOutCubic,
+    ));
+    
+    // Démarrer les animations
+    _fadeController.forward();
+    _slideController.forward();
+  }
+
+  @override
   void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
+    _fullNameController.dispose();
+    _fadeController.dispose();
+    _slideController.dispose();
     super.dispose();
   }
 
+
+
   void _createAccount() async {
-    if (_firstNameController.text.isEmpty || 
-        _lastNameController.text.isEmpty || 
+    if (_fullNameController.text.isEmpty || 
+        widget.phoneNumber == null ||
         _selectedPupitre == null || 
         _selectedChorale == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -53,40 +106,57 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
     });
 
     try {
-      // Simuler un appel API avec validation
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // Simuler une validation côté serveur
-      if (_firstNameController.text.length < 2) {
-        throw Exception('Le prénom doit contenir au moins 2 caractères');
+      // Validation côté client
+      if (_fullNameController.text.length < 3) {
+        throw Exception('Le nom complet doit contenir au moins 3 caractères');
       }
       
-      if (_lastNameController.text.length < 2) {
-        throw Exception('Le nom doit contenir au moins 2 caractères');
+      if (widget.phoneNumber == null || widget.phoneNumber!.length < 8) {
+        throw Exception('Numéro de téléphone manquant ou invalide');
       }
       
-      // Créer l'utilisateur avec les vraies données
-      final user = User(
-        id: DateTime.now().millisecondsSinceEpoch, // ID unique temporaire
-        name: '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
-        email: '${_firstNameController.text.toLowerCase()}.${_lastNameController.text.toLowerCase()}@voxbox.bf',
-        phone: '+22600000000', // TODO: Récupérer le vrai numéro depuis l'OTP
-        voicePart: _selectedPupitre,
-        chorale: _selectedChorale!.toJson(),
+      // Générer un email et mot de passe temporaires
+      final name = _fullNameController.text.trim();
+      final email = '${name.toLowerCase().replaceAll(' ', '.')}@voxbox.bf';
+      final password = 'password123'; // Mot de passe temporaire
+      
+      // Utiliser le numéro de téléphone passé en paramètre
+      String phone = widget.phoneNumber!;
+      
+      print('🔄 Création du compte...');
+      print('   - Nom: $name');
+      print('   - Email: $email');
+      print('   - Téléphone: $phone');
+      print('   - Chorale: ${_selectedChorale!.nom} (ID: ${_selectedChorale!.id})');
+      print('   - Pupitre: $_selectedPupitre');
+      
+      // Appel API pour créer le compte
+      final response = await registerWithLaravel(
+        name: name,
+        email: email,
+        password: password,
+        passwordConfirmation: password,
+        choraleId: _selectedChorale!.id,
+        voicePart: _selectedPupitre!,
+        phone: phone,
       );
 
-      // Simuler la sauvegarde en base de données
-      print('✅ Compte créé avec succès:');
-      print('   - Nom: ${user.name}');
-      print('   - Email: ${user.email}');
-      print('   - Pupitre: ${user.voicePart}');
-      print('   - Chorale: ${_selectedChorale!.nom}');
-
-      _saveAndRedirectToHome(user);
+      if (response.error == null && response.data != null) {
+        final user = response.data as User;
+        print('✅ Compte créé avec succès sur le serveur!');
+        print('   - ID: ${user.id}');
+        print('   - Nom: ${user.name}');
+        print('   - Email: ${user.email}');
+        
+        _saveAndRedirectToHome(user);
+      } else {
+        throw Exception(response.error ?? 'Erreur inconnue lors de la création du compte');
+      }
     } catch (e) {
       setState(() {
         loading = false;
       });
+      print('❌ Erreur lors de la création: $e');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Erreur lors de la création: $e'),
         backgroundColor: Colors.red,
@@ -100,23 +170,33 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
       loading = false;
     });
 
-    // Afficher un message de succès
+    // Sauvegarder les données utilisateur localement
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user', jsonEncode(user.toJson()));
+      await prefs.setBool('isConnected', false); // Pas encore connecté, en attente d'approbation
+      print('✅ Données utilisateur sauvegardées localement');
+    } catch (e) {
+      print('⚠️ Erreur lors de la sauvegarde locale: $e');
+    }
+
+    // Afficher un message de succès avec information sur l'approbation
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Compte créé avec succès ! Bienvenue ${user.name}'),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 3),
+        content: Text('Compte créé avec succès ! Votre compte est en attente d\'approbation.'),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 4),
       ),
     );
 
     // Attendre un peu pour que l'utilisateur voie le message
-    await Future.delayed(const Duration(seconds: 1));
+    await Future.delayed(const Duration(seconds: 2));
 
-    // Naviguer vers l'accueil
+    // Naviguer vers la page de connexion au lieu de l'accueil
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const HomePage()),
+        MaterialPageRoute(builder: (context) => const Login()),
         (route) => false,
       );
     }
@@ -233,27 +313,31 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
   }
 
   Widget _buildModernForm(Size size) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(30),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.95),
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 30,
-            offset: const Offset(0, 15),
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.all(30),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.95),
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 30,
+                offset: const Offset(0, 15),
+              ),
+            ],
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2),
+              width: 1,
+            ),
           ),
-        ],
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
           // Titre du formulaire
           Text(
             'Informations personnelles',
@@ -267,24 +351,43 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
           
           const SizedBox(height: 30),
           
-          // Champs du formulaire
+          // Champ du formulaire
           _buildModernTextField(
-            controller: _firstNameController,
-            label: 'Prénom',
+            controller: _fullNameController,
+            label: 'Nom complet',
             icon: Icons.person_outline,
-            hint: 'Entrez votre prénom',
+            hint: 'Entrez votre nom complet',
+            
           ),
           
           const SizedBox(height: 20),
           
-          _buildModernTextField(
-            controller: _lastNameController,
-            label: 'Nom',
-            icon: Icons.person_outline,
-            hint: 'Entrez votre nom',
-          ),
+          // Affichage du numéro de téléphone (lecture seule)
+          if (widget.phoneNumber != null)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                color: Colors.grey[100],
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.phone_outlined, color: Colors.grey[600]),
+                  const SizedBox(width: 12),
+                  Text(
+                    '${widget.phoneNumber}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           
-           const SizedBox(height: 20),
+          const SizedBox(height: 20),
            
            // Sélecteur de chorales
            ChoraleSelector(
@@ -307,7 +410,9 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
           
           // Bouton de création
           _buildModernCreateButton(),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -319,18 +424,34 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
     required String hint,
     TextInputType? keyboardType,
   }) {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(15),
         color: Colors.grey[50],
         border: Border.all(
-          color: Colors.grey[200]!,
-          width: 1,
+          color: controller.text.isNotEmpty 
+            ? AppConstance.primary.withOpacity(0.3)
+            : Colors.grey[200]!,
+          width: controller.text.isNotEmpty ? 2 : 1,
         ),
+        boxShadow: controller.text.isNotEmpty ? [
+          BoxShadow(
+            color: AppConstance.primary.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ] : null,
       ),
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
+        onChanged: (value) {
+          setState(() {
+            // Déclencher la reconstruction pour l'animation
+          });
+        },
         style: TextStyle(
           fontSize: 16,
           color: Colors.grey[800],
@@ -408,25 +529,35 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
           setState(() {
             _selectedPupitre = newValue;
           });
+          
+          // Animation de feedback lors de la sélection
+          _slideController.reset();
+          _slideController.forward();
         },
       ),
     );
   }
 
   Widget _buildModernCreateButton() {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
       height: 56,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppConstance.priGradient, AppConstance.secondary],
+          colors: loading 
+            ? [Colors.grey[400]!, Colors.grey[500]!]
+            : [AppConstance.priGradient, AppConstance.secondary],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF667eea).withOpacity(0.3),
-            blurRadius: 15,
+            color: loading 
+              ? Colors.grey.withOpacity(0.2)
+              : const Color(0xFF667eea).withOpacity(0.3),
+            blurRadius: loading ? 8 : 15,
             offset: const Offset(0, 8),
           ),
         ],
@@ -435,7 +566,7 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(15),
-          onTap: _createAccount,
+          onTap: loading ? null : _createAccount,
           child: Center(
             child: loading
                 ? const SizedBox(

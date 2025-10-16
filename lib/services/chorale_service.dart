@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/models/chorale.dart';
 import 'package:voxbox/services/api_response.dart';
@@ -8,29 +9,55 @@ class ChoraleService {
   static String get _baseUrl => AppConstance.baseURL;
 
   /// Récupère toutes les chorales depuis le serveur
+  /// L'API des chorales est accessible sans authentification
   static Future<ApiResponse<List<Chorale>>> getChorales() async {
     try {
+      // Récupérer le token d'authentification (optionnel)
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+      
+      Map<String, String> headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      };
+      
+      // Ajouter le token d'authentification si disponible (optionnel)
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+        print('🔐 Token d\'authentification ajouté aux headers');
+      } else {
+        print('🌐 Accès public aux chorales (sans authentification)');
+      }
+      
       final response = await http.get(
         Uri.parse('$_baseUrl/api/chorales'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: headers,
       );
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
+        print('📡 Réponse API chorales: ${response.body}');
         
         if (data['success'] == true && data['data'] != null) {
           List<Chorale> chorales = (data['data'] as List)
-              .map((json) => Chorale.fromJson(json))
+              .map((json) {
+                print('🔄 Conversion chorale: $json');
+                return Chorale.fromJson(json);
+              })
               .toList();
+          
+          print('✅ Chorales converties: ${chorales.length} chorales');
+          for (var chorale in chorales) {
+            print('   - ${chorale.nom} (${chorale.ville})');
+          }
           
           return ApiResponse<List<Chorale>>(data: chorales);
         } else {
+          print('❌ Erreur dans la réponse API: ${data['message']}');
           return ApiResponse<List<Chorale>>(error: data['message'] ?? 'Erreur lors du chargement des chorales');
         }
       } else {
+        print('❌ Erreur HTTP: ${response.statusCode} - ${response.body}');
         return ApiResponse<List<Chorale>>(error: 'Erreur serveur: ${response.statusCode}');
       }
     } catch (e) {
@@ -39,14 +66,29 @@ class ChoraleService {
   }
 
   /// Recherche des chorales par nom
+  /// L'API de recherche est accessible sans authentification
   static Future<ApiResponse<List<Chorale>>> searchChorales(String query) async {
     try {
+      // Récupérer le token d'authentification (optionnel)
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+      
+      Map<String, String> headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      };
+      
+      // Ajouter le token d'authentification si disponible (optionnel)
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+        print('🔐 Token d\'authentification ajouté pour la recherche');
+      } else {
+        print('🌐 Recherche publique des chorales (sans authentification)');
+      }
+      
       final response = await http.get(
         Uri.parse('$_baseUrl/api/chorales/search?q=${Uri.encodeComponent(query)}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -108,69 +150,4 @@ class ChoraleService {
     }
   }
 
-  /// Données de test pour le développement
-  static List<Chorale> getTestChorales() {
-    return [
-      Chorale(
-        id: 1,
-        nom: 'Chorale Saint Gabriel',
-        description: 'Chorale paroissiale de Saint Gabriel',
-        ville: 'Ouagadougou',
-        pays: 'Burkina Faso',
-        active: true,
-        createdAt: DateTime.now().subtract(const Duration(days: 30)),
-        updatedAt: DateTime.now(),
-      ),
-      Chorale(
-        id: 2,
-        nom: 'Chorale de la Sympathie',
-        description: 'Chorale communautaire de la Sympathie',
-        ville: 'Bobo-Dioulasso',
-        pays: 'Burkina Faso',
-        active: true,
-        createdAt: DateTime.now().subtract(const Duration(days: 25)),
-        updatedAt: DateTime.now(),
-      ),
-      Chorale(
-        id: 3,
-        nom: 'Chorale de l\'Espoir',
-        description: 'Chorale de l\'église de l\'Espoir',
-        ville: 'Koudougou',
-        pays: 'Burkina Faso',
-        active: true,
-        createdAt: DateTime.now().subtract(const Duration(days: 20)),
-        updatedAt: DateTime.now(),
-      ),
-      Chorale(
-        id: 4,
-        nom: 'Chorale Notre-Dame',
-        description: 'Chorale de la cathédrale Notre-Dame',
-        ville: 'Ouagadougou',
-        pays: 'Burkina Faso',
-        active: true,
-        createdAt: DateTime.now().subtract(const Duration(days: 15)),
-        updatedAt: DateTime.now(),
-      ),
-      Chorale(
-        id: 5,
-        nom: 'Chorale Sainte Thérèse',
-        description: 'Chorale de la paroisse Sainte Thérèse',
-        ville: 'Fada N\'Gourma',
-        pays: 'Burkina Faso',
-        active: true,
-        createdAt: DateTime.now().subtract(const Duration(days: 10)),
-        updatedAt: DateTime.now(),
-      ),
-      Chorale(
-        id: 6,
-        nom: 'Chorale Saint Joseph',
-        description: 'Chorale de l\'église Saint Joseph',
-        ville: 'Banfora',
-        pays: 'Burkina Faso',
-        active: true,
-        createdAt: DateTime.now().subtract(const Duration(days: 5)),
-        updatedAt: DateTime.now(),
-      ),
-    ];
-  }
 }

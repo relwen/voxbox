@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:voxbox/functions/appconstants.dart';
+import 'package:voxbox/services/file_upload_service.dart';
 import 'package:voxbox/widgets/widgets.dart';
 import 'package:voxbox/models/chant_de_messe.dart';
 
@@ -13,9 +15,9 @@ class AddFilesToChantScreen extends StatefulWidget {
 }
 
 class _AddFilesToChantScreenState extends State<AddFilesToChantScreen> {
-  List<String> selectedAudioFiles = [];
-  List<String> selectedPdfFiles = [];
-  List<String> selectedImageFiles = [];
+  List<File> selectedAudioFiles = [];
+  List<File> selectedPdfFiles = [];
+  List<File> selectedImageFiles = [];
   bool loading = false;
 
   @override
@@ -98,7 +100,7 @@ class _AddFilesToChantScreenState extends State<AddFilesToChantScreen> {
               color: Colors.green,
               files: selectedAudioFiles,
               onAdd: _addAudioFiles,
-              onRemove: (index) => _removeFile(selectedAudioFiles, index),
+              onRemove: _removeAudioFile,
             ),
 
             const SizedBox(height: 16),
@@ -110,7 +112,7 @@ class _AddFilesToChantScreenState extends State<AddFilesToChantScreen> {
               color: Colors.red,
               files: selectedPdfFiles,
               onAdd: _addPdfFiles,
-              onRemove: (index) => _removeFile(selectedPdfFiles, index),
+              onRemove: _removePdfFile,
             ),
 
             const SizedBox(height: 16),
@@ -122,7 +124,7 @@ class _AddFilesToChantScreenState extends State<AddFilesToChantScreen> {
               color: Colors.blue,
               files: selectedImageFiles,
               onAdd: _addImageFiles,
-              onRemove: (index) => _removeFile(selectedImageFiles, index),
+              onRemove: _removeImageFile,
             ),
 
             const SizedBox(height: 20),
@@ -163,7 +165,7 @@ class _AddFilesToChantScreenState extends State<AddFilesToChantScreen> {
     required String title,
     required IconData icon,
     required Color color,
-    required List<String> files,
+    required List<File> files,
     required VoidCallback onAdd,
     required Function(int) onRemove,
   }) {
@@ -235,7 +237,7 @@ class _AddFilesToChantScreenState extends State<AddFilesToChantScreen> {
             else
               ...files.asMap().entries.map((entry) {
                 int index = entry.key;
-                String file = entry.value;
+                File file = entry.value;
                 return _buildFileItem(file, index, color, () => onRemove(index));
               }).toList(),
           ],
@@ -244,7 +246,7 @@ class _AddFilesToChantScreenState extends State<AddFilesToChantScreen> {
     );
   }
 
-  Widget _buildFileItem(String file, int index, Color color, VoidCallback onRemove) {
+  Widget _buildFileItem(File file, int index, Color color, VoidCallback onRemove) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -271,7 +273,7 @@ class _AddFilesToChantScreenState extends State<AddFilesToChantScreen> {
                   ),
                 ),
                 Text(
-                  file.split('/').last,
+                  FileUploadService.getFileName(file.path),
                   style: const TextStyle(
                     fontSize: 12,
                     color: Colors.grey,
@@ -297,48 +299,102 @@ class _AddFilesToChantScreenState extends State<AddFilesToChantScreen> {
     return Icons.insert_drive_file;
   }
 
-  void _addAudioFiles() {
-    // TODO: Implémenter la sélection de fichiers audio
-    setState(() {
-      selectedAudioFiles.add('audio_${selectedAudioFiles.length + 1}.mp3');
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Fonctionnalité de sélection audio à implémenter'),
-        backgroundColor: Colors.orange,
-      ),
-    );
+  void _addAudioFiles() async {
+    try {
+      List<File> files = await FileUploadService.selectMultipleAudioFiles();
+      
+      if (files.isNotEmpty) {
+        setState(() {
+          selectedAudioFiles.addAll(files);
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${files.length} fichier(s) audio ajouté(s)'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors de la sélection des fichiers audio: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
-  void _addPdfFiles() {
-    // TODO: Implémenter la sélection de fichiers PDF
-    setState(() {
-      selectedPdfFiles.add('partition_${selectedPdfFiles.length + 1}.pdf');
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Fonctionnalité de sélection PDF à implémenter'),
-        backgroundColor: Colors.orange,
-      ),
-    );
+  void _addPdfFiles() async {
+    try {
+      List<File> files = await FileUploadService.selectMultiplePdfFiles();
+      
+      if (files.isNotEmpty) {
+        setState(() {
+          selectedPdfFiles.addAll(files);
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${files.length} fichier(s) PDF ajouté(s)'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors de la sélection des fichiers PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
-  void _addImageFiles() {
-    // TODO: Implémenter la sélection d'images
-    setState(() {
-      selectedImageFiles.add('image_${selectedImageFiles.length + 1}.jpg');
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Fonctionnalité de sélection d\'images à implémenter'),
-        backgroundColor: Colors.orange,
-      ),
-    );
+  void _addImageFiles() async {
+    try {
+      List<File> files = await FileUploadService.selectMultipleImageFiles();
+      
+      if (files.isNotEmpty) {
+        setState(() {
+          selectedImageFiles.addAll(files);
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${files.length} image(s) ajoutée(s)'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors de la sélection des images: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
-  void _removeFile(List<String> files, int index) {
+  void _removeAudioFile(int index) {
     setState(() {
-      files.removeAt(index);
+      selectedAudioFiles.removeAt(index);
+    });
+  }
+
+  void _removePdfFile(int index) {
+    setState(() {
+      selectedPdfFiles.removeAt(index);
+    });
+  }
+
+  void _removeImageFile(int index) {
+    setState(() {
+      selectedImageFiles.removeAt(index);
     });
   }
 

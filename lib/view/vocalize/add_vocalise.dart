@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-// import 'package:file_picker/file_picker.dart';  // Temporairement commenté
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/functions/styles.dart';
 import 'package:voxbox/services/vocalise_service.dart';
+import 'package:voxbox/services/file_upload_service.dart';
 import 'package:voxbox/widgets/widgets.dart';
 
 class AddVocaliseScreen extends StatefulWidget {
@@ -285,18 +285,21 @@ class _AddVocaliseScreenState extends State<AddVocaliseScreen> {
   }
 
   Future<void> _selectAudioFile() async {
-    // Temporairement commenté - file_picker en conflit
-    /*
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.audio,
-        allowMultiple: false,
-      );
-
-      if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
+      File? selectedFile = await FileUploadService.selectAudioFile();
+      
+      if (selectedFile != null) {
         setState(() {
-          _selectedAudioFile = File(result.files.first.path!);
+          _selectedAudioFile = selectedFile;
         });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fichier sélectionné: ${FileUploadService.getFileName(selectedFile.path)}'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -306,14 +309,6 @@ class _AddVocaliseScreenState extends State<AddVocaliseScreen> {
         ),
       );
     }
-    */
-    // TODO: Réactiver quand file_picker sera résolu
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Sélection audio temporairement désactivée'),
-        backgroundColor: Colors.orange,
-      ),
-    );
   }
 
   void _cancel() {

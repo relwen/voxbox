@@ -32,9 +32,9 @@ class _ChoraleSelectorState extends State<ChoraleSelector> {
   @override
   void initState() {
     super.initState();
-    _loadChorales();
     _searchController.addListener(_onSearchChanged);
     _focusNode.addListener(_onFocusChanged);
+    // Ne pas charger les chorales automatiquement - attendre une connexion
   }
 
   @override
@@ -48,6 +48,11 @@ class _ChoraleSelectorState extends State<ChoraleSelector> {
     setState(() {
       _showDropdown = _focusNode.hasFocus;
     });
+    
+    // Charger les chorales quand l'utilisateur clique sur le champ
+    if (_focusNode.hasFocus && _chorales.isEmpty) {
+      _loadChorales();
+    }
   }
 
   void _onSearchChanged() {
@@ -74,8 +79,13 @@ class _ChoraleSelectorState extends State<ChoraleSelector> {
     });
 
     try {
+      // L'API des chorales est accessible sans authentification
+      print('🔄 Chargement des chorales depuis l\'API...');
+
       // Récupérer les chorales depuis la base de données
+      print('🔄 Début du chargement des chorales...');
       final response = await ChoraleService.getChorales();
+      print('📡 Réponse reçue: error=${response.error}, data=${response.data}');
       
       if (response.error == null && response.data != null) {
         setState(() {
@@ -90,43 +100,41 @@ class _ChoraleSelectorState extends State<ChoraleSelector> {
           print('   - ${chorale.nom} (${chorale.ville})');
         }
       } else {
-        // En cas d'erreur, utiliser les données de test comme fallback
-        print('⚠️ Erreur API, utilisation des données de test: ${response.error}');
-        final testChorales = ChoraleService.getTestChorales();
+        // En cas d'erreur, afficher un message d'erreur
+        print('❌ Erreur API: ${response.error}');
         
         setState(() {
-          _chorales = testChorales;
-          _filteredChorales = testChorales;
+          _chorales = [];
+          _filteredChorales = [];
           _loading = false;
         });
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Chorales chargées en mode hors ligne (${testChorales.length} chorales)'),
-              backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 3),
+              content: Text('Erreur lors du chargement des chorales: ${response.error}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
             ),
           );
         }
       }
     } catch (e) {
-      // En cas d'exception, utiliser les données de test
-      print('❌ Exception lors du chargement, utilisation des données de test: $e');
-      final testChorales = ChoraleService.getTestChorales();
+      // En cas d'exception, afficher un message d'erreur
+      print('❌ Exception lors du chargement: $e');
       
       setState(() {
-        _chorales = testChorales;
-        _filteredChorales = testChorales;
+        _chorales = [];
+        _filteredChorales = [];
         _loading = false;
       });
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Chorales chargées en mode hors ligne (${testChorales.length} chorales)'),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 3),
+            content: Text('Erreur de connexion: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -152,6 +160,11 @@ class _ChoraleSelectorState extends State<ChoraleSelector> {
   }
 
   void _refreshChorales() {
+    _loadChorales();
+  }
+  
+  /// Méthode publique pour recharger les chorales après connexion
+  void reloadChorales() {
     _loadChorales();
   }
 

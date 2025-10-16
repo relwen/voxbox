@@ -36,6 +36,16 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> {
     });
 
     try {
+      // D'abord charger depuis le cache local (avec fichiers ajoutés)
+      final cachedChants = await MesseService.getSectionChantsFromCache(widget.section.id);
+      if (cachedChants.isNotEmpty) {
+        setState(() {
+          chants = cachedChants;
+          loading = false;
+        });
+      }
+
+      // Ensuite essayer de synchroniser avec le serveur
       var response = await MesseService.getSectionChants(widget.section.id);
       if (response.error == null) {
         setState(() {

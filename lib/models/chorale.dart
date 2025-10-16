@@ -22,9 +22,9 @@ class Chorale {
   factory Chorale.fromJson(Map<String, dynamic> json) {
     return Chorale(
       id: json['id'],
-      nom: json['nom'],
+      nom: json['name'] ?? json['nom'], // Support des deux formats
       description: json['description'],
-      ville: json['ville'],
+      ville: json['location'] ?? json['ville'], // Support des deux formats
       pays: json['pays'],
       active: json['active'] ?? true,
       createdAt: DateTime.parse(json['created_at']),
@@ -35,9 +35,9 @@ class Chorale {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'nom': nom,
+      'name': nom, // Utiliser 'name' pour correspondre au backend
       'description': description,
-      'ville': ville,
+      'location': ville, // Utiliser 'location' pour correspondre au backend
       'pays': pays,
       'active': active,
       'created_at': createdAt.toIso8601String(),

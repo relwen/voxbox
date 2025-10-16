@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/widgets/widgets.dart';
 import 'package:voxbox/models/chant_de_messe.dart';
 import 'package:voxbox/view/messes/add_files_to_chant.dart';
+import 'package:voxbox/services/chant_service.dart';
+import 'package:voxbox/services/file_upload_service.dart';
 
 class ChantDetailsScreen extends StatefulWidget {
   final ChantDeMesse chant;
@@ -16,11 +19,44 @@ class ChantDetailsScreen extends StatefulWidget {
 class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTickerProviderStateMixin {
   bool loading = false;
   late TabController _tabController;
+  ChantDeMesse? _currentChant;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 6, vsync: this);
+    _currentChant = widget.chant;
+    _loadChantData();
+  }
+
+  Future<void> _loadChantData() async {
+    setState(() {
+      loading = true;
+    });
+
+    try {
+      // D'abord charger les données locales (avec fichiers en attente)
+      final localChant = await ChantService.getLocalChant(widget.chant.id);
+      if (localChant != null) {
+        setState(() {
+          _currentChant = localChant;
+        });
+      }
+
+      // Ensuite essayer de synchroniser avec le serveur
+      final response = await ChantService.syncChant(widget.chant.id);
+      if (response.error == null && response.data != null) {
+        setState(() {
+          _currentChant = response.data as ChantDeMesse;
+        });
+      }
+    } catch (e) {
+      print('Erreur lors du chargement des données du chant: $e');
+    } finally {
+      setState(() {
+        loading = false;
+      });
+    }
   }
 
   @override
@@ -31,27 +67,53 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
 
   @override
   Widget build(BuildContext context) {
+    if (_currentChant == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Chargement...'),
+          backgroundColor: AppConstance.primary,
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: MyText(
-          text: widget.chant.titre,
+          text: _currentChant!.titre,
           color: Colors.white,
           size: 18,
           fontweight: FontWeight.bold,
         ),
         backgroundColor: AppConstance.primary,
         actions: [
+          FutureBuilder<bool>(
+            future: ChantService.hasPendingFiles(_currentChant!.id),
+            builder: (context, snapshot) {
+              final hasPending = snapshot.data ?? false;
+              return IconButton(
+                icon: Icon(
+                  hasPending ? Icons.cloud_upload : Icons.cloud_done,
+                  color: hasPending ? Colors.orange : Colors.green,
+                ),
+                onPressed: _loadChantData,
+                tooltip: hasPending ? 'Fichiers en attente de sync' : 'Synchronisé',
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _loadChantData,
+            tooltip: 'Actualiser',
+          ),
           IconButton(
             icon: const Icon(Icons.add, color: Colors.white),
             onPressed: () => _addFiles(),
             tooltip: 'Ajouter des fichiers',
           ),
-          IconButton(
-            icon: const Icon(Icons.share, color: Colors.white),
-            onPressed: () {
-              // TODO: Implémenter le partage
-            },
-          ),
+          
         ],
       ),
       body: Column(
@@ -72,15 +134,15 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.chant.titre,
+                        _currentChant!.titre,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      if (widget.chant.description != null)
+                      if (_currentChant!.description != null)
                         Text(
-                          widget.chant.description!,
+                          _currentChant!.description!,
                           style: const TextStyle(
                             fontSize: 14,
                             color: Colors.grey,
@@ -115,11 +177,11 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildPupitreTab('Soprano', widget.chant.sopranoUrls, Colors.pink),
-                _buildPupitreTab('Alto', widget.chant.altoUrls, Colors.orange),
-                _buildPupitreTab('Ténor', widget.chant.tenorUrls, Colors.blue),
-                _buildPupitreTab('Basse', widget.chant.basseUrls, Colors.brown),
-                _buildPupitreTab('Tutti', widget.chant.tuttiUrls, Colors.purple),
+                _buildPupitreTab('Soprano', _currentChant!.sopranoUrls, Colors.pink),
+                _buildPupitreTab('Alto', _currentChant!.altoUrls, Colors.orange),
+                _buildPupitreTab('Ténor', _currentChant!.tenorUrls, Colors.blue),
+                _buildPupitreTab('Basse', _currentChant!.basseUrls, Colors.brown),
+                _buildPupitreTab('Tutti', _currentChant!.tuttiUrls, Colors.purple),
                 _buildGeneralTab(),
               ],
             ),
@@ -191,74 +253,131 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
               int index = entry.key;
               String file = entry.value;
               return _buildFileItem(file, index + 1, color);
-            }).toList(),
+            }),
         ],
       ),
     );
   }
 
   Widget _buildFileItem(String file, int index, Color color) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            _getFileIcon(file),
-            color: color,
-            size: 20,
+    return FutureBuilder<bool>(
+      future: _isFilePending(file),
+      builder: (context, snapshot) {
+        final isPending = snapshot.data ?? false;
+        
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: isPending ? Colors.orange : Colors.grey.shade300,
+              width: isPending ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(8),
+            color: isPending ? Colors.orange.withValues(alpha: 0.1) : null,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Fichier $index',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w500,
+          child: Row(
+            children: [
+              Stack(
+                children: [
+                  Icon(
+                    _getFileIcon(file),
+                    color: color,
+                    size: 20,
                   ),
+                  if (isPending)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.orange,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Fichier $index',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          isPending ? Icons.cloud_upload : Icons.cloud_done,
+                          size: 12,
+                          color: isPending ? Colors.orange : Colors.green,
+                        ),
+                      ],
+                    ),
+                    Text(
+                      file.split('/').last,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    if (isPending)
+                      const Text(
+                        'En attente de synchronisation',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.orange,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
                 ),
-                Text(
-                  file.split('/').last,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.download, color: Colors.blue),
+                onPressed: () => _downloadFile(file),
+                tooltip: 'Télécharger',
+              ),
+              if (_isAudioFile(file))
+                IconButton(
+                  icon: const Icon(Icons.play_arrow, color: Colors.green),
+                  onPressed: () => _playAudio(file),
+                  tooltip: 'Lire',
                 ),
-              ],
-            ),
+              if (_isPdfFile(file))
+                IconButton(
+                  icon: const Icon(Icons.visibility, color: Colors.orange),
+                  onPressed: () => _viewPdf(file),
+                  tooltip: 'Voir',
+                ),
+              if (_isImageFile(file))
+                IconButton(
+                  icon: const Icon(Icons.visibility, color: Colors.purple),
+                  onPressed: () => _viewImage(file),
+                  tooltip: 'Voir',
+                ),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.download, color: Colors.blue),
-            onPressed: () => _downloadFile(file),
-            tooltip: 'Télécharger',
-          ),
-          if (_isAudioFile(file))
-            IconButton(
-              icon: const Icon(Icons.play_arrow, color: Colors.green),
-              onPressed: () => _playAudio(file),
-              tooltip: 'Lire',
-            ),
-          if (_isPdfFile(file))
-            IconButton(
-              icon: const Icon(Icons.visibility, color: Colors.orange),
-              onPressed: () => _viewPdf(file),
-              tooltip: 'Voir',
-            ),
-          if (_isImageFile(file))
-            IconButton(
-              icon: const Icon(Icons.visibility, color: Colors.purple),
-              onPressed: () => _viewImage(file),
-              tooltip: 'Voir',
-            ),
-        ],
-      ),
+        );
+      },
     );
+  }
+
+  Future<bool> _isFilePending(String filePath) async {
+    try {
+      final pendingFiles = await ChantService.getPendingFiles(_currentChant!.id);
+      return pendingFiles.any((file) => 
+        file['filePath'] == filePath && file['synced'] != true);
+    } catch (e) {
+      return false;
+    }
   }
 
   Widget _buildEmptyState(String pupitreName, Color color) {
@@ -304,32 +423,32 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Fichiers généraux (audio, PDF, images)
-          if (widget.chant.audioFiles?.isNotEmpty == true || widget.chant.audioPath != null)
+          if (_currentChant!.audioFiles?.isNotEmpty == true || _currentChant!.audioPath != null)
             _buildFileSection(
               title: 'Fichiers Audio',
               icon: Icons.audiotrack,
               color: Colors.green,
-              files: widget.chant.audioFiles ?? (widget.chant.audioPath != null ? [widget.chant.audioPath!] : []),
+              files: _currentChant!.audioFiles ?? (_currentChant!.audioPath != null ? [_currentChant!.audioPath!] : []),
             ),
 
           const SizedBox(height: 16),
 
-          if (widget.chant.pdfFiles?.isNotEmpty == true || widget.chant.pdfPath != null)
+          if (_currentChant!.pdfFiles?.isNotEmpty == true || _currentChant!.pdfPath != null)
             _buildFileSection(
               title: 'Partitions PDF',
               icon: Icons.picture_as_pdf,
               color: Colors.red,
-              files: widget.chant.pdfFiles ?? (widget.chant.pdfPath != null ? [widget.chant.pdfPath!] : []),
+              files: _currentChant!.pdfFiles ?? (_currentChant!.pdfPath != null ? [_currentChant!.pdfPath!] : []),
             ),
 
           const SizedBox(height: 16),
 
-          if (widget.chant.imageFiles?.isNotEmpty == true || widget.chant.imagePath != null)
+          if (_currentChant!.imageFiles?.isNotEmpty == true || _currentChant!.imagePath != null)
             _buildFileSection(
               title: 'Images',
               icon: Icons.image,
               color: Colors.blue,
-              files: widget.chant.imageFiles ?? (widget.chant.imagePath != null ? [widget.chant.imagePath!] : []),
+              files: _currentChant!.imageFiles ?? (_currentChant!.imagePath != null ? [_currentChant!.imagePath!] : []),
             ),
 
           const SizedBox(height: 20),
@@ -350,10 +469,10 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _buildInfoRow('Ordre', widget.chant.ordre.toString()),
-                  _buildInfoRow('Statut', widget.chant.active ? 'Actif' : 'Inactif'),
-                  _buildInfoRow('Créé le', _formatDate(widget.chant.createdAt)),
-                  _buildInfoRow('Modifié le', _formatDate(widget.chant.updatedAt)),
+                  _buildInfoRow('Ordre', _currentChant!.ordre.toString()),
+                  _buildInfoRow('Statut', _currentChant!.active ? 'Actif' : 'Inactif'),
+                  _buildInfoRow('Créé le', _formatDate(_currentChant!.createdAt)),
+                  _buildInfoRow('Modifié le', _formatDate(_currentChant!.updatedAt)),
                 ],
               ),
             ),
@@ -391,7 +510,7 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -410,7 +529,7 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
               int index = entry.key;
               String file = entry.value;
               return _buildFileItem(file, index + 1, color);
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -477,13 +596,28 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
     });
 
     try {
-      // TODO: Implémenter le téléchargement
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Téléchargement de $file...'),
-          backgroundColor: Colors.blue,
-        ),
-      );
+      final fileName = file.split('/').last;
+      final success = await ChantService.downloadFile(file, fileName);
+      
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Fichier téléchargé avec succès'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Erreur lors du téléchargement'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -532,18 +666,141 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddFilesToChantScreen(chant: widget.chant),
+        builder: (context) => AddFilesToChantScreen(chant: _currentChant!),
       ),
-    );
+    ).then((_) {
+      // Recharger les données après ajout de fichiers
+      _loadChantData();
+    });
   }
 
-  void _addFilesToPupitre(String pupitreName) {
-    // TODO: Implémenter l'ajout de fichiers spécifiques à un pupitre
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Ajout de fichiers pour le pupitre $pupitreName...'),
-        backgroundColor: Colors.blue,
-      ),
-    );
+  void _addFilesToPupitre(String pupitreName) async {
+    try {
+      // Sélectionner des fichiers pour le pupitre
+      List<File> selectedFiles = [];
+      
+      // Afficher un dialogue pour choisir le type de fichier
+      final fileType = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Ajouter des fichiers pour $pupitreName'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.audiotrack, color: Colors.green),
+                title: const Text('Fichiers Audio'),
+                onTap: () => Navigator.pop(context, 'audio'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                title: const Text('Fichiers PDF'),
+                onTap: () => Navigator.pop(context, 'pdf'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.image, color: Colors.blue),
+                title: const Text('Images'),
+                onTap: () => Navigator.pop(context, 'image'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (fileType != null) {
+        setState(() {
+          loading = true;
+        });
+
+        // Sélectionner les fichiers selon le type
+        switch (fileType) {
+          case 'audio':
+            selectedFiles = await FileUploadService.selectMultipleAudioFiles();
+            break;
+          case 'pdf':
+            selectedFiles = await FileUploadService.selectMultiplePdfFiles();
+            break;
+          case 'image':
+            selectedFiles = await FileUploadService.selectMultipleImageFiles();
+            break;
+        }
+
+        if (selectedFiles.isNotEmpty) {
+          // Sauvegarder localement d'abord
+          final filePaths = selectedFiles.map((file) => file.path).toList();
+          await ChantService.addPendingFiles(
+            _currentChant!.id,
+            fileType,
+            filePaths,
+            pupitreName,
+          );
+
+          // Mettre à jour l'affichage immédiatement
+          _loadChantData();
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${selectedFiles.length} fichier(s) ajouté(s) localement pour $pupitreName'),
+                backgroundColor: Colors.blue,
+              ),
+            );
+          }
+
+          // Essayer de synchroniser en arrière-plan
+          try {
+            final response = await ChantService.addPupitreFiles(
+              _currentChant!.id,
+              pupitreName,
+              selectedFiles,
+            );
+
+            if (response.error == null) {
+              // Marquer comme synchronisé
+              await ChantService.markFilesAsSynced(_currentChant!.id, filePaths);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Fichiers synchronisés avec le serveur'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Fichiers ajoutés localement. Synchronisation en attente.'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              }
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Fichiers ajoutés localement. Synchronisation en attente.'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        loading = false;
+      });
+    }
   }
 }

@@ -8,6 +8,7 @@ import 'package:voxbox/models/messe.dart';
 import 'package:voxbox/models/messe_section.dart';
 import 'package:voxbox/models/chant_de_messe.dart';
 import 'package:voxbox/services/api_response.dart';
+import 'package:voxbox/services/unified_cache_service.dart';
 
 class MesseService {
   static const String _messesKey = 'local_messes';
@@ -150,6 +151,10 @@ class MesseService {
           List<ChantDeMesse> chants = (data['data'] as List)
               .map((json) => ChantDeMesse.fromJson(json))
               .toList();
+          
+          // Sauvegarder les chants dans le cache unifié
+          await UnifiedCacheService.saveChants(chants);
+          
           return ApiResponse<List<ChantDeMesse>>(data: chants);
         } else {
           return ApiResponse<List<ChantDeMesse>>(error: data['message'] ?? 'Erreur serveur');
@@ -159,6 +164,17 @@ class MesseService {
       }
     } catch (e) {
       return ApiResponse<List<ChantDeMesse>>(error: 'Erreur de connexion: $e');
+    }
+  }
+
+  /// Récupérer les chants d'une section depuis le cache local
+  static Future<List<ChantDeMesse>> getSectionChantsFromCache(int sectionId) async {
+    try {
+      // Utiliser le service unifié pour récupérer les chants avec leurs fichiers locaux
+      return await UnifiedCacheService.getChantsBySection(sectionId);
+    } catch (e) {
+      print('Erreur lors de la récupération des chants du cache: $e');
+      return [];
     }
   }
 

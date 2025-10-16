@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-// import 'package:file_picker/file_picker.dart';  // Temporairement commenté
 import 'package:image_picker/image_picker.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/functions/styles.dart';
 import 'package:voxbox/services/partition_service.dart';
 import 'package:voxbox/services/category_service.dart';
+import 'package:voxbox/services/file_upload_service.dart';
 import 'package:voxbox/models/category.dart';
 import 'package:voxbox/widgets/widgets.dart';
 
@@ -400,18 +400,21 @@ class _AddPartitionScreenState extends State<AddPartitionScreen> {
   }
 
   Future<void> _selectAudioFile() async {
-    // Temporairement commenté - file_picker en conflit
-    /*
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.audio,
-        allowMultiple: false,
-      );
-
-      if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
+      File? selectedFile = await FileUploadService.selectAudioFile();
+      
+      if (selectedFile != null) {
         setState(() {
-          _selectedAudioFile = File(result.files.first.path!);
+          _selectedAudioFile = selectedFile;
         });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fichier audio sélectionné: ${FileUploadService.getFileName(selectedFile.path)}'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -421,30 +424,24 @@ class _AddPartitionScreenState extends State<AddPartitionScreen> {
         ),
       );
     }
-    */
-    // TODO: Réactiver quand file_picker sera résolu
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Sélection audio temporairement désactivée'),
-        backgroundColor: Colors.orange,
-      ),
-    );
   }
 
   Future<void> _selectPdfFile() async {
-    // Temporairement commenté - file_picker en conflit
-    /*
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf'],
-        allowMultiple: false,
-      );
-
-      if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
+      File? selectedFile = await FileUploadService.selectPdfFile();
+      
+      if (selectedFile != null) {
         setState(() {
-          _selectedPdfFile = File(result.files.first.path!);
+          _selectedPdfFile = selectedFile;
         });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fichier PDF sélectionné: ${FileUploadService.getFileName(selectedFile.path)}'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -454,14 +451,6 @@ class _AddPartitionScreenState extends State<AddPartitionScreen> {
         ),
       );
     }
-    */
-    // TODO: Réactiver quand file_picker sera résolu
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Sélection PDF temporairement désactivée'),
-        backgroundColor: Colors.orange,
-      ),
-    );
   }
 
   Future<void> _selectImageFile() async {

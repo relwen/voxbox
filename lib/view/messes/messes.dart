@@ -37,10 +37,11 @@ class _MessesScreenState extends State<MessesScreen> {
       if (categoryResponse.error == null) {
         List<Category> allCategories = categoryResponse.data as List<Category>;
         
-        // Filtrer les catégories de messes (exclure la catégorie générale "Messes")
+        // Filtrer les catégories de messes (exclure la catégorie générale "Messes" et les sections)
         setState(() {
           messeFolders = allCategories.where((cat) => 
             cat.name.toLowerCase() != 'messes' && 
+            !cat.name.contains(' - ') && // Exclure les sections (qui contiennent " - ")
             (cat.name.toLowerCase().contains('st gabriel') ||
              cat.name.toLowerCase().contains('sympathie') ||
              cat.name.toLowerCase().contains('pentecote') ||
@@ -133,6 +134,7 @@ class _MessesScreenState extends State<MessesScreen> {
         setState(() {
           messeFolders = allCategories.where((cat) => 
             cat.name.toLowerCase() != 'messes' && 
+            !cat.name.contains(' - ') && // Exclure les sections (qui contiennent " - ")
             (cat.name.toLowerCase().contains('st gabriel') ||
              cat.name.toLowerCase().contains('sympathie') ||
              cat.name.toLowerCase().contains('pentecote') ||

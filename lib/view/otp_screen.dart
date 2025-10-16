@@ -13,8 +13,8 @@ class OTPScreen extends StatefulWidget {
 }
 
 class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
-  final List<TextEditingController> _otpControllers = List.generate(6, (index) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(6, (index) => FocusNode());
+  final List<TextEditingController> _otpControllers = List.generate(5, (index) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(5, (index) => FocusNode());
   bool loading = false;
   bool isResending = false;
   int countdown = 60;
@@ -117,7 +117,7 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
   void _verifyOTP() async {
     String otp = _otpControllers.map((controller) => controller.text).join();
     
-    if (otp.length != 6) {
+    if (otp.length != 5) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Veuillez saisir le code OTP complet'),
         backgroundColor: Colors.orange
@@ -138,14 +138,14 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
       });
 
       // Simuler la vérification
-      // TODO: Remplacer par la vraie vérification API
-      // Pour l'instant, on redirige toujours vers l'inscription
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => UserRegistrationScreen(phoneNumber: widget.phoneNumber),
-        ),
-      );
+       // TODO: Remplacer par la vraie vérification API
+       // Pour l'instant, on redirige toujours vers l'inscription
+       Navigator.pushReplacement(
+         context,
+         MaterialPageRoute(
+           builder: (context) => const UserRegistrationScreen(),
+         ),
+       );
       
     } catch (e) {
       setState(() {
@@ -196,7 +196,7 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
 
   void _onOTPChanged(int index, String value) {
     if (value.isNotEmpty) {
-      if (index < 5) {
+      if (index < 4) {
         _focusNodes[index + 1].requestFocus();
       } else {
         _focusNodes[index].unfocus();
@@ -221,9 +221,11 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
+
               AppConstance.priGradient,
               AppConstance.secondary,
               AppConstance.primary.withOpacity(0.8),
+
             ],
             stops: const [0.0, 0.6, 1.0],
           ),
@@ -235,46 +237,33 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
             
             // Main content
             SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
-                      child: IntrinsicHeight(
-                        child: Column(
-                          children: [
-                            // Header section - responsive height
-                            SizedBox(
-                              height: constraints.maxHeight * 0.25,
-                              child: FadeTransition(
-                                opacity: _fadeAnimation,
-                                child: SlideTransition(
-                                  position: _slideAnimation,
-                                  child: _buildHeader(),
-                                ),
-                              ),
-                            ),
-                            
-                            // OTP form section
-                            Flexible(
-                              child: ScaleTransition(
-                                scale: _scaleAnimation,
-                                child: _buildOTPForm(),
-                              ),
-                            ),
-                            
-                            // Espace en bas
-                            SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 20),
-                          ],
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Column(
+                  children: [
+                    // Header section
+                    SizedBox(
+                      height: size.height * 0.25,
+                      child: FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: _buildHeader(),
                         ),
                       ),
                     ),
-                  );
-                },
+                    
+                    // OTP form section
+                    ScaleTransition(
+                      scale: _scaleAnimation,
+                      child: _buildOTPForm(),
+                    ),
+                    
+                    // Espace en bas
+                    SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 20),
+                  ],
+                ),
               ),
             ),
           ],
@@ -286,82 +275,53 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
   Widget _buildBackgroundElements(Size size) {
     return Stack(
       children: [
-        // Floating circles with modern design
+        // Floating circles with simple positioning
         Positioned(
-          top: size.height * 0.08,
-          right: -40,
-          child: Container(
-            width: 140,
-            height: 140,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  Colors.white.withOpacity(0.15),
-                  Colors.white.withOpacity(0.05),
-                ],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.white.withOpacity(0.1),
-                  blurRadius: 20,
-                  spreadRadius: 5,
-                ),
-              ],
-            ),
-          ),
-        ),
-        Positioned(
-          top: size.height * 0.25,
-          left: -25,
-          child: Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  Colors.white.withOpacity(0.12),
-                  Colors.white.withOpacity(0.03),
-                ],
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: size.height * 0.15,
-          right: 30,
+          top: size.height * 0.1,
+          right: 20,
           child: Container(
             width: 80,
             height: 80,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  Colors.white.withOpacity(0.1),
-                  Colors.white.withOpacity(0.02),
-                ],
-              ),
+              color: Colors.white.withOpacity(0.15),
             ),
           ),
         ),
-        // Ajout d'éléments géométriques modernes
         Positioned(
-          top: size.height * 0.4,
+          top: size.height * 0.3,
           left: 20,
+          child: Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.1),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: size.height * 0.2,
+          right: 30,
           child: Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
+              shape: BoxShape.circle,
               color: Colors.white.withOpacity(0.08),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.white.withOpacity(0.1),
-                  blurRadius: 10,
-                  spreadRadius: 2,
-                ),
-              ],
+            ),
+          ),
+        ),
+        // Élément géométrique simple
+        Positioned(
+          top: size.height * 0.45,
+          left: 30,
+          child: Container(
+            width: 25,
+            height: 25,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              color: Colors.white.withOpacity(0.12),
             ),
           ),
         ),
@@ -373,31 +333,31 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Logo with modern glassmorphism effect
+        // Logo with enhanced glassmorphism effect
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(
               colors: [
-                Colors.white.withOpacity(0.2),
-                Colors.white.withOpacity(0.1),
+                Colors.white.withOpacity(0.3),
+                Colors.white.withOpacity(0.15),
               ],
             ),
             border: Border.all(
-              color: Colors.white.withOpacity(0.3),
-              width: 1.5,
+              color: Colors.white.withOpacity(0.4),
+              width: 2,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.white.withOpacity(0.2),
-                blurRadius: 40,
-                spreadRadius: 8,
+                color: Colors.white.withOpacity(0.3),
+                blurRadius: 50,
+                spreadRadius: 10,
               ),
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 25,
+                offset: const Offset(0, 15),
               ),
             ],
           ),
@@ -409,16 +369,16 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
         ),
         const SizedBox(height: 24),
         
-        // Title with modern typography
+        // Title with enhanced visibility
         ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Colors.white, Colors.white70, Colors.white60],
-            stops: [0.0, 0.7, 1.0],
+          shaderCallback: (bounds) => LinearGradient(
+            colors: [Colors.white, Colors.white.withOpacity(0.9), Colors.white70],
+            stops: const [0.0, 0.6, 1.0],
           ).createShader(bounds),
           child: const Text(
             'Vérification OTP',
             style: TextStyle(
-              fontSize: 32,
+              fontSize: 28,
               fontWeight: FontWeight.w700,
               color: Colors.white,
               letterSpacing: 0.5,
@@ -427,26 +387,7 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
           ),
         ),
         const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.2),
-              width: 1,
-            ),
-          ),
-          child: Text(
-            'Code envoyé au ${widget.phoneNumber}',
-            style: const TextStyle(
-              fontSize: 16,
-              color: Colors.white,
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
+        
       ],
     );
   }
@@ -493,7 +434,7 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 12),
             Text(
-              'Entrez le code à 6 chiffres reçu par SMS',
+              'Entrez le code à 5 chiffres reçu par SMS',
               style: TextStyle(
                 fontSize: 15,
                 color: Colors.grey[600],
@@ -528,12 +469,12 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
       builder: (context, constraints) {
         // Calculer la largeur disponible et ajuster la taille des champs
         final availableWidth = constraints.maxWidth;
-        final fieldWidth = (availableWidth - 50) / 6; // 50px pour les espaces
-        final fieldSize = fieldWidth.clamp(40.0, 55.0); // Limiter entre 40 et 55px
+        final fieldWidth = (availableWidth - 40) / 5; // 40px pour les espaces
+        final fieldSize = fieldWidth.clamp(45.0, 60.0); // Limiter entre 45 et 60px
         
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: List.generate(6, (index) {
+          children: List.generate(5, (index) {
             final isFocused = _focusNodes[index].hasFocus;
             final hasValue = _otpControllers[index].text.isNotEmpty;
             

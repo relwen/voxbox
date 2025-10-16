@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/models/user.dart';
+import 'package:voxbox/models/chorale.dart';
+import 'package:voxbox/widgets/chorale_selector.dart';
+import 'package:voxbox/view/home.dart';
 
 class UserRegistrationScreen extends StatefulWidget {
-  final String phoneNumber;
-
-  const UserRegistrationScreen({super.key, required this.phoneNumber});
+  const UserRegistrationScreen({super.key});
 
   @override
   State<UserRegistrationScreen> createState() => _UserRegistrationScreenState();
 }
 
-class _UserRegistrationScreenState extends State<UserRegistrationScreen> with TickerProviderStateMixin {
+class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
-  final TextEditingController _choraleController = TextEditingController();
-  
+  Chorale? _selectedChorale;
   String? _selectedPupitre;
   bool loading = false;
 
@@ -29,89 +28,22 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> with Ti
     {'value': 'tutti', 'label': 'Tutti', 'icon': Icons.group, 'color': Colors.purple},
   ];
 
-  // Animations
-  late AnimationController _fadeController;
-  late AnimationController _slideController;
-  late AnimationController _scaleController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeAnimations();
-    _startAnimations();
-  }
 
   @override
   void dispose() {
-    _fadeController.dispose();
-    _slideController.dispose();
-    _scaleController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
-    _choraleController.dispose();
     super.dispose();
-  }
-
-  void _initializeAnimations() {
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-    
-    _slideController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-    
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
-    ));
-
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
-
-    _scaleAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _scaleController,
-      curve: Curves.elasticOut,
-    ));
-  }
-
-  void _startAnimations() {
-    _fadeController.forward();
-    _slideController.forward();
-    Future.delayed(const Duration(milliseconds: 600), () {
-      _scaleController.forward();
-    });
   }
 
   void _createAccount() async {
     if (_firstNameController.text.isEmpty || 
         _lastNameController.text.isEmpty || 
         _selectedPupitre == null || 
-        _choraleController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        _selectedChorale == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Veuillez remplir tous les champs'),
-        backgroundColor: Colors.orange
+        backgroundColor: Colors.red,
       ));
       return;
     }
@@ -121,46 +53,73 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> with Ti
     });
 
     try {
-      // TODO: Appeler l'API pour créer le compte
+      // Simuler un appel API avec validation
       await Future.delayed(const Duration(seconds: 2));
       
-      setState(() {
-        loading = false;
-      });
-
-      // Simuler la création du compte
-      User newUser = User(
-        id: 1,
-        name: '${_firstNameController.text} ${_lastNameController.text}',
-        email: widget.phoneNumber, // Utiliser le téléphone comme email
-        phone: widget.phoneNumber,
-        voicePart: _selectedPupitre!,
-        chorale: {'name': _choraleController.text},
+      // Simuler une validation côté serveur
+      if (_firstNameController.text.length < 2) {
+        throw Exception('Le prénom doit contenir au moins 2 caractères');
+      }
+      
+      if (_lastNameController.text.length < 2) {
+        throw Exception('Le nom doit contenir au moins 2 caractères');
+      }
+      
+      // Créer l'utilisateur avec les vraies données
+      final user = User(
+        id: DateTime.now().millisecondsSinceEpoch, // ID unique temporaire
+        name: '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
+        email: '${_firstNameController.text.toLowerCase()}.${_lastNameController.text.toLowerCase()}@voxbox.bf',
+        phone: '+22600000000', // TODO: Récupérer le vrai numéro depuis l'OTP
+        voicePart: _selectedPupitre,
+        chorale: _selectedChorale!.toJson(),
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Compte créé avec succès !'),
-        backgroundColor: Colors.green
-      ));
+      // Simuler la sauvegarde en base de données
+      print('✅ Compte créé avec succès:');
+      print('   - Nom: ${user.name}');
+      print('   - Email: ${user.email}');
+      print('   - Pupitre: ${user.voicePart}');
+      print('   - Chorale: ${_selectedChorale!.nom}');
 
-      // TODO: Sauvegarder l'utilisateur et naviguer vers l'accueil
-      _saveAndRedirectToHome(newUser);
-      
+      _saveAndRedirectToHome(user);
     } catch (e) {
       setState(() {
         loading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Erreur: $e'),
-        backgroundColor: Colors.red
+        content: Text('Erreur lors de la création: $e'),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
       ));
     }
   }
 
   void _saveAndRedirectToHome(User user) async {
-    // TODO: Sauvegarder l'utilisateur en local
-    // TODO: Naviguer vers l'accueil
-    print('Utilisateur créé: ${user.name}');
+    setState(() {
+      loading = false;
+    });
+
+    // Afficher un message de succès
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Compte créé avec succès ! Bienvenue ${user.name}'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+
+    // Attendre un peu pour que l'utilisateur voie le message
+    await Future.delayed(const Duration(seconds: 1));
+
+    // Naviguer vers l'accueil
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+        (route) => false,
+      );
+    }
   }
 
   @override
@@ -174,499 +133,340 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> with Ti
         height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
               AppConstance.priGradient,
               AppConstance.secondary,
               AppConstance.primary.withOpacity(0.8),
             ],
-            stops: const [0.0, 0.6, 1.0],
+            stops: const [0.0, 0.5, 1.0],
           ),
         ),
-        child: Stack(
-          children: [
-            // Background decorative elements
-            _buildBackgroundElements(size),
-            
-            // Main content
-            SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
-                      child: IntrinsicHeight(
-                        child: Column(
-                          children: [
-                            // Header section - responsive height
-                            SizedBox(
-                              height: constraints.maxHeight * 0.2,
-                              child: FadeTransition(
-                                opacity: _fadeAnimation,
-                                child: SlideTransition(
-                                  position: _slideAnimation,
-                                  child: _buildHeader(),
-                                ),
-                              ),
-                            ),
-                            
-                            // Registration form section
-                            Flexible(
-                              child: ScaleTransition(
-                                scale: _scaleAnimation,
-                                child: _buildRegistrationForm(),
-                              ),
-                            ),
-                            
-                            // Espace en bas
-                            SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 20),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              children: [
+                // Header moderne avec glassmorphism
+                _buildModernHeader(size),
+                
+                // Formulaire avec design card moderne
+                _buildModernForm(size),
+                
+                // Espace en bas
+                SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 30),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildBackgroundElements(Size size) {
-    return Stack(
-      children: [
-        // Floating circles
-        Positioned(
-          top: size.height * 0.1,
-          right: -50,
-          child: Container(
-            width: 120,
-            height: 120,
+  Widget _buildModernHeader(Size size) {
+    return Container(
+      height: size.height * 0.35,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Logo avec effet glassmorphism
+          Container(
+            padding: const EdgeInsets.all(25),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.1),
-            ),
-          ),
-        ),
-        Positioned(
-          top: size.height * 0.3,
-          left: -30,
-          child: Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.08),
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: size.height * 0.2,
-          right: 20,
-          child: Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.06),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHeader() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Logo with glow effect
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withOpacity(0.1),
-            boxShadow: [
-              BoxShadow(
+              color: Colors.white.withOpacity(0.15),
+              border: Border.all(
                 color: Colors.white.withOpacity(0.2),
-                blurRadius: 30,
-                spreadRadius: 5,
+                width: 1.5,
               ),
-            ],
-          ),
-          child: Icon(
-            Icons.person_add_outlined,
-            size: 60,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 20),
-        
-        // Title
-        ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Colors.white, Colors.white70],
-          ).createShader(bounds),
-          child: const Text(
-            'Créer votre compte',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.person_add_rounded,
+              size: 50,
               color: Colors.white,
             ),
-            textAlign: TextAlign.center,
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Complétez vos informations',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.white70,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRegistrationForm() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(32),
-          topRight: Radius.circular(32),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 40,
-            offset: const Offset(0, -15),
-            spreadRadius: 0,
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Title
-            Text(
-              'Informations personnelles',
+          
+          const SizedBox(height: 25),
+          
+          // Titre avec effet de texte moderne
+          ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Colors.white, Colors.white70],
+            ).createShader(bounds),
+            child: const Text(
+              'Créer votre compte',
               style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: AppConstance.primary,
-                letterSpacing: 0.3,
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 1.2,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
-            
-            // First Name field
-            _buildTextField(
-              controller: _firstNameController,
-              label: 'Prénom',
-              icon: Icons.person_outline,
-              hint: 'Votre prénom',
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Sous-titre
+          Text(
+            'Rejoignez notre communauté',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white.withOpacity(0.8),
+              fontWeight: FontWeight.w300,
             ),
-            const SizedBox(height: 12),
-            
-            // Last Name field
-            _buildTextField(
-              controller: _lastNameController,
-              label: 'Nom',
-              icon: Icons.person_outline,
-              hint: 'Votre nom de famille',
-            ),
-            const SizedBox(height: 12),
-            
-            // Pupitre selection
-            _buildPupitreSelection(),
-            const SizedBox(height: 12),
-            
-            // Chorale field
-            _buildTextField(
-              controller: _choraleController,
-              label: 'Chorale',
-              icon: Icons.group_outlined,
-              hint: 'Nom de votre chorale',
-            ),
-            const SizedBox(height: 20),
-            
-            // Create account button
-            _buildCreateAccountButton(),
-            const SizedBox(height: 16),
-            
-            // Loading indicator
-            if (loading) _buildLoadingIndicator(),
-          ],
-        ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildTextField({
+  Widget _buildModernForm(Size size) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(30),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 30,
+            offset: const Offset(0, 15),
+          ),
+        ],
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Titre du formulaire
+          Text(
+            'Informations personnelles',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+            textAlign: TextAlign.center,
+          ),
+          
+          const SizedBox(height: 30),
+          
+          // Champs du formulaire
+          _buildModernTextField(
+            controller: _firstNameController,
+            label: 'Prénom',
+            icon: Icons.person_outline,
+            hint: 'Entrez votre prénom',
+          ),
+          
+          const SizedBox(height: 20),
+          
+          _buildModernTextField(
+            controller: _lastNameController,
+            label: 'Nom',
+            icon: Icons.person_outline,
+            hint: 'Entrez votre nom',
+          ),
+          
+           const SizedBox(height: 20),
+           
+           // Sélecteur de chorales
+           ChoraleSelector(
+             selectedChorale: _selectedChorale,
+             onChoraleSelected: (chorale) {
+               setState(() {
+                 _selectedChorale = chorale;
+               });
+             },
+             label: 'Chorale',
+             hint: 'Rechercher votre chorale...',
+           ),
+          
+          const SizedBox(height: 25),
+          
+          // Sélection du pupitre
+          _buildModernPupitreSelection(),
+          
+          const SizedBox(height: 30),
+          
+          // Bouton de création
+          _buildModernCreateButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     required String hint,
+    TextInputType? keyboardType,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[700],
-          ),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.08),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: TextField(
-            controller: controller,
-            textInputAction: TextInputAction.next,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[500],
-              ),
-              prefixIcon: Icon(
-                icon,
-                color: AppConstance.primary,
-                size: 20,
-              ),
-              filled: true,
-              fillColor: Colors.grey[50],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: AppConstance.primary,
-                  width: 2,
-                ),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 12,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPupitreSelection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Pupitre',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[700],
-          ),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.08),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: DropdownButtonFormField<String>(
-            value: _selectedPupitre,
-            decoration: InputDecoration(
-              hintText: 'Sélectionnez votre pupitre',
-              hintStyle: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[500],
-              ),
-              prefixIcon: Icon(
-                Icons.music_note_outlined,
-                color: AppConstance.primary,
-                size: 20,
-              ),
-              filled: true,
-              fillColor: Colors.grey[50],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: AppConstance.primary,
-                  width: 2,
-                ),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 12,
-              ),
-            ),
-            items: _pupitres.map((pupitre) {
-              return DropdownMenuItem<String>(
-                value: pupitre['value'],
-                child: Row(
-                  children: [
-                    Icon(
-                      pupitre['icon'],
-                      color: pupitre['color'],
-                      size: 18,
-                    ),
-                    const SizedBox(width: 10),
-                    Flexible(
-                      child: Text(
-                        pupitre['label'],
-                        style: const TextStyle(fontSize: 14),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedPupitre = value;
-              });
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCreateAccountButton() {
     return Container(
-      height: 52,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(15),
+        color: Colors.grey[50],
+        border: Border.all(
+          color: Colors.grey[200]!,
+          width: 1,
+        ),
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        style: TextStyle(
+          fontSize: 16,
+          color: Colors.grey[800],
+        ),
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          prefixIcon: Icon(
+            icon,
+            color: Colors.grey[600],
+            size: 22,
+          ),
+          labelStyle: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          hintStyle: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 14,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 18,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernPupitreSelection() {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(15),
+        color: Colors.grey[50],
+        border: Border.all(
+          color: Colors.grey[200]!,
+          width: 1,
+        ),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: _selectedPupitre,
+        decoration: InputDecoration(
+          labelText: 'Pupitre',
+          prefixIcon: Icon(
+            Icons.music_note,
+            color: Colors.grey[600],
+            size: 22,
+          ),
+          labelStyle: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 18,
+          ),
+        ),
+        items: _pupitres.map((Map<String, dynamic> pupitre) {
+          return DropdownMenuItem<String>(
+            value: pupitre['value'],
+            child: Text(
+              pupitre['label'],
+              style: TextStyle(
+                color: Colors.grey[800],
+                fontSize: 16,
+              ),
+            ),
+          );
+        }).toList(),
+        onChanged: (String? newValue) {
+          setState(() {
+            _selectedPupitre = newValue;
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildModernCreateButton() {
+    return Container(
+      height: 56,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppConstance.primary, AppConstance.priGradient],
+          colors: [AppConstance.priGradient, AppConstance.secondary],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: AppConstance.primary.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: const Color(0xFF667eea).withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: loading ? null : _createAccount,
+          borderRadius: BorderRadius.circular(15),
+          onTap: _createAccount,
           child: Center(
             child: loading
                 ? const SizedBox(
-                    width: 22,
-                    height: 22,
+                    width: 24,
+                    height: 24,
                     child: CircularProgressIndicator(
                       color: Colors.white,
-                      strokeWidth: 2.5,
+                      strokeWidth: 2,
                     ),
                   )
-                : Row(
+                : const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.person_add_rounded,
                         color: Colors.white,
-                        size: 20,
+                        size: 22,
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
+                      SizedBox(width: 12),
+                      Text(
                         'Créer mon compte',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 15,
+                          fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          letterSpacing: 0.3,
                         ),
                       ),
                     ],
                   ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildLoadingIndicator() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  AppConstance.primary.withOpacity(0.1),
-                  AppConstance.priGradient.withOpacity(0.1),
-                ],
-              ),
-            ),
-            child: SpinKitCircle(
-              color: AppConstance.primary,
-              size: 35.0,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Création du compte...',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
       ),
     );
   }

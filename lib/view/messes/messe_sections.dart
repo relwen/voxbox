@@ -5,6 +5,7 @@ import 'package:voxbox/models/category.dart';
 import 'package:voxbox/models/partition.dart';
 import 'package:voxbox/services/partition_service.dart';
 import 'package:voxbox/services/category_service.dart';
+import 'package:voxbox/view/messes/section_partitions.dart';
 
 class MesseSectionsScreen extends StatefulWidget {
   final Category messeFolder;
@@ -95,11 +96,10 @@ class _MesseSectionsScreenState extends State<MesseSectionsScreen> {
   }
 
   void _openSection(Category section) {
-    // TODO: Naviguer vers la liste des partitions de cette section
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Ouverture de la section: ${_getSectionName(section.name)}'),
-        backgroundColor: Colors.blue,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SectionPartitionsScreen(section: section),
       ),
     );
   }

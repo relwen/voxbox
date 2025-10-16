@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:voxbox/services/vocalise_service.dart';
-import 'package:voxbox/services/messe_service.dart';
 import 'package:voxbox/services/partition_service.dart';
 
 class AutoSyncService {
@@ -85,22 +84,15 @@ class AutoSyncService {
         _syncStatusController.add('Vocalises synchronisées');
       }
 
-      // Synchroniser les messes
-      _syncStatusController.add('Synchronisation des messes...');
-      try {
-        await MesseService.syncMessess();
-        _syncStatusController.add('Messes synchronisées');
-      } catch (e) {
-        _syncStatusController.add('Erreur messes: $e');
-      }
+      // Les messes sont maintenant gérées par le système unifié de partitions
 
-      // Synchroniser les partitions
+      // Synchroniser les partitions (inclut les messes, chants, etc.)
       _syncStatusController.add('Synchronisation des partitions...');
       final partitionResponse = await PartitionService.syncPartitions();
       if (partitionResponse.error != null) {
         _syncStatusController.add('Erreur partitions: ${partitionResponse.error}');
       } else {
-        _syncStatusController.add('Partitions synchronisées');
+        _syncStatusController.add('Partitions synchronisées (messes incluses)');
       }
 
       _syncStatusController.add('Synchronisation terminée');
@@ -146,21 +138,15 @@ class AutoSyncService {
         _syncStatusController.add('Vocalises synchronisées');
       }
 
-      // Synchroniser les messes
-      try {
-        await MesseService.syncMessess();
-        _syncStatusController.add('Messes synchronisées');
-      } catch (e) {
-        _syncStatusController.add('Erreur messes: $e');
-      }
+      // Les messes sont maintenant gérées par le système unifié de partitions
 
-      // Synchroniser les partitions
+      // Synchroniser les partitions (inclut les messes, chants, etc.)
       _syncStatusController.add('Synchronisation des partitions...');
       final partitionResponse = await PartitionService.syncPartitions();
       if (partitionResponse.error != null) {
         _syncStatusController.add('Erreur partitions: ${partitionResponse.error}');
       } else {
-        _syncStatusController.add('Partitions synchronisées');
+        _syncStatusController.add('Partitions synchronisées (messes incluses)');
       }
 
       _syncStatusController.add('Synchronisation forcée terminée');

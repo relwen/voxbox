@@ -90,6 +90,9 @@ class VocaliseService {
           // Mettre à jour le stockage local
           await saveLocalVocalises(vocalises);
           
+          // Télécharger automatiquement les fichiers audio
+          await _downloadAllAudioFiles(vocalises);
+          
           apiResponse.data = vocalises;
           apiResponse.error = null;
           break;
@@ -149,6 +152,9 @@ class VocaliseService {
             }
             
             await saveLocalVocalises(vocaliseMap.values.toList());
+            
+            // Télécharger automatiquement les fichiers audio des nouvelles vocalises
+            await _downloadAllAudioFiles(vocalises);
           }
           
           await saveLastSync(newLastSync);
@@ -424,6 +430,24 @@ class VocaliseService {
       }
     } catch (e) {
       print('Erreur lors du nettoyage: $e');
+    }
+  }
+
+  // Télécharger automatiquement tous les fichiers audio
+  static Future<void> _downloadAllAudioFiles(List<Vocalise> vocalises) async {
+    try {
+      print('🎵 Téléchargement automatique des fichiers audio...');
+      
+      for (Vocalise vocalise in vocalises) {
+        if (vocalise.audioPath != null && !vocalise.isDownloaded) {
+          print('📥 Téléchargement: ${vocalise.title}');
+          await VocaliseService.downloadAudio(vocalise);
+        }
+      }
+      
+      print('✅ Téléchargement automatique terminé');
+    } catch (e) {
+      print('❌ Erreur lors du téléchargement automatique: $e');
     }
   }
 }

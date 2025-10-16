@@ -1,21 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:voxbox/functions/styles.dart';
-import 'package:voxbox/models/partition.dart';
 import 'package:voxbox/models/category.dart';
+import 'package:voxbox/models/partition.dart';
 import 'package:voxbox/services/partition_service.dart';
 import 'package:voxbox/services/category_service.dart';
-import 'package:voxbox/view/messes/messe_sections.dart';
 
-class MessesScreen extends StatefulWidget {
-  const MessesScreen({super.key});
+class MesseSectionsScreen extends StatefulWidget {
+  final Category messeFolder;
+
+  const MesseSectionsScreen({
+    super.key,
+    required this.messeFolder,
+  });
 
   @override
-  State<MessesScreen> createState() => _MessesScreenState();
+  State<MesseSectionsScreen> createState() => _MesseSectionsScreenState();
 }
 
-class _MessesScreenState extends State<MessesScreen> {
-  List<Category> messeFolders = [];
+class _MesseSectionsScreenState extends State<MesseSectionsScreen> {
+  List<Category> messeSections = [];
   List<Partition> allPartitions = [];
   bool loading = false;
   bool syncing = false;
@@ -37,19 +41,16 @@ class _MessesScreenState extends State<MessesScreen> {
       if (categoryResponse.error == null) {
         List<Category> allCategories = categoryResponse.data as List<Category>;
         
-        // Filtrer les catégories de messes (exclure la catégorie générale "Messes")
+        // Filtrer les sections de cette messe
+        String messeName = widget.messeFolder.name;
         setState(() {
-          messeFolders = allCategories.where((cat) => 
-            cat.name.toLowerCase() != 'messes' && 
-            (cat.name.toLowerCase().contains('st gabriel') ||
-             cat.name.toLowerCase().contains('sympathie') ||
-             cat.name.toLowerCase().contains('pentecote') ||
-             cat.name.toLowerCase().contains('messe'))
+          messeSections = allCategories.where((cat) => 
+            cat.name.startsWith('$messeName - ')
           ).toList();
         });
       }
 
-      // Charger toutes les partitions pour compter les éléments par dossier
+      // Charger toutes les partitions pour compter les éléments par section
       await _loadPartitions();
     } catch (e) {
       setState(() {
@@ -76,51 +77,34 @@ class _MessesScreenState extends State<MessesScreen> {
     return allPartitions.where((p) => p.categoryId == categoryId).length;
   }
 
-  IconData _getIconForMesseFolder(String folderName) {
-    String name = folderName.toLowerCase();
-    if (name.contains('st gabriel')) return Icons.church;
-    if (name.contains('sympathie')) return Icons.favorite;
-    if (name.contains('pentecote')) return Icons.local_fire_department;
-    return Icons.folder;
+  String _getSectionName(String fullName) {
+    // Extraire le nom de la section (après " - ")
+    if (fullName.contains(' - ')) {
+      return fullName.split(' - ')[1];
+    }
+    return fullName;
   }
 
-  void _openMesseFolder(Category messeFolder) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => MesseSectionsScreen(messeFolder: messeFolder),
+  IconData _getIconForSection(String sectionName) {
+    String name = sectionName.toLowerCase();
+    if (name.contains('kyrié') || name.contains('kyrie')) return Icons.music_note;
+    if (name.contains('gloria')) return Icons.star;
+    if (name.contains('sanctus')) return Icons.church;
+    if (name.contains('agnus')) return Icons.favorite;
+    return Icons.music_note;
+  }
+
+  void _openSection(Category section) {
+    // TODO: Naviguer vers la liste des partitions de cette section
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Ouverture de la section: ${_getSectionName(section.name)}'),
+        backgroundColor: Colors.blue,
       ),
     );
   }
 
-  void _showAddMesseFolderDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Ajouter un dossier de messe'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Cette fonctionnalité sera disponible prochainement.'),
-              SizedBox(height: 16),
-              Text('Pour l\'instant, vous pouvez ajouter des partitions via l\'onglet "Partitions".'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('OK'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _syncMesses() async {
+  Future<void> _syncSections() async {
     setState(() {
       syncing = true;
     });
@@ -130,13 +114,10 @@ class _MessesScreenState extends State<MessesScreen> {
       var categoryResponse = await CategoryService.getCategories();
       if (categoryResponse.error == null) {
         List<Category> allCategories = categoryResponse.data as List<Category>;
+        String messeName = widget.messeFolder.name;
         setState(() {
-          messeFolders = allCategories.where((cat) => 
-            cat.name.toLowerCase() != 'messes' && 
-            (cat.name.toLowerCase().contains('st gabriel') ||
-             cat.name.toLowerCase().contains('sympathie') ||
-             cat.name.toLowerCase().contains('pentecote') ||
-             cat.name.toLowerCase().contains('messe'))
+          messeSections = allCategories.where((cat) => 
+            cat.name.startsWith('$messeName - ')
           ).toList();
         });
       }
@@ -170,7 +151,7 @@ class _MessesScreenState extends State<MessesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Messes"),
+        title: Text(widget.messeFolder.name),
         backgroundColor: theme,
         foregroundColor: Colors.white,
         actions: [
@@ -183,7 +164,7 @@ class _MessesScreenState extends State<MessesScreen> {
               ),
             ),
           IconButton(
-            onPressed: syncing ? null : _syncMesses,
+            onPressed: syncing ? null : _syncSections,
             icon: Icon(Icons.sync),
             tooltip: 'Synchroniser',
           ),
@@ -196,19 +177,19 @@ class _MessesScreenState extends State<MessesScreen> {
                 size: 50.0,
               ),
             )
-          : messeFolders.isEmpty
+          : messeSections.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.folder_open,
+                        Icons.music_note,
                         size: 80,
                         color: Colors.grey,
                       ),
                       SizedBox(height: 16),
                       Text(
-                        'Aucun dossier de messe disponible',
+                        'Aucune section disponible',
                         style: TextStyle(
                           fontSize: 18,
                           color: Colors.grey,
@@ -216,7 +197,7 @@ class _MessesScreenState extends State<MessesScreen> {
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Les dossiers de messes apparaîtront ici',
+                        'Les sections de messe apparaîtront ici',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey[600],
@@ -227,23 +208,24 @@ class _MessesScreenState extends State<MessesScreen> {
                 )
               : ListView.builder(
                   padding: EdgeInsets.all(16.0),
-                  itemCount: messeFolders.length,
+                  itemCount: messeSections.length,
                   itemBuilder: (context, index) {
-                    Category messeFolder = messeFolders[index];
-                    int partitionCount = _getPartitionCountForCategory(messeFolder.id);
+                    Category section = messeSections[index];
+                    int partitionCount = _getPartitionCountForCategory(section.id);
+                    String sectionName = _getSectionName(section.name);
                     
                     return Card(
                       margin: EdgeInsets.only(bottom: 16.0),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: Color(int.parse(messeFolder.color?.replaceAll('#', '0xFF') ?? '0xFF2196F3')),
+                          backgroundColor: Color(int.parse(section.color?.replaceAll('#', '0xFF') ?? '0xFF2196F3')),
                           child: Icon(
-                            _getIconForMesseFolder(messeFolder.name),
+                            _getIconForSection(sectionName),
                             color: Colors.white,
                           ),
                         ),
                         title: Text(
-                          messeFolder.name,
+                          sectionName,
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -253,7 +235,7 @@ class _MessesScreenState extends State<MessesScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              messeFolder.description ?? 'Dossier de messe',
+                              section.description ?? 'Section de messe',
                               style: TextStyle(
                                 color: Colors.grey[600],
                               ),
@@ -271,10 +253,10 @@ class _MessesScreenState extends State<MessesScreen> {
                                   ),
                                 ),
                                 SizedBox(width: 16),
-                                Icon(Icons.folder, size: 16, color: Colors.grey),
+                                Icon(Icons.queue_music, size: 16, color: Colors.grey),
                                 SizedBox(width: 4),
                                 Text(
-                                  'Dossier de messe',
+                                  'Section de messe',
                                   style: TextStyle(
                                     color: Colors.grey[600],
                                     fontSize: 12,
@@ -286,7 +268,7 @@ class _MessesScreenState extends State<MessesScreen> {
                         ),
                         trailing: Icon(Icons.arrow_forward_ios),
                         onTap: () {
-                          _openMesseFolder(messeFolder);
+                          _openSection(section);
                         },
                       ),
                     );
@@ -294,7 +276,7 @@ class _MessesScreenState extends State<MessesScreen> {
                 ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          _showAddMesseFolderDialog();
+          _showAddSectionDialog();
         },
         backgroundColor: theme,
         child: Icon(
@@ -302,6 +284,33 @@ class _MessesScreenState extends State<MessesScreen> {
           color: Colors.white,
         ),
       ),
+    );
+  }
+
+  void _showAddSectionDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Ajouter une section'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Cette fonctionnalité sera disponible prochainement.'),
+              SizedBox(height: 16),
+              Text('Pour l\'instant, vous pouvez ajouter des partitions via l\'onglet "Partitions".'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

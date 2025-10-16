@@ -1,6 +1,10 @@
-class ApiResponse {
-  Object? data;
+class ApiResponse<T> {
+  T? data;
   String? error;
 
-  set message(String message) {}
+  ApiResponse({this.data, this.error});
+
+  set message(String message) {
+    error = message;
+  }
 }

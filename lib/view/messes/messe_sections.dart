@@ -1,232 +1,179 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:voxbox/functions/styles.dart';
-import 'package:voxbox/models/category.dart';
-import 'package:voxbox/models/partition.dart';
-import 'package:voxbox/services/partition_service.dart';
-import 'package:voxbox/services/category_service.dart';
-import 'package:voxbox/view/messes/section_partitions.dart';
+import 'package:voxbox/functions/appconstants.dart';
+import 'package:voxbox/widgets/widgets.dart';
+import 'package:voxbox/models/messe.dart';
+import 'package:voxbox/models/messe_section.dart';
+import 'package:voxbox/services/messe_service.dart';
+import 'package:voxbox/view/messes/section_chants.dart';
 
 class MesseSectionsScreen extends StatefulWidget {
-  final Category messeFolder;
+  final Messe messe;
 
-  const MesseSectionsScreen({
-    super.key,
-    required this.messeFolder,
-  });
+  const MesseSectionsScreen({super.key, required this.messe});
 
   @override
   State<MesseSectionsScreen> createState() => _MesseSectionsScreenState();
 }
 
 class _MesseSectionsScreenState extends State<MesseSectionsScreen> {
-  List<Category> messeSections = [];
-  List<Partition> allPartitions = [];
+  List<MesseSection> sections = [];
   bool loading = false;
   bool syncing = false;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _loadSections();
   }
 
-  void _loadData() async {
+  void _loadSections() async {
     setState(() {
       loading = true;
     });
 
     try {
-      // Charger les catégories
-      var categoryResponse = await CategoryService.getCategories();
-      if (categoryResponse.error == null) {
-        List<Category> allCategories = categoryResponse.data as List<Category>;
-        
-        // Filtrer les sections de cette messe
-        String messeName = widget.messeFolder.name;
+      var response = await MesseService.getMesseSections(widget.messe.id);
+      if (response.error == null) {
         setState(() {
-          messeSections = allCategories.where((cat) => 
-            cat.name.startsWith('$messeName - ')
-          ).toList();
+          sections = response.data as List<MesseSection>;
+          loading = false;
         });
+      } else {
+        setState(() {
+          loading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${response.error}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-
-      // Charger toutes les partitions pour compter les éléments par section
-      await _loadPartitions();
     } catch (e) {
       setState(() {
         loading = false;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
-  Future<void> _loadPartitions() async {
-    var partitionResponse = await PartitionService.getPartitions();
-    if (partitionResponse.error == null) {
-      setState(() {
-        allPartitions = partitionResponse.data as List<Partition>;
-        loading = false;
-      });
-    } else {
-      setState(() {
-        loading = false;
-      });
-    }
-  }
-
-  int _getPartitionCountForCategory(int categoryId) {
-    return allPartitions.where((p) => p.categoryId == categoryId).length;
-  }
-
-  String _getSectionName(String fullName) {
-    // Extraire le nom de la section (après " - ")
-    if (fullName.contains(' - ')) {
-      return fullName.split(' - ')[1];
-    }
-    return fullName;
-  }
-
-  IconData _getIconForSection(String sectionName) {
-    String name = sectionName.toLowerCase();
-    if (name.contains('kyrié') || name.contains('kyrie')) return Icons.music_note;
-    if (name.contains('gloria')) return Icons.star;
-    if (name.contains('sanctus')) return Icons.church;
-    if (name.contains('agnus')) return Icons.favorite;
-    return Icons.music_note;
-  }
-
-  void _openSection(Category section) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SectionPartitionsScreen(section: section),
-      ),
-    );
-  }
-
-  Future<void> _syncSections() async {
+  void _syncSections() async {
     setState(() {
       syncing = true;
     });
 
     try {
-      // Synchroniser les catégories
-      var categoryResponse = await CategoryService.getCategories();
-      if (categoryResponse.error == null) {
-        List<Category> allCategories = categoryResponse.data as List<Category>;
-        String messeName = widget.messeFolder.name;
-        setState(() {
-          messeSections = allCategories.where((cat) => 
-            cat.name.startsWith('$messeName - ')
-          ).toList();
-        });
-      }
-
-      // Synchroniser les partitions
-      var partitionResponse = await PartitionService.getPartitions(forceRefresh: true);
-      if (partitionResponse.error == null) {
-        setState(() {
-          allPartitions = partitionResponse.data as List<Partition>;
-          syncing = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Synchronisation terminée'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        setState(() {
-          syncing = false;
-        });
-      }
+      // Recharger les sections
+      _loadSections();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sections synchronisées'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
       setState(() {
         syncing = false;
       });
     }
   }
 
+  IconData _getIconForSection(String sectionName) {
+    String name = sectionName.toLowerCase();
+    if (name.contains('kyrié')) return Icons.self_improvement;
+    if (name.contains('gloria')) return Icons.celebration;
+    if (name.contains('sanctus')) return Icons.church;
+    if (name.contains('agnus')) return Icons.favorite;
+    return Icons.music_note;
+  }
+
+  void _openSection(MesseSection section) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SectionChantsScreen(section: section),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.messeFolder.name),
-        backgroundColor: theme,
-        foregroundColor: Colors.white,
+        title: MyText(
+          text: widget.messe.nom,
+          color: Colors.white,
+          size: 20,
+          fontweight: FontWeight.bold,
+        ),
+        backgroundColor: AppConstance.primary,
         actions: [
-          if (syncing)
-            Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SpinKitCircle(
-                color: Colors.white,
-                size: 20.0,
-              ),
-            ),
           IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: syncing ? null : _syncSections,
-            icon: Icon(Icons.sync),
-            tooltip: 'Synchroniser',
           ),
         ],
       ),
       body: loading
-          ? Center(
-              child: SpinKitCircle(
-                color: theme,
+          ? const Center(
+              child: SpinKitFadingCircle(
+                color: Colors.blue,
                 size: 50.0,
               ),
             )
-          : messeSections.isEmpty
-              ? Center(
+          : sections.isEmpty
+              ? const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
                         Icons.music_note,
-                        size: 80,
+                        size: 64,
                         color: Colors.grey,
                       ),
                       SizedBox(height: 16),
                       Text(
-                        'Aucune section disponible',
+                        'Aucune section trouvée',
                         style: TextStyle(
                           fontSize: 18,
                           color: Colors.grey,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Les sections de messe apparaîtront ici',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
                         ),
                       ),
                     ],
                   ),
                 )
               : ListView.builder(
-                  padding: EdgeInsets.all(16.0),
-                  itemCount: messeSections.length,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: sections.length,
                   itemBuilder: (context, index) {
-                    Category section = messeSections[index];
-                    int partitionCount = _getPartitionCountForCategory(section.id);
-                    String sectionName = _getSectionName(section.name);
-                    
+                    MesseSection section = sections[index];
                     return Card(
-                      margin: EdgeInsets.only(bottom: 16.0),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      elevation: 4,
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: Color(int.parse(section.color?.replaceAll('#', '0xFF') ?? '0xFF2196F3')),
+                          backgroundColor: Color(int.parse(widget.messe.couleur.replaceAll('#', '0xFF'))),
                           child: Icon(
-                            _getIconForSection(sectionName),
+                            _getIconForSection(section.nom),
                             color: Colors.white,
                           ),
                         ),
                         title: Text(
-                          sectionName,
-                          style: TextStyle(
+                          section.nom,
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
@@ -234,83 +181,45 @@ class _MesseSectionsScreenState extends State<MesseSectionsScreen> {
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              section.description ?? 'Section de messe',
-                              style: TextStyle(
-                                color: Colors.grey[600],
+                            if (section.description != null)
+                              Text(
+                                section.description!,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey,
+                                ),
                               ),
-                            ),
-                            SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(Icons.music_note, size: 16, color: Colors.grey),
-                                SizedBox(width: 4),
-                                Text(
-                                  '$partitionCount partition${partitionCount > 1 ? 's' : ''}',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                SizedBox(width: 16),
-                                Icon(Icons.queue_music, size: 16, color: Colors.grey),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Section de messe',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
+                            const SizedBox(height: 4),
+                            Text(
+                              '${section.chants?.length ?? 0} chant${(section.chants?.length ?? 0) > 1 ? 's' : ''}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ],
                         ),
-                        trailing: Icon(Icons.arrow_forward_ios),
-                        onTap: () {
-                          _openSection(section);
-                        },
+                        trailing: const Icon(Icons.arrow_forward_ios),
+                        onTap: () => _openSection(section),
                       ),
                     );
                   },
                 ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          _showAddSectionDialog();
-        },
-        backgroundColor: theme,
-        child: Icon(
-          Icons.add,
-          color: Colors.white,
-        ),
+        onPressed: _syncSections,
+        backgroundColor: AppConstance.primary,
+        child: syncing
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : const Icon(Icons.sync, color: Colors.white),
       ),
-    );
-  }
-
-  void _showAddSectionDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Ajouter une section'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Cette fonctionnalité sera disponible prochainement.'),
-              SizedBox(height: 16),
-              Text('Pour l\'instant, vous pouvez ajouter des partitions via l\'onglet "Partitions".'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('OK'),
-            ),
-          ],
-        );
-      },
     );
   }
 }

@@ -7,7 +7,7 @@ echo "🔍 TEST DOSSIERS DE MESSES - VoXY Box\n";
 echo "=====================================\n\n";
 
 // Configuration
-$baseURL = 'http://192.168.11.102:8000';
+$baseURL = 'http://192.168.11.107:8000';
 $loginURL = $baseURL . '/api/login';
 $categoriesURL = $baseURL . '/api/categories';
 

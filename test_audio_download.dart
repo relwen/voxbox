@@ -15,7 +15,7 @@ void main() async {
 
   try {
     // Configuration
-    String baseURL = 'http://192.168.11.102:8000';
+    String baseURL = 'http://192.168.11.107:8000';
     String loginURL = '$baseURL/api/login';
     String vocalisesURL = '$baseURL/api/vocalises';
     

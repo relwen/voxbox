@@ -7,7 +7,7 @@ echo "🔍 DIAGNOSTIC AUTHENTIFICATION - VoXY Box\n";
 echo "==========================================\n\n";
 
 // Configuration
-$baseURL = 'http://192.168.11.102:8000';
+$baseURL = 'http://192.168.11.107:8000';
 $loginURL = $baseURL . '/api/login';
 
 echo "📡 Configuration:\n";
@@ -102,7 +102,7 @@ echo "   php artisan tinker --execute=\"echo 'Users: '; App\\Models\\User::all([
 // Test 4: Vérifier la configuration de l'application mobile
 echo "4. 📱 Configuration application mobile...\n";
 echo "   Vérifiez que dans lib/functions/appconstants.dart:\n";
-echo "   static String baseURL = 'http://192.168.11.102:8000';\n\n";
+echo "   static String baseURL = 'http://192.168.11.107:8000';\n\n";
 
 echo "🎯 RÉSUMÉ:\n";
 echo "==========\n";

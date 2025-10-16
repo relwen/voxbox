@@ -1,9 +1,22 @@
 import 'package:flutter/material.dart';
 
 class AppConstance {
-  static Color primary = Color.fromARGB(255, 2, 101, 158);
+  // Nouvelle palette de couleurs harmonieuse et moderne
+
+
+  static Color primary = Color.fromARGB(255, 158, 2, 80);
   static Color priGradient = Color.fromARGB(255, 78, 13, 4);
   static Color secondary = Color.fromARGB(255, 179, 5, 5);
+
+  // static Color primary = const Color(0xFF667eea); // Bleu doux moderne
+  // static Color priGradient = const Color(0xFF764ba2); // Violet doux
+  // static Color secondary = const Color(0xFFf093fb); // Rose doux
+  
+  // Couleurs d'accent pour une meilleure UX
+  static Color accent = const Color(0xFF4facfe); // Bleu ciel
+  static Color success = const Color(0xFF00b894); // Vert moderne
+  static Color warning = const Color(0xFFfdcb6e); // Orange doux
+  static Color error = const Color(0xFFe17055); // Rouge doux
 
 // #18915A
 // Color(0xff18915A)
@@ -15,7 +28,7 @@ class AppConstance {
   // Changez cette URL selon votre configuration
   // static String baseURL = 'http://10.0.2.2:8000'; // Pour émulateur Android
   // static String baseURL = 'http://localhost:8000'; // Pour iOS Simulator
-  static String baseURL = 'http://192.168.11.102:8000'; // ← IP locale WiFi pour backend localhost:8000
+  static String baseURL = 'http://192.168.11.107:8000'; // ← IP locale WiFi pour backend localhost:8000
   
   static String appName = 'Voxy Box';
   
@@ -35,6 +48,8 @@ class AppConstance {
   
   // Endpoints pour les messes
   static String messesURL = '$baseURL/api/messes';
+  static String messeSectionsURL = '$baseURL/api/messe-sections';
+  static String chantsDeMesseURL = '$baseURL/api/chants-de-messe';
   
   // Token sera géré dynamiquement après connexion
   static String? token;

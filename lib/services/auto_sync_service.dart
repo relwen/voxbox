@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:voxbox/services/vocalise_service.dart';
 import 'package:voxbox/services/partition_service.dart';
+import 'package:voxbox/services/messe_service.dart';
 
 class AutoSyncService {
   static final AutoSyncService _instance = AutoSyncService._internal();
@@ -92,7 +93,15 @@ class AutoSyncService {
       if (partitionResponse.error != null) {
         _syncStatusController.add('Erreur partitions: ${partitionResponse.error}');
       } else {
-        _syncStatusController.add('Partitions synchronisées (messes incluses)');
+        _syncStatusController.add('Partitions synchronisées');
+      }
+
+      _syncStatusController.add('Synchronisation des messes...');
+      try {
+        await MesseService.syncMessess();
+        _syncStatusController.add('Messes synchronisées');
+      } catch (e) {
+        _syncStatusController.add('Erreur messes: $e');
       }
 
       _syncStatusController.add('Synchronisation terminée');
@@ -146,7 +155,15 @@ class AutoSyncService {
       if (partitionResponse.error != null) {
         _syncStatusController.add('Erreur partitions: ${partitionResponse.error}');
       } else {
-        _syncStatusController.add('Partitions synchronisées (messes incluses)');
+        _syncStatusController.add('Partitions synchronisées');
+      }
+
+      _syncStatusController.add('Synchronisation des messes...');
+      try {
+        await MesseService.syncMessess();
+        _syncStatusController.add('Messes synchronisées');
+      } catch (e) {
+        _syncStatusController.add('Erreur messes: $e');
       }
 
       _syncStatusController.add('Synchronisation forcée terminée');

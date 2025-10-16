@@ -150,7 +150,7 @@ dart test_audio_playback.dart
 
 ## 📋 **Checklist de Vérification**
 
-- [ ] Backend accessible sur `http://192.168.11.102:8000`
+- [ ] Backend accessible sur `http://192.168.11.107:8000`
 - [ ] Authentification fonctionnelle
 - [ ] Vocalises récupérées depuis le serveur
 - [ ] Fichiers audio téléchargés automatiquement

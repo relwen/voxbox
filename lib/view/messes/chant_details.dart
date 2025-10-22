@@ -1,11 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/widgets/widgets.dart';
 import 'package:voxbox/models/chant_de_messe.dart';
 import 'package:voxbox/view/messes/add_files_to_chant.dart';
 import 'package:voxbox/services/chant_service.dart';
 import 'package:voxbox/services/file_upload_service.dart';
+import 'package:voxbox/services/audio_service.dart';
+import 'package:voxbox/services/pdf_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
 
 class ChantDetailsScreen extends StatefulWidget {
   final ChantDeMesse chant;
@@ -89,6 +94,14 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
         ),
         backgroundColor: AppConstance.primary,
         actions: [
+          // Contrôle audio
+          if (AudioService.isPlaying)
+            IconButton(
+              icon: const Icon(Icons.stop, color: Colors.red),
+              onPressed: () => AudioService.stopAudio(),
+              tooltip: 'Arrêter la lecture',
+            ),
+          // Indicateur de synchronisation
           FutureBuilder<bool>(
             future: ChantService.hasPendingFiles(_currentChant!.id),
             builder: (context, snapshot) {
@@ -109,11 +122,15 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
             tooltip: 'Actualiser',
           ),
           IconButton(
+            icon: const Icon(Icons.download, color: Colors.white),
+            onPressed: () => _showDownloads(),
+            tooltip: 'Voir les téléchargements',
+          ),
+          IconButton(
             icon: const Icon(Icons.add, color: Colors.white),
             onPressed: () => _addFiles(),
             tooltip: 'Ajouter des fichiers',
           ),
-          
         ],
       ),
       body: Column(
@@ -163,12 +180,12 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
             unselectedLabelColor: Colors.grey,
             indicatorColor: AppConstance.primary,
             tabs: const [
+              Tab(text: 'Général', icon: Icon(Icons.folder, size: 16)),
               Tab(text: 'Soprano', icon: Icon(Icons.person, size: 16)),
               Tab(text: 'Alto', icon: Icon(Icons.person, size: 16)),
               Tab(text: 'Ténor', icon: Icon(Icons.person, size: 16)),
               Tab(text: 'Basse', icon: Icon(Icons.person, size: 16)),
               Tab(text: 'Tutti', icon: Icon(Icons.group, size: 16)),
-              Tab(text: 'Général', icon: Icon(Icons.folder, size: 16)),
             ],
           ),
           
@@ -177,12 +194,12 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
             child: TabBarView(
               controller: _tabController,
               children: [
+                _buildGeneralTab(),
                 _buildPupitreTab('Soprano', _currentChant!.sopranoUrls, Colors.pink),
                 _buildPupitreTab('Alto', _currentChant!.altoUrls, Colors.orange),
                 _buildPupitreTab('Ténor', _currentChant!.tenorUrls, Colors.blue),
                 _buildPupitreTab('Basse', _currentChant!.basseUrls, Colors.brown),
                 _buildPupitreTab('Tutti', _currentChant!.tuttiUrls, Colors.purple),
-                _buildGeneralTab(),
               ],
             ),
           ),
@@ -265,25 +282,25 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
       builder: (context, snapshot) {
         final isPending = snapshot.data ?? false;
         
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
             border: Border.all(
               color: isPending ? Colors.orange : Colors.grey.shade300,
               width: isPending ? 2 : 1,
             ),
-            borderRadius: BorderRadius.circular(8),
-            color: isPending ? Colors.orange.withValues(alpha: 0.1) : null,
-          ),
-          child: Row(
+        borderRadius: BorderRadius.circular(8),
+            color: isPending ? Colors.orange.withOpacity(0.1) : null,
+      ),
+      child: Row(
             children: [
               Stack(
-                children: [
-                  Icon(
-                    _getFileIcon(file),
-                    color: color,
-                    size: 20,
+        children: [
+          Icon(
+            _getFileIcon(file),
+            color: color,
+            size: 20,
                   ),
                   if (isPending)
                     Positioned(
@@ -299,19 +316,19 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
                       ),
                     ),
                 ],
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      children: [
-                        Text(
-                          'Fichier $index',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                          ),
+              children: [
+                Text(
+                  'Fichier $index',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                  ),
                         ),
                         const SizedBox(width: 8),
                         Icon(
@@ -320,12 +337,12 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
                           color: isPending ? Colors.orange : Colors.green,
                         ),
                       ],
-                    ),
-                    Text(
-                      file.split('/').last,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
+                ),
+                Text(
+                  file.split('/').last,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
                       ),
                     ),
                     if (isPending)
@@ -335,37 +352,37 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
                           fontSize: 10,
                           color: Colors.orange,
                           fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.download, color: Colors.blue),
-                onPressed: () => _downloadFile(file),
-                tooltip: 'Télécharger',
-              ),
-              if (_isAudioFile(file))
-                IconButton(
-                  icon: const Icon(Icons.play_arrow, color: Colors.green),
-                  onPressed: () => _playAudio(file),
-                  tooltip: 'Lire',
-                ),
-              if (_isPdfFile(file))
-                IconButton(
-                  icon: const Icon(Icons.visibility, color: Colors.orange),
-                  onPressed: () => _viewPdf(file),
-                  tooltip: 'Voir',
-                ),
-              if (_isImageFile(file))
-                IconButton(
-                  icon: const Icon(Icons.visibility, color: Colors.purple),
-                  onPressed: () => _viewImage(file),
-                  tooltip: 'Voir',
-                ),
-            ],
+              ],
+            ),
           ),
-        );
+          IconButton(
+            icon: const Icon(Icons.download, color: Colors.blue),
+            onPressed: () => _downloadFile(file),
+            tooltip: 'Télécharger',
+          ),
+          if (_isAudioFile(file))
+            IconButton(
+              icon: const Icon(Icons.play_arrow, color: Colors.green),
+              onPressed: () => _playAudio(file),
+              tooltip: 'Lire',
+            ),
+          if (_isPdfFile(file))
+            IconButton(
+              icon: const Icon(Icons.visibility, color: Colors.orange),
+              onPressed: () => _viewPdf(file),
+              tooltip: 'Voir',
+            ),
+          if (_isImageFile(file))
+            IconButton(
+              icon: const Icon(Icons.visibility, color: Colors.purple),
+              onPressed: () => _viewImage(file),
+              tooltip: 'Voir',
+            ),
+        ],
+      ),
+    );
       },
     );
   }
@@ -510,7 +527,7 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
+                    color: color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -597,69 +614,333 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
 
     try {
       final fileName = file.split('/').last;
-      final success = await ChantService.downloadFile(file, fileName);
       
-      if (success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Fichier téléchargé avec succès'),
-              backgroundColor: Colors.green,
-            ),
-          );
+      // Si c'est un fichier local, le copier vers le dossier de téléchargements
+      if (file.startsWith('/')) {
+        final localFile = File(file);
+        if (await localFile.exists()) {
+          final directory = await getApplicationDocumentsDirectory();
+          final downloadDir = Directory('${directory.path}/Downloads');
+          if (!await downloadDir.exists()) {
+            await downloadDir.create(recursive: true);
+          }
+          
+          final destinationFile = File('${downloadDir.path}/$fileName');
+          await localFile.copy(destinationFile.path);
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Fichier copié vers: ${destinationFile.path}'),
+                backgroundColor: Colors.green,
+                action: SnackBarAction(
+                  label: 'Ouvrir',
+                  onPressed: () {
+                    if (_isImageFile(destinationFile.path)) {
+                      _viewImage(destinationFile.path);
+                    } else {
+                      _viewPdf(destinationFile.path);
+                    }
+                  },
+                ),
+              ),
+            );
+          }
+        } else {
+          throw Exception('Fichier local introuvable');
         }
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Erreur lors du téléchargement'),
-              backgroundColor: Colors.red,
-            ),
-          );
+        // Si c'est une URL, utiliser le service de téléchargement
+        final success = await ChantService.downloadFile(file, fileName);
+        
+        if (success) {
+          // Construire le chemin du fichier téléchargé
+          final directory = await getApplicationDocumentsDirectory();
+          final downloadDir = Directory('${directory.path}/Downloads');
+          final downloadedFile = File('${downloadDir.path}/$fileName');
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Fichier téléchargé vers: ${downloadedFile.path}'),
+                backgroundColor: Colors.green,
+                action: SnackBarAction(
+                  label: 'Ouvrir',
+                  onPressed: () {
+                    if (_isImageFile(downloadedFile.path)) {
+                      _viewImage(downloadedFile.path);
+                    } else {
+                      _viewPdf(downloadedFile.path);
+                    }
+                  },
+                ),
+              ),
+            );
+          }
+        } else {
+          throw Exception('Échec du téléchargement');
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors du téléchargement: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
     }
   }
 
-  void _playAudio(String file) {
-    // TODO: Implémenter la lecture audio
+  void _playAudio(String file) async {
+    try {
+      setState(() {
+        loading = true;
+      });
+
+      // Utiliser le service audio pour la lecture
+      await AudioService.playAudio(file, onComplete: () {
+        if (mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Lecture de $file...'),
+            const SnackBar(
+              content: Text('Lecture terminée'),
         backgroundColor: Colors.green,
       ),
     );
+        }
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lecture en cours: ${file.split('/').last}'),
+            backgroundColor: Colors.green,
+            action: SnackBarAction(
+              label: 'Arrêter',
+              onPressed: () => AudioService.stopAudio(),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la lecture: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
+    }
   }
 
-  void _viewPdf(String file) {
-    // TODO: Implémenter la visualisation PDF
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Ouverture de $file...'),
-        backgroundColor: Colors.orange,
+  void _viewPdf(String file) async {
+    try {
+      setState(() {
+        loading = true;
+      });
+
+      print('Tentative d\'ouverture du PDF: $file');
+
+      // Vérifier si le PDF est valide
+      final isValid = await PdfService.isValidPdf(file);
+      if (!isValid) {
+        throw Exception('Fichier PDF invalide ou corrompu');
+      }
+
+      // Utiliser le nouveau service PDF avec options multiples
+      await PdfService.showPdfOptions(file, context);
+      
+    } catch (e) {
+      print('Erreur lors de l\'ouverture du PDF: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de l\'ouverture du PDF: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Options',
+              onPressed: () => _showPdfErrorOptions(file),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
+    }
+  }
+
+  /// Affiche des options supplémentaires en cas d'erreur
+  void _showPdfErrorOptions(String file) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Options PDF'),
+        content: const Text('Le PDF n\'a pas pu être ouvert. Que souhaitez-vous faire ?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _downloadFile(file);
+            },
+            child: const Text('Télécharger'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _copyPdfToDownloads(file);
+            },
+            child: const Text('Copier vers téléchargements'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+        ],
       ),
     );
   }
 
-  void _viewImage(String file) {
-    // TODO: Implémenter la visualisation d'image
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Ouverture de $file...'),
-        backgroundColor: Colors.purple,
-      ),
-    );
+  /// Copie le PDF vers le dossier de téléchargements
+  void _copyPdfToDownloads(String file) async {
+    try {
+      setState(() {
+        loading = true;
+      });
+
+      final directory = await getApplicationDocumentsDirectory();
+      final downloadDir = Directory('${directory.path}/Downloads');
+      
+      if (!await downloadDir.exists()) {
+        await downloadDir.create(recursive: true);
+      }
+      
+      final fileName = file.split('/').last;
+      final destinationFile = File('${downloadDir.path}/$fileName');
+      
+      if (file.startsWith('/')) {
+        // Fichier local
+        final sourceFile = File(file);
+        if (await sourceFile.exists()) {
+          await sourceFile.copy(destinationFile.path);
+          } else {
+          throw Exception('Fichier source introuvable');
+          }
+        } else {
+        // URL - télécharger
+        final response = await http.get(Uri.parse(file));
+        if (response.statusCode == 200) {
+          await destinationFile.writeAsBytes(response.bodyBytes);
+      } else {
+          throw Exception('Erreur de téléchargement: ${response.statusCode}');
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF copié vers: ${destinationFile.path}'),
+            backgroundColor: Colors.green,
+            action: SnackBarAction(
+              label: 'Ouvrir',
+              onPressed: () => PdfService.openPdf(destinationFile.path, context),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la copie: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
+    }
+  }
+
+  void _viewImage(String file) async {
+    try {
+      setState(() {
+        loading = true;
+      });
+
+      print('Tentative d\'ouverture de l\'image: $file');
+
+      // Si c'est un fichier local
+      if (file.startsWith('/')) {
+        final localFile = File(file);
+        if (await localFile.exists()) {
+          print('Fichier image local trouvé: ${localFile.path}');
+          // Ouvrir le fichier local avec l'application par défaut
+          final uri = Uri.file(file);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri);
+            print('Image ouverte avec succès');
+          } else {
+            throw Exception('Impossible d\'ouvrir le fichier image avec l\'application par défaut');
+          }
+        } else {
+          throw Exception('Fichier image introuvable: $file');
+        }
+      } else {
+        // Si c'est une URL, l'ouvrir dans le navigateur
+        print('Ouverture de l\'URL image: $file');
+        final uri = Uri.parse(file);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+          print('URL image ouverte avec succès');
+        } else {
+          throw Exception('Impossible d\'ouvrir l\'URL image');
+        }
+      }
+    } catch (e) {
+      print('Erreur lors de l\'ouverture de l\'image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de l\'ouverture de l\'image: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Télécharger',
+              onPressed: () => _downloadFile(file),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
+    }
   }
 
   void _addFiles() {
@@ -736,16 +1017,17 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
           );
 
           // Mettre à jour l'affichage immédiatement
-          _loadChantData();
+          await _loadChantData();
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('${selectedFiles.length} fichier(s) ajouté(s) localement pour $pupitreName'),
                 backgroundColor: Colors.blue,
-              ),
-            );
-          }
+                duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
           // Essayer de synchroniser en arrière-plan
           try {
@@ -778,8 +1060,8 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
             }
           } catch (e) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
                   content: Text('Fichiers ajoutés localement. Synchronisation en attente.'),
                   backgroundColor: Colors.orange,
                 ),
@@ -801,6 +1083,111 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
       setState(() {
         loading = false;
       });
+    }
+  }
+
+  void _showDownloads() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final downloadDir = Directory('${directory.path}/Downloads');
+      
+      if (!await downloadDir.exists()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Aucun fichier téléchargé'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      final files = await downloadDir.list().toList();
+      final fileList = files.where((file) => file is File).cast<File>().toList();
+
+      if (fileList.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Aucun fichier téléchargé'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Fichiers Téléchargés'),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 300,
+              child: ListView.builder(
+                itemCount: fileList.length,
+                itemBuilder: (context, index) {
+                  final file = fileList[index];
+                  final fileName = file.path.split('/').last;
+                  final isImage = _isImageFile(fileName);
+                  
+                  return ListTile(
+                    leading: Icon(
+                      isImage ? Icons.image : Icons.picture_as_pdf,
+                      color: isImage ? Colors.blue : Colors.red,
+                    ),
+                    title: Text(fileName),
+                    subtitle: Text('${(file.lengthSync() / 1024).toStringAsFixed(1)} KB'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.open_in_new),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            if (isImage) {
+                              _viewImage(file.path);
+                            } else {
+                              _viewPdf(file.path);
+                            }
+                          },
+                          tooltip: 'Ouvrir',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () async {
+                            await file.delete();
+                            Navigator.pop(context);
+                            _showDownloads(); // Rafraîchir la liste
+                          },
+                          tooltip: 'Supprimer',
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Fermer'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de l\'affichage des téléchargements: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }

@@ -353,32 +353,39 @@ class ChantService {
   /// Télécharger un fichier
   static Future<bool> downloadFile(String fileUrl, String fileName) async {
     try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? token = prefs.getString('token');
-      
-      if (token == null) {
-        return false;
+      // Construire l'URL complète si c'est un chemin relatif
+      String fullUrl = fileUrl;
+      if (!fileUrl.startsWith('http')) {
+        // Si c'est un chemin relatif, construire l'URL complète
+        if (fileUrl.startsWith('/')) {
+          fullUrl = '${AppConstance.baseURL}$fileUrl';
+        } else {
+          fullUrl = '${AppConstance.baseURL}/storage/$fileUrl';
+        }
       }
       
+      print('Téléchargement de: $fullUrl');
+      
       final response = await http.get(
-        Uri.parse(fileUrl),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
+        Uri.parse(fullUrl),
+        // Ne pas ajouter d'authentification pour les fichiers publics
       );
 
       if (response.statusCode == 200) {
         final directory = await getApplicationDocumentsDirectory();
-        final downloadsDir = Directory('${directory.path}/downloads');
+        final downloadsDir = Directory('${directory.path}/Downloads');
         if (!await downloadsDir.exists()) {
           await downloadsDir.create(recursive: true);
         }
 
         final file = File('${downloadsDir.path}/$fileName');
         await file.writeAsBytes(response.bodyBytes);
+        print('Fichier téléchargé vers: ${file.path}');
         return true;
+      } else {
+        print('Erreur HTTP: ${response.statusCode} - ${response.body}');
+        return false;
       }
-      return false;
     } catch (e) {
       print('Erreur lors du téléchargement: $e');
       return false;

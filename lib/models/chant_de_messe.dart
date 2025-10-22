@@ -62,9 +62,9 @@ class ChantDeMesse {
 
   factory ChantDeMesse.fromJson(Map<String, dynamic> json) {
     return ChantDeMesse(
-      id: json['id'],
-      sectionId: json['section_id'],
-      titre: json['titre'],
+      id: json['id'] ?? 0,
+      sectionId: json['section_id'] ?? 0,
+      titre: json['titre'] ?? 'Chant sans titre',
       description: json['description'],
       audioPath: json['audio_path'],
       pdfPath: json['pdf_path'],
@@ -79,8 +79,12 @@ class ChantDeMesse {
       tuttiFiles: json['tutti_files'] != null ? List<String>.from(json['tutti_files']) : null,
       ordre: json['ordre'] ?? 0,
       active: json['active'] ?? true,
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
+      createdAt: json['created_at'] != null 
+          ? DateTime.parse(json['created_at'])
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null 
+          ? DateTime.parse(json['updated_at'])
+          : DateTime.now(),
     );
   }
 

@@ -25,14 +25,18 @@ class MesseSection {
 
   factory MesseSection.fromJson(Map<String, dynamic> json) {
     return MesseSection(
-      id: json['id'],
-      messeId: json['messe_id'],
-      nom: json['nom'],
+      id: json['id'] ?? 0,
+      messeId: json['messe_id'] ?? 0,
+      nom: json['nom'] ?? 'Section sans nom',
       description: json['description'],
       ordre: json['ordre'] ?? 0,
       active: json['active'] ?? true,
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
+      createdAt: json['created_at'] != null 
+          ? DateTime.parse(json['created_at'])
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null 
+          ? DateTime.parse(json['updated_at'])
+          : DateTime.now(),
       chants: json['chants'] != null
           ? (json['chants'] as List)
               .map((chant) => ChantDeMesse.fromJson(chant))

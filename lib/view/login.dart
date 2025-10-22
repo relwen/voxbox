@@ -1,12 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:voxbox/functions/appconstants.dart';
-import 'package:voxbox/models/user.dart';
-import 'package:voxbox/view/home.dart';
-import 'package:voxbox/view/otp_screen.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:voxbox/functions/appconstants.dart';
+import 'package:voxbox/view/otp_screen.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -20,7 +16,7 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
   bool loading = false;
   String selectedCountryCode = '+226'; // Code par défaut Mali
   String? phoneNumber; // Pour stocker le numéro entre les écrans
-  
+
   // Animations
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -49,12 +45,12 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    
+
     _slideController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
-    
+
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -98,28 +94,27 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
   void sendOTP() async {
     if (phoneController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Veuillez saisir votre numéro de téléphone'),
-        backgroundColor: Colors.orange
-      ));
+          content: Text('Veuillez saisir votre numéro de téléphone'),
+          backgroundColor: Colors.orange));
       return;
     }
 
     setState(() {
       loading = true;
     });
-    
+
     try {
       String fullPhoneNumber = selectedCountryCode + phoneController.text;
       phoneNumber = fullPhoneNumber; // Stocker pour l'écran OTP
-      
+
       // TODO: Appeler l'API pour envoyer l'OTP
       // Pour l'instant, on simule l'envoi
       await Future.delayed(const Duration(seconds: 2));
-      
+
       setState(() {
         loading = false;
       });
-      
+
       // Naviguer vers l'écran OTP
       Navigator.push(
         context,
@@ -127,41 +122,22 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
           builder: (context) => OTPScreen(phoneNumber: fullPhoneNumber),
         ),
       );
-      
     } catch (e) {
       setState(() {
         loading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Erreur: $e'),
-        backgroundColor: Colors.red
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red));
     }
-  }
-
-  void _saveAndRedirectToHome(User user) async {
-    print(user.name.toString());
-
-    Map<String, dynamic> userMap = user.toJson();
-    String userJson = jsonEncode(userMap);
-
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString('user', userJson);
-    prefs.setString('token', AppConstance.token ?? '');
-    prefs.setBool('isConnected', true);
-
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => HomePage()),
-      (route) => false,
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    
+
     return Scaffold(
-      resizeToAvoidBottomInset: true, // Permet au clavier de redimensionner l'écran
+      resizeToAvoidBottomInset:
+          true, // Permet au clavier de redimensionner l'écran
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -181,7 +157,7 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
           children: [
             // Background decorative elements
             _buildBackgroundElements(size),
-            
+
             // Main content
             SafeArea(
               child: SingleChildScrollView(
@@ -189,14 +165,17 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
-                    minHeight: size.height - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
+                    minHeight: size.height -
+                        MediaQuery.of(context).padding.top -
+                        MediaQuery.of(context).padding.bottom,
                   ),
                   child: IntrinsicHeight(
                     child: Column(
                       children: [
                         // Header section with logo and title
                         SizedBox(
-                          height: size.height * 0.4, // Hauteur fixe pour le header
+                          height:
+                              size.height * 0.4, // Hauteur fixe pour le header
                           child: FadeTransition(
                             opacity: _fadeAnimation,
                             child: SlideTransition(
@@ -205,15 +184,17 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
                             ),
                           ),
                         ),
-                        
+
                         // Login form section
                         ScaleTransition(
                           scale: _scaleAnimation,
                           child: _buildLoginForm(),
                         ),
-                        
+
                         // Espace en bas pour éviter que le clavier cache le contenu
-                        SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 20),
+                        SizedBox(
+                            height:
+                                MediaQuery.of(context).viewInsets.bottom + 20),
                       ],
                     ),
                   ),
@@ -295,30 +276,27 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
           ),
         ),
         const SizedBox(height: 20),
-        
+
         // App name with gradient text
         ShaderMask(
           shaderCallback: (bounds) => const LinearGradient(
             colors: [Colors.white, Colors.white70],
           ).createShader(bounds),
           child: const Text(
-              'Connectez-vous avec \nvotre numéro de téléphone',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white70,
-              ),
-              textAlign: TextAlign.center,
+            'Connectez-vous avec \nvotre numéro de téléphone',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white70,
             ),
+            textAlign: TextAlign.center,
+          ),
         ),
-        
-        
       ],
     );
   }
 
   Widget _buildLoginForm() {
     return Container(
-      
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: const BorderRadius.only(
@@ -335,7 +313,8 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(15, 20, 15, 15), // Padding réduit en haut
+        padding:
+            const EdgeInsets.fromLTRB(15, 20, 15, 15), // Padding réduit en haut
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min, // Prend seulement l'espace nécessaire
@@ -351,15 +330,15 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
-            
+
             // Phone field
             _buildPhoneField(),
             const SizedBox(height: 24),
-            
+
             // Send OTP button
             _buildSendOTPButton(),
             const SizedBox(height: 16),
-            
+
             // Loading indicator
             if (loading) _buildLoadingIndicator(),
           ],
@@ -367,7 +346,6 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
       ),
     );
   }
-
 
   Widget _buildPhoneField() {
     return Column(
@@ -488,7 +466,6 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
       ),
     );
   }
-
 
   Widget _buildLoadingIndicator() {
     return Container(

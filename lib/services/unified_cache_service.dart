@@ -70,6 +70,11 @@ class UnifiedCacheService {
     if (index != -1) {
       chants[index] = await _mergeLocalFiles(updatedChant);
       await saveChants(chants);
+    } else {
+      // Si le chant n'existe pas, l'ajouter
+      final mergedChant = await _mergeLocalFiles(updatedChant);
+      chants.add(mergedChant);
+      await saveChants(chants);
     }
   }
 
@@ -107,6 +112,30 @@ class UnifiedCacheService {
     final chant = await getChant(chantId);
     if (chant != null) {
       await updateChant(chant);
+    } else {
+      // Si le chant n'existe pas encore, créer un chant de base
+      final newChant = ChantDeMesse(
+        id: chantId,
+        sectionId: 0, // Sera mis à jour plus tard
+        titre: 'Chant $chantId',
+        description: 'Chant créé localement',
+        audioPath: null,
+        pdfPath: null,
+        imagePath: null,
+        audioFiles: null,
+        pdfFiles: null,
+        imageFiles: null,
+        sopranoFiles: null,
+        altoFiles: null,
+        tenorFiles: null,
+        basseFiles: null,
+        tuttiFiles: null,
+        ordre: 0,
+        active: true,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      await updateChant(newChant);
     }
   }
 

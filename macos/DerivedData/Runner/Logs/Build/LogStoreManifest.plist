@@ -6,7 +6,7 @@
 	<integer>11</integer>
 	<key>logs</key>
 	<dict>
-		<key>AEC1DF7D-2561-46A6-AF1F-1479093F1677</key>
+		<key>7CABB6CA-6812-4B98-8A95-44D79D4FD15F</key>
 		<dict>
 			<key>className</key>
 			<string>IDECommandLineBuildLog</string>
@@ -15,7 +15,49 @@
 			<key>domainType</key>
 			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
 			<key>fileName</key>
-			<string>AEC1DF7D-2561-46A6-AF1F-1479093F1677.xcactivitylog</string>
+			<string>7CABB6CA-6812-4B98-8A95-44D79D4FD15F.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>S</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>Runner project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>Flutter Assemble</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Cleaning workspace Runner with scheme Flutter Assemble</string>
+			<key>timeStartedRecording</key>
+			<real>782784303.405267</real>
+			<key>timeStoppedRecording</key>
+			<real>782784304.78730404</real>
+			<key>title</key>
+			<string>Cleaning workspace Runner with scheme Flutter Assemble</string>
+			<key>uniqueIdentifier</key>
+			<string>7CABB6CA-6812-4B98-8A95-44D79D4FD15F</string>
+		</dict>
+		<key>D57042CE-8E4C-4B0B-A189-862AF38C3284</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>D57042CE-8E4C-4B0B-A189-862AF38C3284.xcactivitylog</string>
 			<key>hasPrimaryLog</key>
 			<true/>
 			<key>primaryObservable</key>
@@ -40,13 +82,13 @@
 			<key>signature</key>
 			<string>Cleaning workspace Runner with scheme Runner</string>
 			<key>timeStartedRecording</key>
-			<real>782283826.29058802</real>
+			<real>782784311.16302204</real>
 			<key>timeStoppedRecording</key>
-			<real>782283826.65794003</real>
+			<real>782784313.32060397</real>
 			<key>title</key>
 			<string>Cleaning workspace Runner with scheme Runner</string>
 			<key>uniqueIdentifier</key>
-			<string>AEC1DF7D-2561-46A6-AF1F-1479093F1677</string>
+			<string>D57042CE-8E4C-4B0B-A189-862AF38C3284</string>
 		</dict>
 	</dict>
 </dict>

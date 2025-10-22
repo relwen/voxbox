@@ -9,6 +9,7 @@ import 'package:voxbox/models/messe_section.dart';
 import 'package:voxbox/models/chant_de_messe.dart';
 import 'package:voxbox/services/api_response.dart';
 import 'package:voxbox/services/unified_cache_service.dart';
+import 'package:voxbox/services/backend_adapter.dart';
 
 class MesseService {
   static const String _messesKey = 'local_messes';
@@ -33,10 +34,14 @@ class MesseService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
-          List<Messe> messes = (data['data'] as List)
-              .map((json) => Messe.fromJson(json))
-              .toList();
-          return ApiResponse<List<Messe>>(data: messes);
+          try {
+            // Utiliser l'adaptateur pour convertir les données backend
+            List<Messe> messes = BackendAdapter.backendDataListToMesses(data['data']);
+            return ApiResponse<List<Messe>>(data: messes);
+          } catch (e) {
+            print('Erreur lors du parsing des messes: $e');
+            return ApiResponse<List<Messe>>(error: 'Erreur de parsing: $e');
+          }
         } else {
           return ApiResponse<List<Messe>>(error: data['message'] ?? 'Erreur serveur');
         }
@@ -113,9 +118,8 @@ class MesseService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
-          List<MesseSection> sections = (data['data'] as List)
-              .map((json) => MesseSection.fromJson(json))
-              .toList();
+          // Utiliser l'adaptateur pour convertir les références en sections
+          List<MesseSection> sections = BackendAdapter.referencesToMesseSections(data['data']);
           return ApiResponse<List<MesseSection>>(data: sections);
         } else {
           return ApiResponse<List<MesseSection>>(error: data['message'] ?? 'Erreur serveur');
@@ -138,7 +142,7 @@ class MesseService {
         return ApiResponse<List<ChantDeMesse>>(error: 'Token non disponible');
       }
       final response = await http.get(
-        Uri.parse('${AppConstance.baseURL}/api/messe-sections/$sectionId/chants'),
+        Uri.parse('${AppConstance.baseURL}/api/references/$sectionId/partitions'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -148,9 +152,8 @@ class MesseService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
-          List<ChantDeMesse> chants = (data['data'] as List)
-              .map((json) => ChantDeMesse.fromJson(json))
-              .toList();
+          // Utiliser l'adaptateur pour convertir les partitions en chants
+          List<ChantDeMesse> chants = BackendAdapter.partitionsToChantsDeMesse(data['data']);
           
           // Sauvegarder les chants dans le cache unifié
           await UnifiedCacheService.saveChants(chants);

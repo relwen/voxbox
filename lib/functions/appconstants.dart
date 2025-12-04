@@ -28,7 +28,7 @@ class AppConstance {
   // Changez cette URL selon votre configuration
   // static String baseURL = 'http://10.0.2.2:8000'; // Pour émulateur Android
   // static String baseURL = 'http://localhost:8000'; // Pour iOS Simulator
-  static String baseURL = 'http://192.168.11.105:8001'; // ← IP locale WiFi pour backend localhost:8000
+  static String baseURL = 'http://192.168.11.108:8000'; // ← IP locale WiFi pour backend localhost:8000
   // static String baseURL = 'https://voxy.stcamillejeunesse.site'; // ← IP locale WiFi pour backend localhost:8000
   
   static String appName = 'Voxy Box';
@@ -51,7 +51,12 @@ class AppConstance {
   static String messesURL = '$baseURL/api/messes';
   static String messeSectionsURL = '$baseURL/api/messe-sections';
   static String chantsDeMesseURL = '$baseURL/api/chants-de-messe';
-  
+
+  // Endpoints pour l'authentification OTP
+  static String requestOTPURL = '$baseURL/api/request-otp';
+  static String verifyOTPURL = '$baseURL/api/verify-otp';
+  static String checkPhoneURL = '$baseURL/api/check-phone';
+
   // Token sera géré dynamiquement après connexion
   static String? token;
   

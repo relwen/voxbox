@@ -33,10 +33,7 @@ class _AddVocaliseScreenState extends State<AddVocaliseScreen> {
   ];
 
   final List<Map<String, dynamic>> _chorales = [
-    {'id': 1, 'name': 'Chorale Saint-Michel'},
-    {'id': 2, 'name': 'Ensemble Vocal de Lyon'},
-    {'id': 3, 'name': 'Chorale Universitaire'},
-    {'id': 4, 'name': 'Voix d\'Or'},
+    
   ];
 
   @override

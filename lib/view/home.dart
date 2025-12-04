@@ -11,6 +11,9 @@ import 'package:voxbox/view/exercises/exercises.dart';
 import 'package:voxbox/view/messes/messes.dart';
 import 'package:voxbox/view/profile.dart';
 import 'package:voxbox/view/vocalize/vocalize.dart';
+import 'package:voxbox/view/complete_profile_screen.dart';
+import 'package:voxbox/services/auth_service.dart';
+import 'package:voxbox/services/global_recorder_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -38,6 +41,47 @@ class _MyHomePageState extends State<HomePage> {
       setState(() {
         user = User.fromJson(userMap);
       });
+      
+      // Vérifier si le profil est incomplet
+      if (user.isProfileIncomplete()) {
+        // Rediriger vers la complétion du profil
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CompleteProfileScreen(user: user),
+            ),
+          );
+        });
+      }
+    } else {
+      // Si l'utilisateur n'est pas en cache, récupérer depuis l'API
+      try {
+        final response = await getUserInfo();
+        if (response.error == null && response.data != null) {
+          User fetchedUser = response.data as User;
+          await prefs.setString('user', jsonEncode(fetchedUser.toJson()));
+          
+          setState(() {
+            user = fetchedUser;
+          });
+          
+          // Vérifier si le profil est incomplet
+          if (fetchedUser.isProfileIncomplete()) {
+            // Rediriger vers la complétion du profil
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CompleteProfileScreen(user: fetchedUser),
+                ),
+              );
+            });
+          }
+        }
+      } catch (e) {
+        print('Erreur lors de la récupération de l\'utilisateur: $e');
+      }
     }
   }
 
@@ -266,7 +310,7 @@ class _MyHomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -304,6 +348,8 @@ class _MyHomePageState extends State<HomePage> {
           ),
         ),
       ),
+      floatingActionButton: _buildQuickRecorderButton(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -620,30 +666,30 @@ class _MyHomePageState extends State<HomePage> {
           const SizedBox(height: 12),
           
           // Troisième ligne
-          Row(
-            children: [
-              _buildModernCard(
-                icon: Icons.fitness_center_rounded,
-                title: 'Exercices',
-                subtitle: 'Entraînement',
-                gradient: false,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ExercisesScreen()),
-                ),
-              ),
-              _buildModernCard(
-                icon: Icons.newspaper_rounded,
-                title: 'Actualités',
-                subtitle: 'Dernières infos',
-                gradient: true,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ActualitesScreen()),
-                ),
-              ),
-            ],
-          ),
+          // Row(
+          //   children: [
+          //     _buildModernCard(
+          //       icon: Icons.fitness_center_rounded,
+          //       title: 'Exercices',
+          //       subtitle: 'Entraînement',
+          //       gradient: false,
+          //       onTap: () => Navigator.push(
+          //         context,
+          //         MaterialPageRoute(builder: (_) => const ExercisesScreen()),
+          //       ),
+          //     ),
+          //     _buildModernCard(
+          //       icon: Icons.newspaper_rounded,
+          //       title: 'Actualités',
+          //       subtitle: 'Dernières infos',
+          //       gradient: true,
+          //       onTap: () => Navigator.push(
+          //         context,
+          //         MaterialPageRoute(builder: (_) => const ActualitesScreen()),
+          //       ),
+          //     ),
+          //   ],
+          // ),
           ],
         ),
       ),
@@ -782,6 +828,60 @@ class _MyHomePageState extends State<HomePage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildQuickRecorderButton() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: FloatingActionButton.extended(
+        onPressed: () async {
+          final recorderService = GlobalRecorderService();
+
+          // Si un enregistrement est déjà en cours, afficher un message
+          if (recorderService.isRecording) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Un enregistrement est déjà en cours'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+            return;
+          }
+
+          // Démarrer l'enregistrement
+          final success = await recorderService.startRecording();
+
+          if (success && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Enregistrement démarré'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          } else if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Impossible de démarrer l\'enregistrement'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+        backgroundColor: Colors.red,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.mic, size: 28),
+        label: const Text(
+          'Enregistrer',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        elevation: 8,
+        heroTag: 'quickRecorder',
       ),
     );
   }

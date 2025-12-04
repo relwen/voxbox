@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:voxbox/functions/appconstants.dart';
+import 'package:voxbox/services/auth_service.dart';
 import 'package:voxbox/view/otp_screen.dart';
 
 class Login extends StatefulWidget {
@@ -93,7 +94,7 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
 
   void sendOTP() async {
     if (phoneController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Veuillez saisir votre numéro de téléphone'),
           backgroundColor: Colors.orange));
       return;
@@ -107,25 +108,48 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
       String fullPhoneNumber = selectedCountryCode + phoneController.text;
       phoneNumber = fullPhoneNumber; // Stocker pour l'écran OTP
 
-      // TODO: Appeler l'API pour envoyer l'OTP
-      // Pour l'instant, on simule l'envoi
-      await Future.delayed(const Duration(seconds: 2));
+      // Appeler l'API pour envoyer l'OTP
+      print('📱 Envoi OTP pour: $fullPhoneNumber');
+      final response = await requestOTP(fullPhoneNumber);
 
       setState(() {
         loading = false;
       });
 
-      // Naviguer vers l'écran OTP
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => OTPScreen(phoneNumber: fullPhoneNumber),
-        ),
-      );
+      if (response.error == null && response.data != null) {
+        // OTP envoyé avec succès
+        print('✅ OTP envoyé avec succès');
+
+        if (!mounted) return;
+
+        // Naviguer vers l'écran OTP
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OTPScreen(phoneNumber: fullPhoneNumber),
+          ),
+        );
+      } else {
+        // Erreur lors de l'envoi de l'OTP
+        print('❌ Erreur: ${response.error}');
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(response.error ?? 'Erreur lors de l\'envoi du code'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ));
+      }
     } catch (e) {
       setState(() {
         loading = false;
       });
+
+      print('💥 Exception: $e');
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red));
     }

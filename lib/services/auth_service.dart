@@ -80,15 +80,164 @@ Future<ApiResponse> registerWithLaravel({
   return apiResponse;
 }
 
+// Demander un code OTP pour un numéro de téléphone
+Future<ApiResponse> requestOTP(String phoneNumber) async {
+  ApiResponse apiResponse = ApiResponse();
+
+  try {
+    print('🔄 Demande d\'OTP pour: $phoneNumber');
+    print('🌐 URL: ${AppConstance.requestOTPURL}');
+
+    final response = await http.post(
+      Uri.parse(AppConstance.requestOTPURL),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'phone': phoneNumber,
+      }),
+    );
+
+    print('📡 Status Code: ${response.statusCode}');
+    print('📄 Response Body: ${response.body}');
+
+    switch (response.statusCode) {
+      case 200:
+        final responseData = jsonDecode(response.body);
+        print('✅ OTP envoyé avec succès');
+        if (responseData['success'] == true) {
+          apiResponse.data = responseData; // Contient phone et otp (en mode debug)
+          print('📱 OTP envoyé au numéro: ${responseData['phone']}');
+          // En mode développement, l'OTP peut être dans responseData['otp']
+          if (responseData.containsKey('otp')) {
+            print('🔑 Code OTP (DEBUG): ${responseData['otp']}');
+          }
+        } else {
+          apiResponse.error = responseData['message'];
+          print('❌ Erreur: ${responseData['message']}');
+        }
+        break;
+      case 404:
+        apiResponse.error = 'Numéro de téléphone non trouvé';
+        print('❌ Erreur 404: Numéro non trouvé');
+        break;
+      case 403:
+        final responseData = jsonDecode(response.body);
+        apiResponse.error = responseData['message'] ?? 'Compte non autorisé';
+        print('❌ Erreur 403: ${apiResponse.error}');
+        break;
+      case 422:
+        final errors = jsonDecode(response.body)['errors'];
+        apiResponse.error = errors[errors.keys.elementAt(0)][0];
+        print('❌ Erreur 422: ${apiResponse.error}');
+        break;
+      case 500:
+        final responseData = jsonDecode(response.body);
+        apiResponse.error = responseData['message'] ?? 'Erreur lors de l\'envoi du SMS';
+        print('❌ Erreur 500: ${apiResponse.error}');
+        break;
+      default:
+        apiResponse.error = "Erreur serveur (${response.statusCode})";
+        print('❌ Erreur ${response.statusCode}: ${response.body}');
+    }
+  } catch (e) {
+    apiResponse.error = "Erreur de connexion: $e";
+    print('💥 Exception: $e');
+  }
+
+  return apiResponse;
+}
+
+// Vérifier le code OTP et se connecter
+Future<ApiResponse> verifyOTP(String phoneNumber, String otp) async {
+  ApiResponse apiResponse = ApiResponse();
+
+  try {
+    print('🔄 Vérification OTP pour: $phoneNumber');
+    print('🔑 Code OTP: $otp');
+    print('🌐 URL: ${AppConstance.verifyOTPURL}');
+
+    final response = await http.post(
+      Uri.parse(AppConstance.verifyOTPURL),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'phone': phoneNumber,
+        'otp': otp,
+      }),
+    );
+
+    print('📡 Status Code: ${response.statusCode}');
+    print('📄 Response Body: ${response.body}');
+
+    switch (response.statusCode) {
+      case 200:
+        final responseData = jsonDecode(response.body);
+        print('✅ Réponse 200 reçue');
+        if (responseData['success'] == true) {
+          // Sauvegarder le token dans SharedPreferences
+          AppConstance.token = responseData['token'];
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setString('token', responseData['token']);
+          await prefs.setBool('isConnected', true);
+
+          // Créer l'utilisateur avec les données complètes incluant profile_incomplete
+          User user = User.fromJson(responseData['user']);
+          user.profileComplete = responseData['profile_complete'] ?? false;
+          user.profileIncomplete = responseData['profile_incomplete'] ?? true;
+          
+          // Sauvegarder l'utilisateur
+          await prefs.setString('user', jsonEncode(user.toJson()));
+
+          // Retourner l'utilisateur
+          apiResponse.data = user;
+          print('🎉 Connexion réussie via OTP!');
+          print('🔑 Token: ${responseData['token']}');
+          print('📋 Profil complet: ${user.profileComplete}');
+          print('📋 Profil incomplet: ${user.profileIncomplete}');
+        } else {
+          apiResponse.error = responseData['message'];
+          print('❌ Erreur: ${responseData['message']}');
+        }
+        break;
+      case 400:
+        final responseData = jsonDecode(response.body);
+        apiResponse.error = responseData['message'] ?? 'Code OTP incorrect ou expiré';
+        print('❌ Erreur 400: ${apiResponse.error}');
+        break;
+      case 429:
+        apiResponse.error = 'Trop de tentatives. Veuillez demander un nouveau code.';
+        print('❌ Erreur 429: Trop de tentatives');
+        break;
+      case 422:
+        final errors = jsonDecode(response.body)['errors'];
+        apiResponse.error = errors[errors.keys.elementAt(0)][0];
+        print('❌ Erreur 422: ${apiResponse.error}');
+        break;
+      default:
+        apiResponse.error = "Erreur serveur (${response.statusCode})";
+        print('❌ Erreur ${response.statusCode}: ${response.body}');
+    }
+  } catch (e) {
+    apiResponse.error = "Erreur de connexion: $e";
+    print('💥 Exception: $e');
+  }
+
+  return apiResponse;
+}
+
 // Vérifier si un numéro de téléphone existe en base de données
 Future<ApiResponse> checkPhoneExists(String phoneNumber) async {
   ApiResponse apiResponse = ApiResponse();
 
   try {
-    
-    
+
+
     final response = await http.post(
-      Uri.parse('${AppConstance.baseURL}/api/check-phone'),
+      Uri.parse(AppConstance.checkPhoneURL),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -230,8 +379,20 @@ Future<ApiResponse> loginWithLaravel(String email, String password) async {
           AppConstance.token = responseData['token'];
           SharedPreferences prefs = await SharedPreferences.getInstance();
           await prefs.setString('token', responseData['token']);
-          apiResponse.data = User.fromJson(responseData['user']);
+          await prefs.setBool('isConnected', true);
+          
+          // Créer l'utilisateur avec les données complètes
+          User user = User.fromJson(responseData['user']);
+          user.profileComplete = responseData['profile_complete'] ?? false;
+          user.profileIncomplete = responseData['profile_incomplete'] ?? true;
+          
+          // Sauvegarder l'utilisateur
+          await prefs.setString('user', jsonEncode(user.toJson()));
+          
+          apiResponse.data = user;
           print('🎉 Connexion réussie!');
+          print('📋 Profil complet: ${user.profileComplete}');
+          print('📋 Profil incomplet: ${user.profileIncomplete}');
         } else {
           apiResponse.error = responseData['message'];
           print('❌ Erreur: ${responseData['message']}');
@@ -288,7 +449,14 @@ Future<ApiResponse> getUserInfo() async {
       case 200:
         final responseData = jsonDecode(response.body);
         if (responseData['success'] == true) {
-          apiResponse.data = User.fromJson(responseData['user']);
+          User user = User.fromJson(responseData['user']);
+          user.profileComplete = responseData['profile_complete'] ?? false;
+          user.profileIncomplete = responseData['profile_incomplete'] ?? true;
+          
+          // Sauvegarder l'utilisateur mis à jour
+          await prefs.setString('user', jsonEncode(user.toJson()));
+          
+          apiResponse.data = user;
         } else {
           apiResponse.error = responseData['message'];
         }

@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/widgets/widgets.dart';
+import 'package:voxbox/services/global_recorder_service.dart';
 import 'package:voxbox/services/audio_recorder_service.dart';
 import 'package:voxbox/view/creations/recordings_history_sheet.dart';
+import 'package:voxbox/view/creations/folders_screen.dart';
 
 class CreationsScreen extends StatefulWidget {
   const CreationsScreen({super.key});
@@ -14,18 +16,17 @@ class CreationsScreen extends StatefulWidget {
 
 class _CreationsScreenState extends State<CreationsScreen>
     with TickerProviderStateMixin {
+  final GlobalRecorderService _globalRecorderService = GlobalRecorderService();
   final AudioRecorderService _recorderService = AudioRecorderService();
-  
+
   late AnimationController _pulseController;
   late AnimationController _waveController;
   late Animation<double> _pulseAnimation;
-  
+
   Duration _recordingDuration = Duration.zero;
   RecordingState _currentState = RecordingState.stopped;
-  StreamSubscription<Duration>? _durationSubscription;
-  StreamSubscription<RecordingState>? _stateSubscription;
   StreamSubscription<List<double>>? _waveformSubscription;
-  
+
   bool _showWaveform = false;
   List<double> _waveformData = [];
 
@@ -58,34 +59,8 @@ class _CreationsScreenState extends State<CreationsScreen>
   }
 
   void _setupSubscriptions() {
-    _durationSubscription = _recorderService.durationStream.listen((duration) {
-      if (mounted) {
-        setState(() {
-          _recordingDuration = duration;
-        });
-      }
-    });
-    
-    _stateSubscription = _recorderService.stateStream.listen((state) {
-      if (mounted) {
-        setState(() {
-          _currentState = state;
-        });
-        
-        if (state == RecordingState.recording) {
-          _pulseController.repeat(reverse: true);
-          _waveController.repeat();
-          _showWaveform = true;
-        } else {
-          _pulseController.stop();
-          _waveController.stop();
-          if (state == RecordingState.stopped) {
-            _showWaveform = false;
-            _waveformData.clear();
-          }
-        }
-      }
-    });
+    // Écouter les changements de l'enregistreur global
+    _globalRecorderService.addListener(_onRecorderStateChanged);
 
     _waveformSubscription = _recorderService.waveformStream.listen((waveformData) {
       if (mounted) {
@@ -94,6 +69,28 @@ class _CreationsScreenState extends State<CreationsScreen>
         });
       }
     });
+  }
+
+  void _onRecorderStateChanged() {
+    if (mounted) {
+      setState(() {
+        _recordingDuration = _globalRecorderService.recordingDuration;
+        _currentState = _globalRecorderService.recordingState;
+      });
+
+      if (_currentState == RecordingState.recording) {
+        _pulseController.repeat(reverse: true);
+        _waveController.repeat();
+        _showWaveform = true;
+      } else {
+        _pulseController.stop();
+        _waveController.stop();
+        if (_currentState == RecordingState.stopped) {
+          _showWaveform = false;
+          _waveformData.clear();
+        }
+      }
+    }
   }
 
   Future<void> _checkPermissions() async {
@@ -106,8 +103,7 @@ class _CreationsScreenState extends State<CreationsScreen>
 
   @override
   void dispose() {
-    _durationSubscription?.cancel();
-    _stateSubscription?.cancel();
+    _globalRecorderService.removeListener(_onRecorderStateChanged);
     _waveformSubscription?.cancel();
     _pulseController.dispose();
     _waveController.dispose();
@@ -123,41 +119,42 @@ class _CreationsScreenState extends State<CreationsScreen>
 
   Future<void> _startRecording() async {
     try {
-      final success = await _recorderService.startRecording();
+      final success = await _globalRecorderService.startRecording();
       if (!success) {
         _showErrorSnackBar('Impossible de démarrer l\'enregistrement. Vérifiez les permissions.');
       }
     } catch (e) {
-      print('Erreur dans _startRecording: $e');
       _showErrorSnackBar('Erreur: ${e.toString()}');
     }
   }
 
   Future<void> _pauseRecording() async {
-    final success = await _recorderService.pauseRecording();
+    final success = await _globalRecorderService.pauseRecording();
     if (!success) {
       _showErrorSnackBar('Impossible de mettre en pause');
     }
   }
 
   Future<void> _resumeRecording() async {
-    final success = await _recorderService.resumeRecording();
+    final success = await _globalRecorderService.resumeRecording();
     if (!success) {
       _showErrorSnackBar('Impossible de reprendre l\'enregistrement');
     }
   }
 
   Future<void> _stopRecording() async {
-    final path = await _recorderService.stopRecording();
+    final path = await _globalRecorderService.stopRecording();
     if (path != null) {
       _showSuccessSnackBar('Enregistrement sauvegardé');
+      // Rafraîchir l'historique
+      setState(() {});
     } else {
       _showErrorSnackBar('Erreur lors de la sauvegarde');
     }
   }
 
   Future<void> _cancelRecording() async {
-    final success = await _recorderService.cancelRecording();
+    final success = await _globalRecorderService.cancelRecording();
     if (success) {
       _showSuccessSnackBar('Enregistrement annulé');
     } else {
@@ -199,15 +196,27 @@ class _CreationsScreenState extends State<CreationsScreen>
         backgroundColor: AppConstance.primary,
         elevation: 0,
         actions: [
+          // Bouton dossiers
+          IconButton(
+            icon: const Icon(Icons.folder, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FoldersScreen()),
+              );
+            },
+            tooltip: 'Mes dossiers',
+          ),
           // Indicateur de nouveaux enregistrements
           FutureBuilder<List<AudioRecording>>(
-            future: _recorderService.getRecordings(),
+            future: _globalRecorderService.getRecordings(),
             builder: (context, snapshot) {
               if (snapshot.hasData && snapshot.data!.isNotEmpty) {
                 return Stack(
                   children: [
                     IconButton(
                       icon: const Icon(Icons.history, color: Colors.white),
+                      tooltip: '${snapshot.data!.length} enregistrement(s)',
                       onPressed: () {
                         // Scroll vers le bas pour montrer l'historique
                         // TODO: Implémenter le scroll automatique
@@ -217,11 +226,18 @@ class _CreationsScreenState extends State<CreationsScreen>
                       right: 8,
                       top: 8,
                       child: Container(
-                        width: 8,
-                        height: 8,
+                        padding: const EdgeInsets.all(4),
                         decoration: const BoxDecoration(
                           color: Colors.red,
                           shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${snapshot.data!.length}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -233,16 +249,17 @@ class _CreationsScreenState extends State<CreationsScreen>
           ),
         ],
       ),
-      body: Stack(
+      body: Column(
         children: [
           // Interface principale d'enregistrement
-          _buildMainRecordingInterface(),
+          Expanded(
+            flex: 3, // 75% de l'espace
+            child: _buildMainRecordingInterface(),
+          ),
           
           // Historique en bas (toujours visible)
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
+          Expanded(
+            flex: 1, // 25% de l'espace
             child: _buildHistorySheet(),
           ),
         ],
@@ -553,7 +570,7 @@ class _CreationsScreenState extends State<CreationsScreen>
             icon: Icons.edit,
             label: 'Éditer',
             onPressed: () {
-              if (_recorderService.currentRecordingPath != null) {
+              if (_globalRecorderService.currentRecordingPath != null) {
                 // TODO: Ouvrir l'éditeur avec le fichier en cours
                 _showErrorSnackBar('Éditeur audio en cours de développement');
               } else {
@@ -630,36 +647,43 @@ class _CreationsScreenState extends State<CreationsScreen>
   }
 
   Widget _buildHistorySheet() {
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.3, // Hauteur fixe pour éviter les conflits
-      child: DraggableScrollableSheet(
-        initialChildSize: 1.0, // Prend toute la hauteur disponible
-        minChildSize: 0.5,     // Minimum 50% de la hauteur
-        maxChildSize: 1.0,     // Maximum 100% de la hauteur
-        builder: (context, scrollController) {
-          return Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 10,
-                  offset: Offset(0, -2),
-                ),
-              ],
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 10,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Handle de drag plus visible
+          Container(
+            margin: const EdgeInsets.only(top: 8, bottom: 8),
+            width: 50,
+            height: 5,
+            decoration: BoxDecoration(
+              color: Colors.grey[400],
+              borderRadius: BorderRadius.circular(10),
             ),
+          ),
+          // Contenu de l'historique avec scroll
+          Expanded(
             child: RecordingsHistorySheet(
-              scrollController: scrollController,
+              scrollController: ScrollController(),
               onClose: () {
                 // Pas besoin de fermer, l'historique reste toujours visible
               },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }

@@ -4,13 +4,20 @@ import 'package:http/http.dart' as http;
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/widgets/widgets.dart';
 import 'package:voxbox/models/chant_de_messe.dart';
+import 'package:voxbox/models/chorale_pupitre.dart';
+import 'package:voxbox/models/user.dart';
 import 'package:voxbox/view/messes/add_files_to_chant.dart';
 import 'package:voxbox/services/chant_service.dart';
+import 'package:voxbox/services/chorale_service.dart';
+import 'package:voxbox/services/auth_service.dart';
 import 'package:voxbox/services/file_upload_service.dart';
 import 'package:voxbox/services/audio_service.dart';
 import 'package:voxbox/services/pdf_service.dart';
+import 'package:voxbox/services/local_file_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class ChantDetailsScreen extends StatefulWidget {
   final ChantDeMesse chant;
@@ -23,15 +30,108 @@ class ChantDetailsScreen extends StatefulWidget {
 
 class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTickerProviderStateMixin {
   bool loading = false;
-  late TabController _tabController;
+  TabController? _tabController;
   ChantDeMesse? _currentChant;
+  List<ChoralePupitre> _pupitres = [];
+  int? _choraleId;
+  Map<String, FileDownloadStatus> _fileStatuses = {};
+  Map<String, bool> _downloadingFiles = {};
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
     _currentChant = widget.chant;
+    // Créer un TabController temporaire avec 1 onglet (Général) en attendant le chargement des pupitres
+    _tabController = TabController(length: 1, vsync: this);
     _loadChantData();
+    _loadPupitres();
+    _checkFilesStatus();
+  }
+
+  Future<void> _checkFilesStatus() async {
+    if (_currentChant == null) return;
+    
+    // Vérifier le statut de tous les fichiers
+    final allFiles = <String>[];
+    if (_currentChant!.pdfFiles != null) allFiles.addAll(_currentChant!.pdfUrls);
+    if (_currentChant!.imageFiles != null) allFiles.addAll(_currentChant!.imageUrls);
+    if (_currentChant!.audioFiles != null) allFiles.addAll(_currentChant!.audioUrls);
+    
+    final statuses = <String, FileDownloadStatus>{};
+    for (var file in allFiles) {
+      final status = await LocalFileService.getFileStatus(file);
+      statuses[file] = status;
+    }
+    
+    if (mounted) {
+      setState(() {
+        _fileStatuses = statuses;
+      });
+    }
+  }
+
+  Future<void> _loadPupitres() async {
+    try {
+      print('🔄 Chargement des pupitres...');
+      // Récupérer le choraleId depuis l'utilisateur
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? userString = prefs.getString('user');
+      if (userString != null) {
+        Map<String, dynamic> userMap = jsonDecode(userString);
+        User user = User.fromJson(userMap);
+        _choraleId = user.choraleId;
+        
+        print('📋 Chorale ID: $_choraleId');
+        
+        if (_choraleId != null) {
+          final response = await ChoraleService.getPupitres(_choraleId!);
+          print('📡 Réponse API pupitres: ${response.error ?? "Succès"}');
+          
+          if (response.error == null && response.data != null) {
+            final pupitres = response.data as List<ChoralePupitre>;
+            print('✅ ${pupitres.length} pupitres chargés: ${pupitres.map((p) => p.nom).join(", ")}');
+            
+            setState(() {
+              _pupitres = pupitres;
+              // Créer le TabController avec le nombre de pupitres + 1 (pour Général)
+              _tabController?.dispose();
+              _tabController = TabController(length: _pupitres.length + 1, vsync: this);
+              print('✅ TabController créé avec ${_pupitres.length + 1} onglets');
+            });
+          } else {
+            print('❌ Erreur lors du chargement des pupitres: ${response.error}');
+            // En cas d'erreur, utiliser un TabController avec seulement Général
+            setState(() {
+              _pupitres = [];
+              _tabController?.dispose();
+              _tabController = TabController(length: 1, vsync: this);
+            });
+          }
+        } else {
+          print('⚠️ Chorale ID est null');
+          setState(() {
+            _pupitres = [];
+            _tabController?.dispose();
+            _tabController = TabController(length: 1, vsync: this);
+          });
+        }
+      } else {
+        print('⚠️ Aucun utilisateur trouvé dans SharedPreferences');
+        setState(() {
+          _pupitres = [];
+          _tabController?.dispose();
+          _tabController = TabController(length: 1, vsync: this);
+        });
+      }
+    } catch (e) {
+      print('💥 Exception lors du chargement des pupitres: $e');
+      // En cas d'erreur, utiliser un TabController avec seulement Général
+      setState(() {
+        _pupitres = [];
+        _tabController?.dispose();
+        _tabController = TabController(length: 1, vsync: this);
+      });
+    }
   }
 
   Future<void> _loadChantData() async {
@@ -40,9 +140,15 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
     });
 
     try {
+      print('🔄 Chargement des données du chant ID: ${widget.chant.id}');
+      
       // D'abord charger les données locales (avec fichiers en attente)
       final localChant = await ChantService.getLocalChant(widget.chant.id);
       if (localChant != null) {
+        print('📦 Chant chargé depuis le cache local');
+        print('   - PDF: ${localChant.pdfFiles?.length ?? 0} fichiers');
+        print('   - Images: ${localChant.imageFiles?.length ?? 0} fichiers');
+        print('   - Audio: ${localChant.audioFiles?.length ?? 0} fichiers');
         setState(() {
           _currentChant = localChant;
         });
@@ -51,12 +157,26 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
       // Ensuite essayer de synchroniser avec le serveur
       final response = await ChantService.syncChant(widget.chant.id);
       if (response.error == null && response.data != null) {
+        final chant = response.data as ChantDeMesse;
+        print('✅ Chant synchronisé depuis le serveur');
+        print('   - PDF: ${chant.pdfFiles?.length ?? 0} fichiers');
+        print('   - Images: ${chant.imageFiles?.length ?? 0} fichiers');
+        print('   - Audio: ${chant.audioFiles?.length ?? 0} fichiers');
+        print('   - Soprano: ${chant.sopranoFiles?.length ?? 0} fichiers');
+        print('   - Alto: ${chant.altoFiles?.length ?? 0} fichiers');
+        print('   - Ténor: ${chant.tenorFiles?.length ?? 0} fichiers');
+        print('   - Basse: ${chant.basseFiles?.length ?? 0} fichiers');
+        print('   - Tutti: ${chant.tuttiFiles?.length ?? 0} fichiers');
         setState(() {
-          _currentChant = response.data as ChantDeMesse;
+          _currentChant = chant;
         });
+        // Vérifier les statuts des fichiers après le chargement
+        _checkFilesStatus();
+      } else {
+        print('❌ Erreur lors de la synchronisation: ${response.error}');
       }
     } catch (e) {
-      print('Erreur lors du chargement des données du chant: $e');
+      print('💥 Exception lors du chargement des données du chant: $e');
     } finally {
       setState(() {
         loading = false;
@@ -66,13 +186,13 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_currentChant == null) {
+    if (_currentChant == null || _tabController == null) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Chargement...'),
@@ -172,34 +292,43 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
             ),
           ),
           
-          // TabBar pour les pupitres
+          // TabBar pour les pupitres (dynamique)
           TabBar(
-            controller: _tabController,
+            controller: _tabController!,
             isScrollable: true,
             labelColor: AppConstance.primary,
             unselectedLabelColor: Colors.grey,
             indicatorColor: AppConstance.primary,
-            tabs: const [
-              Tab(text: 'Général', icon: Icon(Icons.folder, size: 16)),
-              Tab(text: 'Soprano', icon: Icon(Icons.person, size: 16)),
-              Tab(text: 'Alto', icon: Icon(Icons.person, size: 16)),
-              Tab(text: 'Ténor', icon: Icon(Icons.person, size: 16)),
-              Tab(text: 'Basse', icon: Icon(Icons.person, size: 16)),
-              Tab(text: 'Tutti', icon: Icon(Icons.group, size: 16)),
+            tabs: [
+              const Tab(text: 'Général', icon: Icon(Icons.folder, size: 16)),
+              ..._pupitres.map((pupitre) {
+                print('📌 Création du tab pour pupitre: ${pupitre.nom} (ID: ${pupitre.id})');
+                return Tab(
+                  text: pupitre.nom,
+                  icon: Icon(
+                    pupitre.icon != null ? _getIconFromString(pupitre.icon!) : Icons.person,
+                    size: 16,
+                  ),
+                );
+              }),
             ],
           ),
           
           // Contenu des onglets
           Expanded(
             child: TabBarView(
-              controller: _tabController,
+              controller: _tabController!,
               children: [
                 _buildGeneralTab(),
-                _buildPupitreTab('Soprano', _currentChant!.sopranoUrls, Colors.pink),
-                _buildPupitreTab('Alto', _currentChant!.altoUrls, Colors.orange),
-                _buildPupitreTab('Ténor', _currentChant!.tenorUrls, Colors.blue),
-                _buildPupitreTab('Basse', _currentChant!.basseUrls, Colors.brown),
-                _buildPupitreTab('Tutti', _currentChant!.tuttiUrls, Colors.purple),
+                ..._pupitres.map((pupitre) {
+                  // Récupérer les fichiers audio pour ce pupitre
+                  List<String> pupitreFiles = _getFilesForPupitre(pupitre.id);
+                  Color pupitreColor = pupitre.color != null 
+                      ? Color(int.parse(pupitre.color!.replaceAll('#', '0xFF')))
+                      : Colors.blue;
+                  print('🎵 Fichiers pour pupitre ${pupitre.nom}: ${pupitreFiles.length} fichiers');
+                  return _buildPupitreTab(pupitre.nom, pupitreFiles, pupitreColor, pupitre.id);
+                }),
               ],
             ),
           ),
@@ -208,7 +337,87 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
     );
   }
 
-  Widget _buildPupitreTab(String pupitreName, List<String> files, Color color) {
+  IconData _getIconFromString(String iconName) {
+    switch (iconName.toLowerCase()) {
+      case 'person':
+      case 'person_outline':
+        return Icons.person;
+      case 'group':
+      case 'groups':
+        return Icons.group;
+      case 'music_note':
+      case 'music':
+        return Icons.music_note;
+      default:
+        return Icons.person;
+    }
+  }
+
+  List<String> _getFilesForPupitre(int pupitreId) {
+    // Récupérer les fichiers audio pour ce pupitre spécifique
+    List<String> files = [];
+    
+    if (_currentChant != null) {
+      print('🎵 Recherche de fichiers audio pour pupitre ID: $pupitreId');
+      
+      // Mapper les anciens champs par pupitre (temporaire jusqu'à ce que les données soient structurées par pupitre_id)
+      // On essaie de mapper par nom de pupitre ou par position
+      String? pupitreNom;
+      if (_pupitres.isNotEmpty) {
+        try {
+          final pupitre = _pupitres.firstWhere((p) => p.id == pupitreId);
+          pupitreNom = pupitre.nom.toLowerCase();
+          print('📌 Nom du pupitre trouvé: ${pupitre.nom}');
+        } catch (e) {
+          print('⚠️ Pupitre avec ID $pupitreId non trouvé');
+        }
+      }
+      
+      // Mapper par nom de pupitre
+      if (pupitreNom != null) {
+        if (pupitreNom.contains('soprano')) {
+          if (_currentChant!.sopranoFiles != null && _currentChant!.sopranoFiles!.isNotEmpty) {
+            files.addAll(_currentChant!.sopranoUrls);
+          }
+        } else if (pupitreNom.contains('alto')) {
+          if (_currentChant!.altoFiles != null && _currentChant!.altoFiles!.isNotEmpty) {
+            files.addAll(_currentChant!.altoUrls);
+          }
+        } else if (pupitreNom.contains('ténor') || pupitreNom.contains('tenor')) {
+          if (_currentChant!.tenorFiles != null && _currentChant!.tenorFiles!.isNotEmpty) {
+            files.addAll(_currentChant!.tenorUrls);
+          }
+        } else if (pupitreNom.contains('basse')) {
+          if (_currentChant!.basseFiles != null && _currentChant!.basseFiles!.isNotEmpty) {
+            files.addAll(_currentChant!.basseUrls);
+          }
+        } else if (pupitreNom.contains('tutti')) {
+          if (_currentChant!.tuttiFiles != null && _currentChant!.tuttiFiles!.isNotEmpty) {
+            files.addAll(_currentChant!.tuttiUrls);
+          }
+        }
+      }
+      
+      // Si aucun fichier spécifique au pupitre, utiliser les fichiers audio généraux
+      if (files.isEmpty) {
+        print('📢 Aucun fichier spécifique trouvé, utilisation des fichiers audio généraux');
+        // Fichiers audio multiples
+        if (_currentChant!.audioFiles != null && _currentChant!.audioFiles!.isNotEmpty) {
+          files.addAll(_currentChant!.audioUrls);
+        }
+        // Fichier audio unique
+        if (_currentChant!.audioPath != null) {
+          files.add(_currentChant!.audioUrl!);
+        }
+      }
+      
+      print('✅ ${files.length} fichier(s) audio trouvé(s) pour pupitre $pupitreId');
+    }
+    
+    return files;
+  }
+
+  Widget _buildPupitreTab(String pupitreName, List<String> files, Color color, [int? pupitreId]) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -281,108 +490,238 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
       future: _isFilePending(file),
       builder: (context, snapshot) {
         final isPending = snapshot.data ?? false;
+        bool isAudio = _isAudioFile(file);
+        bool isPdf = _isPdfFile(file);
+        bool isImage = _isImageFile(file);
+        final fileStatus = _fileStatuses[file] ?? FileDownloadStatus.notDownloaded;
+        final isDownloading = _downloadingFiles[file] ?? false;
         
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-            border: Border.all(
-              color: isPending ? Colors.orange : Colors.grey.shade300,
-              width: isPending ? 2 : 1,
-            ),
-        borderRadius: BorderRadius.circular(8),
-            color: isPending ? Colors.orange.withOpacity(0.1) : null,
-      ),
-      child: Row(
-            children: [
-              Stack(
-        children: [
-          Icon(
-            _getFileIcon(file),
-            color: color,
-            size: 20,
-                  ),
-                  if (isPending)
-                    Positioned(
-                      right: -2,
-                      top: -2,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Colors.orange,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                ],
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-              children: [
-                Text(
-                  'Fichier $index',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                  ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          isPending ? Icons.cloud_upload : Icons.cloud_done,
-                          size: 12,
-                          color: isPending ? Colors.orange : Colors.green,
-                        ),
-                      ],
+        // Icône selon l'état du fichier
+        IconData statusIcon;
+        Color statusColor;
+        String statusText;
+        
+        if (isDownloading) {
+          statusIcon = Icons.download;
+          statusColor = Colors.orange;
+          statusText = 'Téléchargement...';
+        } else if (isPending) {
+          statusIcon = Icons.cloud_upload;
+          statusColor = Colors.orange;
+          statusText = 'En attente de synchronisation';
+        } else {
+          switch (fileStatus) {
+            case FileDownloadStatus.downloaded:
+              statusIcon = Icons.check_circle;
+              statusColor = Colors.green;
+              statusText = 'Téléchargé';
+              break;
+            case FileDownloadStatus.outdated:
+              statusIcon = Icons.update;
+              statusColor = Colors.orange;
+              statusText = 'Mise à jour disponible';
+              break;
+            case FileDownloadStatus.notDownloaded:
+            default:
+              statusIcon = Icons.download;
+              statusColor = Colors.grey;
+              statusText = 'Non téléchargé';
+              break;
+          }
+        }
+        
+        // Fonction pour ouvrir le fichier selon son type
+        Future<void> openFile() async {
+          // Vérifier si le fichier est en cours de téléchargement
+          if (isDownloading) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Téléchargement en cours, veuillez patienter...'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+            return;
+          }
+
+          try {
+            String? localPath;
+
+            // ÉTAPE 1: Vérifier si le fichier est déjà disponible localement
+            print('🔍 Recherche du fichier: $file');
+            localPath = await LocalFileService.getLocalFilePath(file);
+
+            // ÉTAPE 2: Si pas trouvé ou obsolète, télécharger
+            if (localPath == null || fileStatus == FileDownloadStatus.outdated) {
+              print('📥 Téléchargement nécessaire pour: $file');
+
+              setState(() {
+                _downloadingFiles[file] = true;
+              });
+
+              localPath = await LocalFileService.downloadFile(
+                file,
+                forceRedownload: fileStatus == FileDownloadStatus.outdated,
+              );
+
+              setState(() {
+                _downloadingFiles[file] = false;
+              });
+
+              if (localPath == null) {
+                throw Exception('Impossible de télécharger ou de trouver le fichier');
+              }
+
+              // Mettre à jour le statut
+              final newStatus = await LocalFileService.getFileStatus(file);
+              setState(() {
+                _fileStatuses[file] = newStatus;
+              });
+
+              print('✅ Fichier disponible: $localPath');
+            } else {
+              print('✅ Fichier déjà disponible: $localPath');
+            }
+
+            // ÉTAPE 3: Vérifier que le fichier existe vraiment avant de l'ouvrir
+            final fileExists = await File(localPath).exists();
+            if (!fileExists) {
+              throw Exception('Le fichier n\'existe pas: $localPath');
+            }
+
+            // ÉTAPE 4: Ouvrir le fichier selon son type
+            print('📂 Ouverture du fichier: $localPath');
+            if (isAudio) {
+              _playAudio(localPath);
+            } else if (isPdf) {
+              _viewPdf(localPath);
+            } else if (isImage) {
+              _viewImage(localPath);
+            }
+
+          } catch (e) {
+            print('❌ Erreur lors de l\'ouverture du fichier: $e');
+            setState(() {
+              _downloadingFiles[file] = false;
+            });
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Erreur: ${e.toString()}'),
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 5),
                 ),
-                Text(
-                  file.split('/').last,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                      ),
+              );
+            }
+          }
+        }
+        
+        return InkWell(
+          onTap: openFile,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: isPending ? Colors.orange : Colors.grey.shade300,
+                width: isPending ? 2 : 1,
+              ),
+              borderRadius: BorderRadius.circular(8),
+              color: isPending ? Colors.orange.withOpacity(0.1) : null,
+            ),
+            child: Row(
+              children: [
+                Stack(
+                  children: [
+                    Icon(
+                      _getFileIcon(file),
+                      color: color,
+                      size: 24,
                     ),
                     if (isPending)
-                      const Text(
-                        'En attente de synchronisation',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.orange,
-                          fontStyle: FontStyle.italic,
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.orange,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              file.split('/').last,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 14,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            statusIcon,
+                            size: 14,
+                            color: statusColor,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            isAudio ? 'Fichier audio' : (isPdf ? 'Document PDF' : (isImage ? 'Image' : 'Fichier')),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            statusText,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: statusColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
+                if (isDownloading)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                else
+                  Icon(
+                    Icons.open_in_new,
+                    color: Colors.grey.shade600,
+                    size: 20,
+                  ),
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.download, color: Colors.blue),
-            onPressed: () => _downloadFile(file),
-            tooltip: 'Télécharger',
-          ),
-          if (_isAudioFile(file))
-            IconButton(
-              icon: const Icon(Icons.play_arrow, color: Colors.green),
-              onPressed: () => _playAudio(file),
-              tooltip: 'Lire',
-            ),
-          if (_isPdfFile(file))
-            IconButton(
-              icon: const Icon(Icons.visibility, color: Colors.orange),
-              onPressed: () => _viewPdf(file),
-              tooltip: 'Voir',
-            ),
-          if (_isImageFile(file))
-            IconButton(
-              icon: const Icon(Icons.visibility, color: Colors.purple),
-              onPressed: () => _viewImage(file),
-              tooltip: 'Voir',
-            ),
-        ],
-      ),
-    );
+        );
       },
     );
   }
@@ -434,38 +773,93 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
   }
 
   Widget _buildGeneralTab() {
+    // Récupérer UNIQUEMENT les fichiers non-audio (PDF et images)
+    // Les fichiers audio doivent être dans les onglets pupitre
+    List<String> pdfFiles = [];
+    List<String> imageFiles = [];
+
+    if (_currentChant != null) {
+      // Fichiers PDF (NON-AUDIO, donc dans Général)
+      if (_currentChant!.pdfFiles != null && _currentChant!.pdfFiles!.isNotEmpty) {
+        pdfFiles.addAll(_currentChant!.pdfUrls);
+      }
+      if (_currentChant!.pdfPath != null) {
+        pdfFiles.add(_currentChant!.pdfUrl!);
+      }
+
+      // Fichiers Images (NON-AUDIO, donc dans Général)
+      if (_currentChant!.imageFiles != null && _currentChant!.imageFiles!.isNotEmpty) {
+        imageFiles.addAll(_currentChant!.imageUrls);
+      }
+      if (_currentChant!.imagePath != null) {
+        imageFiles.add(_currentChant!.imageUrl!);
+      }
+
+      // NE PAS INCLURE les fichiers audio ici !
+      // Ils seront affichés dans les onglets pupitres
+    }
+
+    print('📄 Fichiers PDF dans Général: ${pdfFiles.length}');
+    print('🖼️ Fichiers Images dans Général: ${imageFiles.length}');
+    print('🎵 Fichiers Audio exclus de Général (affichés dans les pupitres)');
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Fichiers généraux (audio, PDF, images)
-          if (_currentChant!.audioFiles?.isNotEmpty == true || _currentChant!.audioPath != null)
-            _buildFileSection(
-              title: 'Fichiers Audio',
-              icon: Icons.audiotrack,
-              color: Colors.green,
-              files: _currentChant!.audioFiles ?? (_currentChant!.audioPath != null ? [_currentChant!.audioPath!] : []),
-            ),
-
-          const SizedBox(height: 16),
-
-          if (_currentChant!.pdfFiles?.isNotEmpty == true || _currentChant!.pdfPath != null)
+          // Fichiers PDF (non-audio, donc dans Général)
+          if (pdfFiles.isNotEmpty)
             _buildFileSection(
               title: 'Partitions PDF',
               icon: Icons.picture_as_pdf,
               color: Colors.red,
-              files: _currentChant!.pdfFiles ?? (_currentChant!.pdfPath != null ? [_currentChant!.pdfPath!] : []),
+              files: pdfFiles,
             ),
 
-          const SizedBox(height: 16),
+          if (pdfFiles.isNotEmpty && imageFiles.isNotEmpty)
+            const SizedBox(height: 16),
 
-          if (_currentChant!.imageFiles?.isNotEmpty == true || _currentChant!.imagePath != null)
+          // Fichiers Images (non-audio, donc dans Général)
+          if (imageFiles.isNotEmpty)
             _buildFileSection(
               title: 'Images',
               icon: Icons.image,
               color: Colors.blue,
-              files: _currentChant!.imageFiles ?? (_currentChant!.imagePath != null ? [_currentChant!.imagePath!] : []),
+              files: imageFiles,
+            ),
+          
+          // Message si aucun fichier non-audio
+          if (pdfFiles.isEmpty && imageFiles.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(40),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.folder_open,
+                      size: 64,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Aucun fichier non-audio',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Les fichiers PDF et images apparaîtront ici',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
 
           const SizedBox(height: 20),
@@ -699,14 +1093,32 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
     }
   }
 
-  void _playAudio(String file) async {
+  void _playAudio(String filePath) async {
     try {
       setState(() {
         loading = true;
       });
 
+      // Si c'est un chemin local, utiliser directement
+      String audioPath = filePath;
+      if (!filePath.startsWith('/')) {
+        // Sinon, c'est une URL, vérifier si téléchargé
+        final localPath = await LocalFileService.getLocalFilePath(filePath);
+        if (localPath != null) {
+          audioPath = localPath;
+        } else {
+          // Télécharger d'abord
+          final downloadedPath = await LocalFileService.downloadFile(filePath);
+          if (downloadedPath != null) {
+            audioPath = downloadedPath;
+          } else {
+            throw Exception('Impossible de télécharger le fichier audio');
+          }
+        }
+      }
+
       // Utiliser le service audio pour la lecture
-      await AudioService.playAudio(file, onComplete: () {
+      await AudioService.playAudio(audioPath, onComplete: () {
         if (mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -720,7 +1132,7 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lecture en cours: ${file.split('/').last}'),
+            content: Text('Lecture en cours: ${audioPath.split('/').last}'),
             backgroundColor: Colors.green,
             action: SnackBarAction(
               label: 'Arrêter',
@@ -747,22 +1159,41 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
     }
   }
 
-  void _viewPdf(String file) async {
+  void _viewPdf(String filePath) async {
+    String? pdfPath;
     try {
       setState(() {
         loading = true;
       });
 
-      print('Tentative d\'ouverture du PDF: $file');
+      // Si c'est un chemin local, utiliser directement
+      pdfPath = filePath;
+      if (!filePath.startsWith('/')) {
+        // Sinon, c'est une URL, vérifier si téléchargé
+        final localPath = await LocalFileService.getLocalFilePath(filePath);
+        if (localPath != null) {
+          pdfPath = localPath;
+        } else {
+          // Télécharger d'abord
+          final downloadedPath = await LocalFileService.downloadFile(filePath);
+          if (downloadedPath != null) {
+            pdfPath = downloadedPath;
+          } else {
+            throw Exception('Impossible de télécharger le fichier PDF');
+          }
+        }
+      }
+
+      print('Tentative d\'ouverture du PDF: $pdfPath');
 
       // Vérifier si le PDF est valide
-      final isValid = await PdfService.isValidPdf(file);
+      final isValid = await PdfService.isValidPdf(pdfPath!);
       if (!isValid) {
         throw Exception('Fichier PDF invalide ou corrompu');
       }
 
       // Utiliser le nouveau service PDF avec options multiples
-      await PdfService.showPdfOptions(file, context);
+      await PdfService.showPdfOptions(pdfPath, context);
       
     } catch (e) {
       print('Erreur lors de l\'ouverture du PDF: $e');
@@ -774,7 +1205,7 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
             duration: const Duration(seconds: 5),
             action: SnackBarAction(
               label: 'Options',
-              onPressed: () => _showPdfErrorOptions(file),
+              onPressed: () => _showPdfErrorOptions(pdfPath ?? filePath),
             ),
           ),
         );
@@ -884,40 +1315,45 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
     }
   }
 
-  void _viewImage(String file) async {
+  void _viewImage(String filePath) async {
     try {
       setState(() {
         loading = true;
       });
 
-      print('Tentative d\'ouverture de l\'image: $file');
-
-      // Si c'est un fichier local
-      if (file.startsWith('/')) {
-        final localFile = File(file);
-        if (await localFile.exists()) {
-          print('Fichier image local trouvé: ${localFile.path}');
-          // Ouvrir le fichier local avec l'application par défaut
-          final uri = Uri.file(file);
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri);
-            print('Image ouverte avec succès');
-          } else {
-            throw Exception('Impossible d\'ouvrir le fichier image avec l\'application par défaut');
-          }
+      // Si c'est un chemin local, utiliser directement
+      String imagePath = filePath;
+      if (!filePath.startsWith('/')) {
+        // Sinon, c'est une URL, vérifier si téléchargé
+        final localPath = await LocalFileService.getLocalFilePath(filePath);
+        if (localPath != null) {
+          imagePath = localPath;
         } else {
-          throw Exception('Fichier image introuvable: $file');
+          // Télécharger d'abord
+          final downloadedPath = await LocalFileService.downloadFile(filePath);
+          if (downloadedPath != null) {
+            imagePath = downloadedPath;
+          } else {
+            throw Exception('Impossible de télécharger le fichier image');
+          }
         }
-      } else {
-        // Si c'est une URL, l'ouvrir dans le navigateur
-        print('Ouverture de l\'URL image: $file');
-        final uri = Uri.parse(file);
+      }
+
+      print('Tentative d\'ouverture de l\'image: $imagePath');
+
+      final localFile = File(imagePath);
+      if (await localFile.exists()) {
+        print('Fichier image local trouvé: ${localFile.path}');
+        // Ouvrir le fichier local avec l'application par défaut
+        final uri = Uri.file(imagePath);
         if (await canLaunchUrl(uri)) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
-          print('URL image ouverte avec succès');
+          print('Image ouverte avec succès');
         } else {
-          throw Exception('Impossible d\'ouvrir l\'URL image');
+          throw Exception('Impossible d\'ouvrir le fichier image avec l\'application par défaut');
         }
+      } else {
+        throw Exception('Fichier image introuvable: $imagePath');
       }
     } catch (e) {
       print('Erreur lors de l\'ouverture de l\'image: $e');
@@ -929,7 +1365,7 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
             duration: const Duration(seconds: 5),
             action: SnackBarAction(
               label: 'Télécharger',
-              onPressed: () => _downloadFile(file),
+              onPressed: () => _downloadFile(filePath),
             ),
           ),
         );

@@ -46,3 +46,9 @@ app.*.map.json
 
 # FVM Version Cache
 .fvm/
+
+# Clés de signature (NE JAMAIS COMMITER)
+*.jks
+*.keystore
+key.properties
+android/key.properties

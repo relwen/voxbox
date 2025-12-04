@@ -24,6 +24,18 @@ class Vocalise {
   final List<String>? basseFiles;   // Fichiers spécifiques au pupitre Basse
   final List<String>? tuttiFiles;   // Fichiers pour tous les pupitres
 
+  // URLs complètes pour les fichiers multiples
+  List<String> get audioUrls => audioFiles?.map((file) => '${AppConstance.baseURL}/storage/$file').toList() ?? [];
+  List<String> get pdfUrls => pdfFiles?.map((file) => '${AppConstance.baseURL}/storage/$file').toList() ?? [];
+  List<String> get imageUrls => imageFiles?.map((file) => '${AppConstance.baseURL}/storage/$file').toList() ?? [];
+  
+  // URLs des pupitres
+  List<String> get sopranoUrls => sopranoFiles?.map((file) => '${AppConstance.baseURL}/storage/$file').toList() ?? [];
+  List<String> get altoUrls => altoFiles?.map((file) => '${AppConstance.baseURL}/storage/$file').toList() ?? [];
+  List<String> get tenorUrls => tenorFiles?.map((file) => '${AppConstance.baseURL}/storage/$file').toList() ?? [];
+  List<String> get basseUrls => basseFiles?.map((file) => '${AppConstance.baseURL}/storage/$file').toList() ?? [];
+  List<String> get tuttiUrls => tuttiFiles?.map((file) => '${AppConstance.baseURL}/storage/$file').toList() ?? [];
+
   Vocalise({
     required this.id,
     required this.title,

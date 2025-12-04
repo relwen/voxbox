@@ -7,6 +7,9 @@ class User {
   String? role;
   String? status;
   Map<String, dynamic>? chorale;
+  int? choraleId;
+  bool? profileComplete;
+  bool? profileIncomplete;
 
   User({
     this.id,
@@ -17,6 +20,9 @@ class User {
     this.role,
     this.status,
     this.chorale,
+    this.choraleId,
+    this.profileComplete,
+    this.profileIncomplete,
   });
 
   User.fromJson(Map<String, dynamic> json) {
@@ -28,6 +34,9 @@ class User {
     role = json['role'];
     status = json['status'];
     chorale = json['chorale'];
+    choraleId = json['chorale_id'];
+    profileComplete = json['profile_complete'];
+    profileIncomplete = json['profile_incomplete'];
   }
 
   Map<String, dynamic> toJson() {
@@ -40,8 +49,20 @@ class User {
     data['role'] = this.role;
     data['status'] = this.status;
     data['chorale'] = this.chorale;
+    data['chorale_id'] = this.choraleId;
+    data['profile_complete'] = this.profileComplete;
+    data['profile_incomplete'] = this.profileIncomplete;
 
     return data;
+  }
+
+  // Vérifier si le profil est incomplet (sans email - email n'est plus requis)
+  bool isProfileIncomplete() {
+    return name == null || 
+           name!.isEmpty || 
+           voicePart == null || 
+           voicePart!.isEmpty ||
+           choraleId == null;
   }
 }
 

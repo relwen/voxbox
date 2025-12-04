@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:voxbox/view/splash.dart';
+import 'package:voxbox/widgets/app_wrapper.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,15 +14,18 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'VoXY',
-        theme: ThemeData(
-          hoverColor: Color.fromARGB(255, 11, 50, 95),
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Color.fromARGB(255, 11, 50, 95),
-          ),
-          useMaterial3: true,
+      debugShowCheckedModeBanner: false,
+      title: 'VoXY',
+      theme: ThemeData(
+        hoverColor: const Color.fromARGB(255, 11, 50, 95),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color.fromARGB(255, 11, 50, 95),
         ),
-        home: SplashScreen());
+        useMaterial3: true,
+      ),
+      home: AppWrapper(
+        child: SplashScreen(),
+      ),
+    );
   }
 }

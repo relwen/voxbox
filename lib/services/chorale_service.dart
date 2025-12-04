@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/models/chorale.dart';
+import 'package:voxbox/models/chorale_pupitre.dart';
 import 'package:voxbox/services/api_response.dart';
 
 class ChoraleService {
@@ -147,6 +148,49 @@ class ChoraleService {
       }
     } catch (e) {
       return ApiResponse<Chorale>(error: 'Erreur de connexion: $e');
+    }
+  }
+
+  /// Récupère les pupitres d'une chorale
+  static Future<ApiResponse<List<ChoralePupitre>>> getPupitres(int choraleId) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+      
+      Map<String, String> headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      };
+      
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+      
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/chorales/$choraleId/pupitres'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        
+        if (data['success'] == true && data['data'] != null) {
+          List<ChoralePupitre> pupitres = (data['data'] as List)
+              .map((json) => ChoralePupitre.fromJson(json))
+              .toList();
+          
+          // Trier par ordre
+          pupitres.sort((a, b) => a.order.compareTo(b.order));
+          
+          return ApiResponse<List<ChoralePupitre>>(data: pupitres);
+        } else {
+          return ApiResponse<List<ChoralePupitre>>(error: data['message'] ?? 'Erreur lors du chargement des pupitres');
+        }
+      } else {
+        return ApiResponse<List<ChoralePupitre>>(error: 'Erreur serveur: ${response.statusCode}');
+      }
+    } catch (e) {
+      return ApiResponse<List<ChoralePupitre>>(error: 'Erreur de connexion: $e');
     }
   }
 

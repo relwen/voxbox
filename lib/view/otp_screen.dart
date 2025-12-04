@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:voxbox/functions/appconstants.dart';
-import 'package:voxbox/view/user_registration.dart';
-import 'package:voxbox/view/home.dart';
-import 'package:voxbox/view/account_pending.dart';
+import 'package:voxbox/models/user.dart';
 import 'package:voxbox/services/auth_service.dart';
+import 'package:voxbox/view/complete_profile_screen.dart';
+import 'package:voxbox/view/home.dart';
+import 'package:voxbox/view/pending_approval_screen.dart';
 
 class OTPScreen extends StatefulWidget {
   final String phoneNumber;
@@ -18,8 +19,8 @@ class OTPScreen extends StatefulWidget {
 }
 
 class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
-  final List<TextEditingController> _otpControllers = List.generate(5, (index) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(5, (index) => FocusNode());
+  final List<TextEditingController> _otpControllers = List.generate(6, (index) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(6, (index) => FocusNode());
   bool loading = false;
   bool isResending = false;
   int countdown = 60;
@@ -119,106 +120,14 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
     });
   }
 
-  // Effectuer une vraie connexion avec le numéro de téléphone
-  Future<void> _performLogin(String phoneNumber) async {
-    try {
-      print('🔄 Tentative de connexion avec le numéro: $phoneNumber');
-      
-      // Utiliser le nouveau service de connexion par téléphone
-      final loginResponse = await loginByPhone(phoneNumber);
-      
-      if (loginResponse.error == null && loginResponse.data != null) {
-        print('🎉 Connexion réussie avec token!');
-        
-        // Sauvegarder les données de connexion
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('isConnected', true);
-        await prefs.setString('user', jsonEncode(loginResponse.data!.toJson()));
-        
-        // Rediriger vers l'accueil
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const HomePage(),
-            ),
-          );
-        }
-      } else {
-        print('❌ Erreur de connexion: ${loginResponse.error}');
-        
-        // Vérifier si c'est un compte en attente
-        if (loginResponse.error?.contains('attente d\'approbation') == true) {
-          // Rediriger vers la page de compte en attente
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AccountPendingScreen(
-                  phoneNumber: phoneNumber,
-                ),
-              ),
-            );
-          }
-        } else {
-          // Afficher un message d'erreur à l'utilisateur
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(loginResponse.error ?? 'Erreur de connexion'),
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 3),
-              ),
-            );
-          }
-          
-          // En cas d'erreur, rediriger vers l'inscription
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => UserRegistrationScreen(
-                  phoneNumber: phoneNumber,
-                ),
-              ),
-            );
-          }
-        }
-      }
-    } catch (e) {
-      print('💥 Exception lors de la connexion: $e');
-      
-      // Afficher un message d'erreur à l'utilisateur
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur de connexion: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-      
-      // En cas d'exception, rediriger vers l'inscription
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UserRegistrationScreen(
-              phoneNumber: phoneNumber,
-            ),
-          ),
-        );
-      }
-    }
-  }
+  // Cette fonction n'est plus utilisée - remplacée par verifyOTP direct
 
   void _verifyOTP() async {
     String otp = _otpControllers.map((controller) => controller.text).join();
-    
-    if (otp.length != 5) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Veuillez saisir le code OTP complet'),
+
+    if (otp.length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Veuillez saisir le code OTP complet (6 chiffres)'),
         backgroundColor: Colors.orange
       ));
       return;
@@ -229,53 +138,134 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
     });
 
     try {
-      // TODO: Appeler l'API pour vérifier l'OTP
-      await Future.delayed(const Duration(seconds: 2));
-      
+      // Appeler l'API pour vérifier l'OTP et se connecter
+      print('🔐 Vérification OTP pour: ${widget.phoneNumber}');
+      final response = await verifyOTP(widget.phoneNumber, otp);
+
       setState(() {
         loading = false;
       });
 
-      // Vérifier si le numéro existe en base de données
-      print('🔍 Vérification de l\'existence du numéro: ${widget.phoneNumber}');
-      final response = await checkPhoneExists(widget.phoneNumber);
-      
       if (response.error == null && response.data != null) {
-        bool phoneExists = response.data as bool;
+        // OTP valide - Connexion réussie avec token
+        print('✅ OTP valide - Connexion réussie!');
+
+        // Les données utilisateur sont déjà sauvegardées dans verifyOTP
+        // Récupérer l'utilisateur depuis SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        String? userString = prefs.getString('user');
+        User? user;
         
-        if (phoneExists) {
-          // Le numéro existe, faire une vraie connexion
-          print('✅ Numéro trouvé, connexion avec token');
-          await _performLogin(widget.phoneNumber);
+        if (userString != null) {
+          try {
+            Map<String, dynamic> userMap = jsonDecode(userString);
+            user = User.fromJson(userMap);
+          } catch (e) {
+            print('Erreur de parsing utilisateur: $e');
+            user = response.data as User?;
+          }
         } else {
-          // Le numéro n'existe pas, rediriger vers l'inscription
-          print('📝 Numéro non trouvé, redirection vers l\'inscription');
+          user = response.data as User?;
+        }
+
+        if (!mounted || user == null) return;
+
+        // À ce point, user n'est plus null, on peut l'utiliser directement
+        final currentUser = user!;
+
+        // Vérifier explicitement que tous les champs requis sont remplis
+        // Nom, Chorale et Pupitre doivent être présents avant de vérifier le statut
+        bool isNameEmpty = currentUser.name == null || currentUser.name!.trim().isEmpty;
+        bool isVoicePartEmpty = currentUser.voicePart == null || currentUser.voicePart!.trim().isEmpty;
+        bool isChoraleIdEmpty = currentUser.choraleId == null;
+        
+        bool needsProfileCompletion = isNameEmpty || isVoicePartEmpty || isChoraleIdEmpty;
+
+        if (needsProfileCompletion) {
+          // Profil incomplet - rediriger vers le formulaire de complétion
+          // L'utilisateur doit compléter son profil (nom, chorale, pupitre) avant de vérifier le statut
+          print('🆕 Profil incomplet détecté - Redirection vers complétion de profil');
+          print('   - Nom: ${currentUser.name ?? "VIDE"}');
+          print('   - Email: ${currentUser.email ?? "VIDE"}');
+          print('   - Voice Part: ${currentUser.voicePart ?? "VIDE"}');
+          print('   - Chorale ID: ${currentUser.choraleId ?? "VIDE"}');
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => UserRegistrationScreen(
-                phoneNumber: widget.phoneNumber,
-              ),
+              builder: (context) => CompleteProfileScreen(user: currentUser),
+            ),
+          );
+          return;
+        }
+
+        // Le profil est complètement rempli (nom, chorale, pupitre), maintenant vérifier le statut
+        if (currentUser.status == 'pending') {
+          // Statut pending - afficher l'écran d'attente
+          print('⏳ Profil complet mais statut pending - Affichage de l\'écran d\'attente');
+          print('   - Status: ${currentUser.status}');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const PendingApprovalScreen(),
+            ),
+          );
+        } else {
+          // Profil complet et approuvé - rediriger vers l'accueil
+          print('👤 Profil complet et approuvé - Redirection vers HomePage');
+          print('   - Status: ${currentUser.status}');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const HomePage(),
             ),
           );
         }
       } else {
-        // Erreur lors de la vérification, rediriger vers l'inscription par défaut
-        print('⚠️ Erreur lors de la vérification, redirection vers l\'inscription');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UserRegistrationScreen(
-              phoneNumber: widget.phoneNumber,
+        // Erreur lors de la vérification OTP
+        print('❌ Erreur OTP: ${response.error}');
+
+        if (!mounted) return;
+
+        // Vérifier le type d'erreur
+        if (response.error?.contains('Code OTP incorrect') == true ||
+            response.error?.contains('expiré') == true) {
+          // Code incorrect ou expiré
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(response.error ?? 'Code OTP incorrect'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ));
+        } else if (response.error?.contains('Trop de tentatives') == true) {
+          // Trop de tentatives
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(response.error!),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Renvoyer',
+              textColor: Colors.white,
+              onPressed: () => _resendOTP(),
             ),
-          ),
-        );
+          ));
+        } else {
+          // Autre erreur
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(response.error ?? 'Erreur de vérification'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ));
+        }
       }
-      
+
     } catch (e) {
       setState(() {
         loading = false;
       });
+
+      print('💥 Exception: $e');
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Erreur: $e'),
         backgroundColor: Colors.red
@@ -293,25 +283,55 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
     });
 
     try {
-      // TODO: Appeler l'API pour renvoyer l'OTP
-      await Future.delayed(const Duration(seconds: 1));
-      
+      // Appeler l'API pour renvoyer l'OTP
+      print('📱 Renvoi OTP pour: ${widget.phoneNumber}');
+      final response = await requestOTP(widget.phoneNumber);
+
       setState(() {
         isResending = false;
       });
-      
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Code OTP renvoyé !'),
-        backgroundColor: Colors.green
-      ));
-      
-      _startCountdown();
-      
+
+      if (response.error == null && response.data != null) {
+        // OTP renvoyé avec succès
+        print('✅ OTP renvoyé avec succès');
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Code OTP renvoyé !'),
+          backgroundColor: Colors.green
+        ));
+
+        _startCountdown();
+      } else {
+        // Erreur lors du renvoi
+        print('❌ Erreur renvoi: ${response.error}');
+
+        setState(() {
+          canResend = true;
+          countdown = 0;
+        });
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(response.error ?? 'Erreur lors du renvoi du code'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ));
+      }
+
     } catch (e) {
       setState(() {
         isResending = false;
         canResend = true;
+        countdown = 0;
       });
+
+      print('💥 Exception: $e');
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Erreur: $e'),
         backgroundColor: Colors.red
@@ -321,10 +341,11 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
 
   void _onOTPChanged(int index, String value) {
     if (value.isNotEmpty) {
-      if (index < 4) {
+      if (index < 5) {
         _focusNodes[index + 1].requestFocus();
       } else {
         _focusNodes[index].unfocus();
+        // Auto-vérifier quand tous les 6 chiffres sont saisis
         _verifyOTP();
       }
     } else if (index > 0) {
@@ -559,7 +580,7 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 12),
             Text(
-              'Entrez le code à 5 chiffres reçu par SMS',
+              'Entrez le code à 6 chiffres reçu par SMS',
               style: TextStyle(
                 fontSize: 15,
                 color: Colors.grey[600],
@@ -594,12 +615,12 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
       builder: (context, constraints) {
         // Calculer la largeur disponible et ajuster la taille des champs
         final availableWidth = constraints.maxWidth;
-        final fieldWidth = (availableWidth - 40) / 5; // 40px pour les espaces
-        final fieldSize = fieldWidth.clamp(45.0, 60.0); // Limiter entre 45 et 60px
-        
+        final fieldWidth = (availableWidth - 50) / 6; // 50px pour les espaces
+        final fieldSize = fieldWidth.clamp(40.0, 55.0); // Limiter entre 40 et 55px
+
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: List.generate(5, (index) {
+          children: List.generate(6, (index) {
             final isFocused = _focusNodes[index].hasFocus;
             final hasValue = _otpControllers[index].text.isNotEmpty;
             

@@ -29,10 +29,7 @@ class _AddPartitionScreenState extends State<AddPartitionScreen> {
   bool _isLoading = false;
   List<Category> _categories = [];
   List<Map<String, dynamic>> _chorales = [
-    {'id': 1, 'name': 'Chorale Saint-Michel'},
-    {'id': 2, 'name': 'Ensemble Vocal de Lyon'},
-    {'id': 3, 'name': 'Chorale Universitaire'},
-    {'id': 4, 'name': 'Voix d\'Or'},
+    
   ];
 
   @override

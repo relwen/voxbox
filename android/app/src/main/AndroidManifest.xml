@@ -2,20 +2,23 @@
     <!-- Permissions pour VoXY Box -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- WRITE_EXTERNAL_STORAGE n'est plus nécessaire pour Android 13+ (API 33+) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- READ_EXTERNAL_STORAGE n'est plus nécessaire pour Android 13+ (API 33+) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     
-    <!-- Permissions pour Android 13+ (API 33+) -->
+    <!-- Permissions pour Android 13+ (API 33+) - Remplacement de READ/WRITE_EXTERNAL_STORAGE -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     
-    <!-- Permissions pour file_picker -->
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <!-- Note: MANAGE_EXTERNAL_STORAGE a été retirée car elle nécessite une justification spéciale pour Google Play Store.
+         Les permissions READ/WRITE_EXTERNAL_STORAGE et READ_MEDIA_* sont suffisantes pour la plupart des cas d'usage.
+         Le file_picker utilise le Storage Access Framework qui ne nécessite pas cette permission. -->
     
     <application
         android:label="VoxyBox"

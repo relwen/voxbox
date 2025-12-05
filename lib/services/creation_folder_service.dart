@@ -171,6 +171,7 @@ class CreationFolderService {
     String? description,
     int? duration,
     int? fileSize,
+    Map<String, dynamic>? metadata,
   }) async {
     return CreationItem(
       id: _uuid.v4(),
@@ -182,6 +183,7 @@ class CreationFolderService {
       fileSize: fileSize,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
+      metadata: metadata,
     );
   }
 
@@ -252,6 +254,54 @@ class CreationFolderService {
       }
     } catch (e) {
       print('Erreur lors de la suppression du dossier physique: $e');
+    }
+  }
+
+  /// Déplacer un fichier audio vers un dossier
+  Future<bool> moveAudioToFolder(
+    String folderId, 
+    String audioPath, 
+    String audioName, {
+    int? duration, 
+    int? fileSize,
+    String? pupitreNom,
+  }) async {
+    try {
+      // Créer les métadonnées avec le pupitre si fourni
+      Map<String, dynamic>? metadata;
+      if (pupitreNom != null && pupitreNom.isNotEmpty) {
+        metadata = {
+          'pupitre': pupitreNom,
+          'pupitre_nom': pupitreNom,
+        };
+      }
+      
+      final item = await createAudioItem(
+        name: audioName,
+        filePath: audioPath,
+        duration: duration,
+        fileSize: fileSize,
+        metadata: metadata,
+      );
+      return await addItemToFolder(folderId, item);
+    } catch (e) {
+      print('Erreur lors du déplacement de l\'audio: $e');
+      return false;
+    }
+  }
+
+  /// Déplacer une photo vers un dossier
+  Future<bool> movePhotoToFolder(String folderId, String photoPath, String photoName, {int? fileSize}) async {
+    try {
+      final item = await createImageItem(
+        name: photoName,
+        filePath: photoPath,
+        fileSize: fileSize,
+      );
+      return await addItemToFolder(folderId, item);
+    } catch (e) {
+      print('Erreur lors du déplacement de la photo: $e');
+      return false;
     }
   }
 

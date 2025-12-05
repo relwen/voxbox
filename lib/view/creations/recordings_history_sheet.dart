@@ -3,6 +3,9 @@ import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/services/audio_recorder_service.dart';
 import 'package:voxbox/services/audio_editor_service.dart';
 import 'package:voxbox/services/global_audio_player_service.dart';
+import 'package:voxbox/services/creation_folder_service.dart';
+import 'package:voxbox/models/creation_folder.dart';
+import 'package:voxbox/view/creations/folders_screen.dart';
 
 class RecordingsHistorySheet extends StatefulWidget {
   final ScrollController scrollController;
@@ -22,6 +25,7 @@ class _RecordingsHistorySheetState extends State<RecordingsHistorySheet> {
   final AudioRecorderService _recorderService = AudioRecorderService();
   final AudioEditorService _editorService = AudioEditorService();
   final GlobalAudioPlayerService _audioPlayerService = GlobalAudioPlayerService();
+  final CreationFolderService _folderService = CreationFolderService();
 
   List<AudioRecording> _recordings = [];
   List<AudioFile> _editedFiles = [];
@@ -484,6 +488,46 @@ class _RecordingsHistorySheetState extends State<RecordingsHistorySheet> {
 
                     const SizedBox(width: 8),
 
+                    // Menu d'actions
+                    PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert, color: AppConstance.primary),
+                      onSelected: (value) async {
+                        if (value == 'move_to_folder') {
+                          await _moveToFolder(recording, isOriginal);
+                        } else if (value == 'delete') {
+                          if (isOriginal) {
+                            await _deleteRecording(recording as AudioRecording);
+                          } else {
+                            await _deleteEditedFile(recording as AudioFile);
+                          }
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'move_to_folder',
+                          child: Row(
+                            children: [
+                              Icon(Icons.folder, color: Colors.blue, size: 20),
+                              SizedBox(width: 12),
+                              Text('Déplacer vers un dossier'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, color: Colors.red, size: 20),
+                              SizedBox(width: 12),
+                              Text('Supprimer'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(width: 8),
+
                     // Bouton play/pause
                     IconButton(
                       onPressed: () {
@@ -641,6 +685,120 @@ class _RecordingsHistorySheetState extends State<RecordingsHistorySheet> {
       // TODO: Implémenter la logique de renommage dans le service
       _showSuccessSnackBar('Renommé en "$newName"');
       _loadData(); // Recharger les données
+    }
+  }
+
+  Future<void> _moveToFolder(dynamic recording, bool isOriginal) async {
+    // Charger les dossiers
+    final folders = await _folderService.getFolders();
+    
+    if (folders.isEmpty) {
+      // Proposer de créer un dossier
+      final createFolder = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Aucun dossier'),
+          content: const Text('Vous n\'avez aucun dossier. Voulez-vous en créer un maintenant ?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annuler'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Créer'),
+            ),
+          ],
+        ),
+      );
+
+      if (createFolder == true) {
+        // Naviguer vers l'écran des dossiers pour créer un dossier
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const FoldersScreen()),
+        );
+        // Recharger les dossiers
+        final updatedFolders = await _folderService.getFolders();
+        if (updatedFolders.isNotEmpty) {
+          await _showFolderSelectionDialog(recording, isOriginal, updatedFolders);
+        }
+      }
+      return;
+    }
+
+    await _showFolderSelectionDialog(recording, isOriginal, folders);
+  }
+
+  Future<void> _showFolderSelectionDialog(dynamic recording, bool isOriginal, List<CreationFolder> folders) async {
+    final selectedFolder = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sélectionner un dossier'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: folders.length,
+            itemBuilder: (context, index) {
+              final folder = folders[index];
+              return ListTile(
+                leading: const Icon(Icons.folder, color: Colors.blue),
+                title: Text(folder.name),
+                subtitle: folder.description != null ? Text(folder.description!) : null,
+                onTap: () => Navigator.pop(context, folder.id),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedFolder != null) {
+      try {
+        String audioPath;
+        String audioName;
+        int? duration;
+        int? fileSize;
+
+        if (isOriginal) {
+          final audioRecording = recording as AudioRecording;
+          audioPath = audioRecording.path;
+          audioName = audioRecording.name.replaceAll('.aac', '').replaceAll('.m4a', '');
+          duration = audioRecording.duration.inSeconds;
+          fileSize = audioRecording.size;
+        } else {
+          final audioFile = recording as AudioFile;
+          audioPath = audioFile.path;
+          audioName = audioFile.name.replaceAll('.aac', '').replaceAll('.m4a', '');
+          duration = audioFile.duration.inSeconds;
+          fileSize = audioFile.size;
+        }
+
+        final success = await _folderService.moveAudioToFolder(
+          selectedFolder,
+          audioPath,
+          audioName,
+          duration: duration,
+          fileSize: fileSize,
+        );
+
+        if (success) {
+          _showSuccessSnackBar('Audio déplacé vers le dossier');
+          // Optionnel: supprimer l'audio de la liste
+          // _loadData();
+        } else {
+          _showErrorSnackBar('Erreur lors du déplacement');
+        }
+      } catch (e) {
+        _showErrorSnackBar('Erreur: $e');
+      }
     }
   }
 

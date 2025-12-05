@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(flutter analyze:*)"
+      "Bash(flutter analyze:*)",
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(awk:*)",
+      "Bash(wc:*)"
     ],
     "deny": [],
     "ask": []

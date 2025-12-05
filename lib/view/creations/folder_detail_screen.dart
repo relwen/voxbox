@@ -213,53 +213,69 @@ class _FolderDetailScreenState extends State<FolderDetailScreen> {
                   ),
                 ],
                 const SizedBox(height: 8),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
                   children: [
-                    Icon(Icons.description, size: 16, color: Colors.grey[500]),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${_currentFolder.totalItems} éléments',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[500],
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.description, size: 16, color: Colors.grey[500]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${_currentFolder.totalItems} éléments',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 16),
-                    if (_currentFolder.audioCount > 0) ...[
-                      Icon(Icons.audiotrack, size: 16, color: Colors.grey[500]),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_currentFolder.audioCount}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[500],
-                        ),
+                    if (_currentFolder.audioCount > 0)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.audiotrack, size: 16, color: Colors.grey[500]),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_currentFolder.audioCount}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                    ],
-                    if (_currentFolder.imageCount > 0) ...[
-                      Icon(Icons.image, size: 16, color: Colors.grey[500]),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_currentFolder.imageCount}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[500],
-                        ),
+                    if (_currentFolder.imageCount > 0)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.image, size: 16, color: Colors.grey[500]),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_currentFolder.imageCount}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                    ],
-                    if (_currentFolder.textCount > 0) ...[
-                      Icon(Icons.text_fields, size: 16, color: Colors.grey[500]),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_currentFolder.textCount}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[500],
-                        ),
+                    if (_currentFolder.textCount > 0)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.text_fields, size: 16, color: Colors.grey[500]),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_currentFolder.textCount}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
                   ],
                 ),
               ],
@@ -381,7 +397,9 @@ class _FolderDetailScreenState extends State<FolderDetailScreen> {
                       ),
                     ],
                     const SizedBox(height: 8),
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
                         Text(
                           item.typeDisplayName,
@@ -390,30 +408,36 @@ class _FolderDetailScreenState extends State<FolderDetailScreen> {
                             color: Colors.grey[500],
                           ),
                         ),
-                        if (item.type == CreationType.audio && item.duration != null) ...[
-                          const SizedBox(width: 8),
-                          Icon(Icons.access_time, size: 16, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Text(
-                            item.formattedDuration,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[500],
-                            ),
+                        if (item.type == CreationType.audio && item.duration != null)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.access_time, size: 16, color: Colors.grey[500]),
+                              const SizedBox(width: 4),
+                              Text(
+                                item.formattedDuration,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                        if (item.fileSize != null) ...[
-                          const SizedBox(width: 8),
-                          Icon(Icons.storage, size: 16, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Text(
-                            item.formattedFileSize,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[500],
-                            ),
+                        if (item.fileSize != null)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.storage, size: 16, color: Colors.grey[500]),
+                              const SizedBox(width: 4),
+                              Text(
+                                item.formattedFileSize,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
                       ],
                     ),
                   ],
@@ -486,11 +510,11 @@ class _FolderDetailScreenState extends State<FolderDetailScreen> {
   Color _getItemColor(CreationType type) {
     switch (type) {
       case CreationType.audio:
-        return Colors.orange;
+        return AppConstance.primary;
       case CreationType.image:
-        return Colors.green;
+        return AppConstance.secondary;
       case CreationType.text:
-        return Colors.blue;
+        return AppConstance.accent;
     }
   }
 

@@ -13,18 +13,18 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'VoXY',
-      theme: ThemeData(
-        hoverColor: const Color.fromARGB(255, 11, 50, 95),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color.fromARGB(255, 11, 50, 95),
+    return AppWrapper(
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'VoXY',
+        theme: ThemeData(
+          hoverColor: const Color.fromARGB(255, 11, 50, 95),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color.fromARGB(255, 11, 50, 95),
+          ),
+          useMaterial3: true,
         ),
-        useMaterial3: true,
-      ),
-      home: AppWrapper(
-        child: SplashScreen(),
+        home: SplashScreen(),
       ),
     );
   }

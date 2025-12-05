@@ -168,15 +168,38 @@ class _FoldersScreenState extends State<FoldersScreen> {
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatItem('Dossiers', _stats['folders'] ?? 0, Icons.folder),
-          _buildStatItem('Éléments', _stats['items'] ?? 0, Icons.description),
-          _buildStatItem('Audio', _stats['audio'] ?? 0, Icons.audiotrack),
-          _buildStatItem('Images', _stats['images'] ?? 0, Icons.image),
-          _buildStatItem('Textes', _stats['texts'] ?? 0, Icons.text_fields),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Utiliser SingleChildScrollView pour éviter l'overflow sur petits écrans
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                SizedBox(
+                  width: constraints.maxWidth / 5,
+                  child: _buildStatItem('Dossiers', _stats['folders'] ?? 0, Icons.folder),
+                ),
+                SizedBox(
+                  width: constraints.maxWidth / 5,
+                  child: _buildStatItem('Éléments', _stats['items'] ?? 0, Icons.description),
+                ),
+                SizedBox(
+                  width: constraints.maxWidth / 5,
+                  child: _buildStatItem('Audio', _stats['audio'] ?? 0, Icons.audiotrack),
+                ),
+                SizedBox(
+                  width: constraints.maxWidth / 5,
+                  child: _buildStatItem('Images', _stats['images'] ?? 0, Icons.image),
+                ),
+                SizedBox(
+                  width: constraints.maxWidth / 5,
+                  child: _buildStatItem('Textes', _stats['texts'] ?? 0, Icons.text_fields),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -317,53 +340,69 @@ class _FoldersScreenState extends State<FoldersScreen> {
                       ),
                     ],
                     const SizedBox(height: 8),
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
-                        Icon(Icons.description, size: 16, color: Colors.grey[500]),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${folder.totalItems} éléments',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.description, size: 16, color: Colors.grey[500]),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${folder.totalItems} éléments',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 16),
-                        if (folder.audioCount > 0) ...[
-                          Icon(Icons.audiotrack, size: 16, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${folder.audioCount}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[500],
-                            ),
+                        if (folder.audioCount > 0)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.audiotrack, size: 16, color: Colors.grey[500]),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${folder.audioCount}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                        ],
-                        if (folder.imageCount > 0) ...[
-                          Icon(Icons.image, size: 16, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${folder.imageCount}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[500],
-                            ),
+                        if (folder.imageCount > 0)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.image, size: 16, color: Colors.grey[500]),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${folder.imageCount}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                        ],
-                        if (folder.textCount > 0) ...[
-                          Icon(Icons.text_fields, size: 16, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${folder.textCount}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[500],
-                            ),
+                        if (folder.textCount > 0)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.text_fields, size: 16, color: Colors.grey[500]),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${folder.textCount}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
                       ],
                     ),
                   ],

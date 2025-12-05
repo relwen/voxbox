@@ -6,14 +6,14 @@ import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/models/user.dart';
 import 'package:voxbox/view/actualites/actualites.dart';
 import 'package:voxbox/view/chants/chants.dart';
-import 'package:voxbox/view/creations/creations.dart';
+import 'package:voxbox/view/creations/quick_record_screen.dart';
+import 'package:voxbox/view/creations/recordings_list_screen.dart';
 import 'package:voxbox/view/exercises/exercises.dart';
 import 'package:voxbox/view/messes/messes.dart';
 import 'package:voxbox/view/profile.dart';
 import 'package:voxbox/view/vocalize/vocalize.dart';
 import 'package:voxbox/view/complete_profile_screen.dart';
 import 'package:voxbox/services/auth_service.dart';
-import 'package:voxbox/services/global_recorder_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -348,7 +348,20 @@ class _MyHomePageState extends State<HomePage> {
           ),
         ),
       ),
-      floatingActionButton: _buildQuickRecorderButton(),
+      floatingActionButton: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        child: FloatingActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const QuickRecordScreen()),
+            );
+          },
+          backgroundColor: Colors.red,
+          foregroundColor: Colors.white,
+          child: const Icon(Icons.mic, size: 32),
+        ),
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
@@ -657,7 +670,7 @@ class _MyHomePageState extends State<HomePage> {
                 gradient: false,
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const CreationsScreen()),
+                  MaterialPageRoute(builder: (_) => const RecordingsListScreen()),
                 ),
               ),
             ],
@@ -832,59 +845,6 @@ class _MyHomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildQuickRecorderButton() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: FloatingActionButton.extended(
-        onPressed: () async {
-          final recorderService = GlobalRecorderService();
-
-          // Si un enregistrement est déjà en cours, afficher un message
-          if (recorderService.isRecording) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Un enregistrement est déjà en cours'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-            return;
-          }
-
-          // Démarrer l'enregistrement
-          final success = await recorderService.startRecording();
-
-          if (success && mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Enregistrement démarré'),
-                backgroundColor: Colors.green,
-                duration: Duration(seconds: 2),
-              ),
-            );
-          } else if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Impossible de démarrer l\'enregistrement'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        },
-        backgroundColor: Colors.red,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.mic, size: 28),
-        label: const Text(
-          'Enregistrer',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        elevation: 8,
-        heroTag: 'quickRecorder',
-      ),
-    );
-  }
 }
 
 Offset calculatePosition(BuildContext context, String text, double iconSize) {

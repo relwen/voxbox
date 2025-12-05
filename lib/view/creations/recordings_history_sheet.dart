@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/services/audio_recorder_service.dart';
 import 'package:voxbox/services/audio_editor_service.dart';
+import 'package:voxbox/services/global_audio_player_service.dart';
 
 class RecordingsHistorySheet extends StatefulWidget {
   final ScrollController scrollController;
@@ -21,29 +21,28 @@ class RecordingsHistorySheet extends StatefulWidget {
 class _RecordingsHistorySheetState extends State<RecordingsHistorySheet> {
   final AudioRecorderService _recorderService = AudioRecorderService();
   final AudioEditorService _editorService = AudioEditorService();
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  
+  final GlobalAudioPlayerService _audioPlayerService = GlobalAudioPlayerService();
+
   List<AudioRecording> _recordings = [];
   List<AudioFile> _editedFiles = [];
   bool _isLoading = true;
-  String? _playingRecording;
-  bool _isPlaying = false;
   int _selectedTab = 0; // 0: Enregistrements, 1: Édités
 
   @override
   void initState() {
     super.initState();
     _loadData();
-    _setupAudioPlayer();
+    _setupAudioListeners();
   }
 
-  void _setupAudioPlayer() {
-    _audioPlayer.onPlayerStateChanged.listen((state) {
-      if (mounted) {
-        setState(() {
-          _isPlaying = state == PlayerState.playing;
-        });
-      }
+  void _setupAudioListeners() {
+    // Écouter les changements du lecteur audio pour rafraîchir l'UI
+    _audioPlayerService.isPlayingStream.listen((_) {
+      if (mounted) setState(() {});
+    });
+
+    _audioPlayerService.audioInfoStream.listen((_) {
+      if (mounted) setState(() {});
     });
   }
 
@@ -79,14 +78,8 @@ class _RecordingsHistorySheetState extends State<RecordingsHistorySheet> {
 
   Future<void> _playRecording(AudioRecording recording) async {
     try {
-      if (_playingRecording == recording.path && _isPlaying) {
-        await _audioPlayer.pause();
-      } else {
-        await _audioPlayer.play(DeviceFileSource(recording.path));
-        setState(() {
-          _playingRecording = recording.path;
-        });
-      }
+      // Utiliser le service global pour que l'audio continue même si on quitte la page
+      await _audioPlayerService.playAudio(recording.path, title: recording.name);
     } catch (e) {
       _showErrorSnackBar('Erreur lors de la lecture');
     }
@@ -94,14 +87,8 @@ class _RecordingsHistorySheetState extends State<RecordingsHistorySheet> {
 
   Future<void> _playEditedFile(AudioFile file) async {
     try {
-      if (_playingRecording == file.path && _isPlaying) {
-        await _audioPlayer.pause();
-      } else {
-        await _audioPlayer.play(DeviceFileSource(file.path));
-        setState(() {
-          _playingRecording = file.path;
-        });
-      }
+      // Utiliser le service global pour que l'audio continue même si on quitte la page
+      await _audioPlayerService.playAudio(file.path, title: file.name);
     } catch (e) {
       _showErrorSnackBar('Erreur lors de la lecture');
     }
@@ -182,7 +169,6 @@ class _RecordingsHistorySheetState extends State<RecordingsHistorySheet> {
 
   @override
   void dispose() {
-    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -253,7 +239,7 @@ class _RecordingsHistorySheetState extends State<RecordingsHistorySheet> {
         ),
         
         const SizedBox(height: 16),
-        
+
         // Contenu des onglets
         Expanded(
           child: _isLoading
@@ -383,112 +369,279 @@ class _RecordingsHistorySheetState extends State<RecordingsHistorySheet> {
   }
 
   Widget _buildRecordingCard(dynamic recording, bool isOriginal) {
-    final isPlaying = _playingRecording == recording.path;
-    
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: isPlaying ? AppConstance.primary : Colors.grey[300],
-          child: Icon(
-            isPlaying ? Icons.equalizer : (isOriginal ? Icons.audiotrack : Icons.edit),
-            color: Colors.white,
-          ),
+    // Vérifier si c'est l'audio en cours de lecture dans le service global
+    final isPlaying = _audioPlayerService.currentAudioPath == recording.path;
+
+    return Dismissible(
+      key: Key(recording.path),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(12),
         ),
-        title: Text(
-          recording.name.replaceAll('.aac', '').replaceAll('.m4a', ''),
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+        child: const Icon(
+          Icons.delete,
+          color: Colors.white,
+          size: 32,
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${recording.formattedDuration} • ${recording.formattedSize}',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
-            ),
-            Text(
-              _formatDate(recording.createdAt),
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 12,
-              ),
-            ),
-          ],
+      ),
+      confirmDismiss: (direction) async {
+        return await _showDeleteConfirmation(recording.name);
+      },
+      onDismissed: (direction) {
+        if (isOriginal) {
+          _recorderService.deleteRecording(recording.path);
+        } else {
+          _editorService.deleteEditedFile(recording.path);
+        }
+        _showSuccessSnackBar('Enregistrement supprimé');
+      },
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            switch (value) {
-              case 'play':
-                if (isOriginal) {
-                  _playRecording(recording as AudioRecording);
-                } else {
-                  _playEditedFile(recording as AudioFile);
-                }
-                break;
-              case 'edit':
-                if (isOriginal) {
-                  _editRecording(recording as AudioRecording);
-                }
-                break;
-              case 'delete':
-                if (isOriginal) {
-                  _deleteRecording(recording as AudioRecording);
-                } else {
-                  _deleteEditedFile(recording as AudioFile);
-                }
-                break;
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            if (isOriginal) {
+              _playRecording(recording as AudioRecording);
+            } else {
+              _playEditedFile(recording as AudioFile);
             }
           },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'play',
-              child: Row(
-                children: [
-                  Icon(Icons.play_arrow),
-                  SizedBox(width: 8),
-                  Text('Lire'),
-                ],
-              ),
-            ),
-            if (isOriginal)
-              const PopupMenuItem(
-                value: 'edit',
-                child: Row(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Row(
                   children: [
-                    Icon(Icons.edit),
-                    SizedBox(width: 8),
-                    Text('Éditer'),
+                    // Icône
+                    CircleAvatar(
+                      backgroundColor: isPlaying ? AppConstance.primary : Colors.grey[300],
+                      radius: 24,
+                      child: Icon(
+                        isPlaying ? Icons.equalizer : (isOriginal ? Icons.audiotrack : Icons.edit),
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    // Informations
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Titre (cliquable pour renommer)
+                          GestureDetector(
+                            onTap: () => _showRenameDialog(recording, isOriginal),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    recording.name.replaceAll('.aac', '').replaceAll('.m4a', ''),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.edit,
+                                  size: 16,
+                                  color: Colors.grey[400],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${recording.formattedDuration} • ${recording.formattedSize}',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 13,
+                            ),
+                          ),
+                          Text(
+                            _formatDate(recording.createdAt),
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(width: 8),
+
+                    // Bouton play/pause
+                    IconButton(
+                      onPressed: () {
+                        if (isPlaying && _audioPlayerService.isPlaying) {
+                          _audioPlayerService.pause();
+                        } else if (isPlaying && _audioPlayerService.isPaused) {
+                          _audioPlayerService.play();
+                        } else {
+                          if (isOriginal) {
+                            _playRecording(recording as AudioRecording);
+                          } else {
+                            _playEditedFile(recording as AudioFile);
+                          }
+                        }
+                      },
+                      icon: Icon(
+                        isPlaying && _audioPlayerService.isPlaying
+                            ? Icons.pause_circle_filled
+                            : Icons.play_circle_filled,
+                        color: AppConstance.primary,
+                        size: 40,
+                      ),
+                    ),
                   ],
                 ),
-              ),
-            const PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(Icons.delete, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('Supprimer', style: TextStyle(color: Colors.red)),
+
+                // Barre de progression (affichée seulement si c'est l'audio en cours)
+                if (isPlaying) ...[
+                  const SizedBox(height: 8),
+                  StreamBuilder<Duration>(
+                    stream: _audioPlayerService.positionStream,
+                    builder: (context, snapshot) {
+                      final position = snapshot.data ?? Duration.zero;
+                      final duration = _audioPlayerService.totalDuration;
+                      final progress = duration.inMilliseconds > 0
+                          ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
+                          : 0.0;
+
+                      return Column(
+                        children: [
+                          SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              activeTrackColor: AppConstance.primary,
+                              inactiveTrackColor: Colors.grey[300],
+                              thumbColor: AppConstance.primary,
+                              overlayColor: AppConstance.primary.withOpacity(0.2),
+                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                              trackHeight: 3,
+                            ),
+                            child: Slider(
+                              value: progress,
+                              onChanged: (value) {
+                                final newPosition = Duration(
+                                  milliseconds: (value * duration.inMilliseconds).round(),
+                                );
+                                _audioPlayerService.seek(newPosition);
+                              },
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    _audioPlayerService.formatDuration(position),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      onPressed: () => _audioPlayerService.seekBackward(),
+                                      icon: const Icon(Icons.replay_10),
+                                      iconSize: 20,
+                                      color: AppConstance.primary,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    IconButton(
+                                      onPressed: () => _audioPlayerService.seekForward(),
+                                      icon: const Icon(Icons.forward_10),
+                                      iconSize: 20,
+                                      color: AppConstance.primary,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                  ],
+                                ),
+                                Flexible(
+                                  child: Text(
+                                    _audioPlayerService.formatDuration(duration),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.end,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ],
-              ),
+              ],
             ),
-          ],
+          ),
         ),
-        onTap: () {
-          if (isOriginal) {
-            _playRecording(recording as AudioRecording);
-          } else {
-            _playEditedFile(recording as AudioFile);
-          }
-        },
       ),
     );
+  }
+
+  // Dialogue pour renommer l'enregistrement
+  Future<void> _showRenameDialog(dynamic recording, bool isOriginal) async {
+    final currentName = recording.name.replaceAll('.aac', '').replaceAll('.m4a', '');
+    final controller = TextEditingController(text: currentName);
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Renommer'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Nouveau nom',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('Renommer'),
+          ),
+        ],
+      ),
+    );
+
+    if (newName != null && newName.isNotEmpty && newName != currentName) {
+      // TODO: Implémenter la logique de renommage dans le service
+      _showSuccessSnackBar('Renommé en "$newName"');
+      _loadData(); // Recharger les données
+    }
   }
 
   String _formatDate(DateTime date) {

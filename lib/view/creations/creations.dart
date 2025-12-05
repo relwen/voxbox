@@ -35,7 +35,6 @@ class _CreationsScreenState extends State<CreationsScreen>
     super.initState();
     _initializeAnimations();
     _setupSubscriptions();
-    _checkPermissions();
   }
 
   void _initializeAnimations() {
@@ -92,14 +91,6 @@ class _CreationsScreenState extends State<CreationsScreen>
       }
     }
   }
-
-  Future<void> _checkPermissions() async {
-    final hasPermissions = await _recorderService.hasPermissions();
-    if (!hasPermissions) {
-      _showErrorSnackBar('Permissions requises pour l\'enregistrement audio');
-    }
-  }
-
 
   @override
   void dispose() {

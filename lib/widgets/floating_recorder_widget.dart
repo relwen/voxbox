@@ -54,58 +54,66 @@ class _FloatingRecorderWidgetState extends State<FloatingRecorderWidget>
         }
 
         return Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
+          top: MediaQuery.of(context).padding.top + 10,
+          left: 16,
+          right: 16,
           child: SafeArea(
             child: Container(
-              margin: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
                     widget.recorderService.isPaused
-                        ? Colors.orange.shade700
-                        : Colors.red.shade700,
+                        ? Colors.orange.shade600
+                        : Colors.red.shade600,
                     widget.recorderService.isPaused
-                        ? Colors.orange.shade900
-                        : Colors.red.shade900,
+                        ? Colors.orange.shade800
+                        : Colors.red.shade800,
                   ],
                 ),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    color: Colors.black.withValues(alpha: 0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 5),
                   ),
                 ],
               ),
               child: Material(
                 color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => _showRecordingControls(context),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        // Indicateur d'enregistrement animé
-                        AnimatedBuilder(
-                          animation: _pulseAnimation,
-                          builder: (context, child) {
-                            if (widget.recorderService.isPaused) {
-                              return const Icon(
-                                Icons.pause_circle_filled,
-                                color: Colors.white,
-                                size: 24,
-                              );
-                            }
-                            return Transform.scale(
-                              scale: _pulseAnimation.value,
-                              child: Container(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
+                  child: Row(
+                    children: [
+                      // Indicateur d'enregistrement animé
+                      AnimatedBuilder(
+                        animation: _pulseAnimation,
+                        builder: (context, child) {
+                          if (widget.recorderService.isPaused) {
+                            return const Icon(
+                              Icons.pause_circle_filled,
+                              color: Colors.white,
+                              size: 28,
+                            );
+                          }
+                          return Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Transform.scale(
+                                scale: _pulseAnimation.value,
+                                child: Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.3),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                              Container(
                                 width: 12,
                                 height: 12,
                                 decoration: const BoxDecoration(
@@ -113,77 +121,59 @@ class _FloatingRecorderWidgetState extends State<FloatingRecorderWidget>
                                   shape: BoxShape.circle,
                                 ),
                               ),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 12),
-
-                        // Texte et durée
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                widget.recorderService.isPaused
-                                    ? 'Enregistrement en pause'
-                                    : 'Enregistrement en cours...',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                widget.recorderService.formatDuration(
-                                  widget.recorderService.recordingDuration,
-                                ),
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
-                                  fontFamily: 'monospace',
-                                ),
-                              ),
                             ],
-                          ),
-                        ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 16),
 
-                        // Boutons de contrôle
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Bouton Pause/Reprendre
-                            IconButton(
-                              icon: Icon(
-                                widget.recorderService.isPaused
-                                    ? Icons.play_arrow
-                                    : Icons.pause,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                              onPressed: () async {
-                                if (widget.recorderService.isPaused) {
-                                  await widget.recorderService.resumeRecording();
-                                } else {
-                                  await widget.recorderService.pauseRecording();
-                                }
-                              },
-                            ),
-
-                            // Bouton Stop
-                            IconButton(
-                              icon: const Icon(
-                                Icons.stop,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                              onPressed: () => _stopRecording(context),
-                            ),
-                          ],
+                      // Durée
+                      Text(
+                        widget.recorderService.formatDuration(
+                          widget.recorderService.recordingDuration,
                         ),
-                      ],
-                    ),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+
+                      const Spacer(),
+
+                      // Bouton Annuler
+                      _buildCompactButton(
+                        icon: Icons.delete_outline,
+                        onPressed: () => _cancelRecording(context),
+                      ),
+
+                      const SizedBox(width: 8),
+
+                      // Bouton Pause/Reprendre
+                      _buildCompactButton(
+                        icon: widget.recorderService.isPaused
+                            ? Icons.play_arrow_rounded
+                            : Icons.pause_rounded,
+                        onPressed: () async {
+                          if (widget.recorderService.isPaused) {
+                            await widget.recorderService.resumeRecording();
+                          } else {
+                            await widget.recorderService.pauseRecording();
+                          }
+                        },
+                      ),
+
+                      const SizedBox(width: 8),
+
+                      // Bouton Terminer
+                      _buildCompactButton(
+                        icon: Icons.check_circle,
+                        onPressed: () => _stopRecording(context),
+                        color: Colors.white,
+                        backgroundColor: Colors.green.shade600,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -194,124 +184,41 @@ class _FloatingRecorderWidgetState extends State<FloatingRecorderWidget>
     );
   }
 
-  void _showRecordingControls(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey.shade900,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+  Widget _buildCompactButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    Color? color,
+    Color? backgroundColor,
+  }) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: backgroundColor ?? Colors.white.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(12),
         ),
-        title: const Text(
-          'Contrôles d\'enregistrement',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              widget.recorderService.formatDuration(
-                widget.recorderService.recordingDuration,
-              ),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'monospace',
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                // Annuler
-                _buildDialogButton(
-                  icon: Icons.delete_outline,
-                  label: 'Annuler',
-                  color: Colors.red,
-                  onPressed: () async {
-                    await widget.recorderService.cancelRecording();
-                    if (context.mounted) Navigator.pop(context);
-                  },
-                ),
-
-                // Pause/Reprendre
-                _buildDialogButton(
-                  icon: widget.recorderService.isPaused
-                      ? Icons.play_arrow
-                      : Icons.pause,
-                  label: widget.recorderService.isPaused ? 'Reprendre' : 'Pause',
-                  color: Colors.orange,
-                  onPressed: () async {
-                    if (widget.recorderService.isPaused) {
-                      await widget.recorderService.resumeRecording();
-                    } else {
-                      await widget.recorderService.pauseRecording();
-                    }
-                    if (context.mounted) Navigator.pop(context);
-                  },
-                ),
-
-                // Terminer
-                _buildDialogButton(
-                  icon: Icons.check_circle,
-                  label: 'Terminer',
-                  color: Colors.green,
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _stopRecording(context);
-                  },
-                ),
-              ],
-            ),
-          ],
+        child: Icon(
+          icon,
+          color: color ?? Colors.white,
+          size: 24,
         ),
       ),
     );
   }
 
-  Widget _buildDialogButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onPressed,
-  }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GestureDetector(
-          onTap: onPressed,
-          child: Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.4),
-                  blurRadius: 10,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
+  Future<void> _cancelRecording(BuildContext context) async {
+    final success = await widget.recorderService.cancelRecording();
+    if (success && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enregistrement annulé'),
+          backgroundColor: Colors.orange,
         ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 12,
-          ),
-        ),
-      ],
-    );
+      );
+    }
   }
 
   Future<void> _stopRecording(BuildContext context) async {

@@ -1,11 +1,11 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'package:voxbox/functions/appconstants.dart';
+import 'package:voxbox/services/global_recorder_service.dart';
 import 'package:voxbox/services/audio_recorder_service.dart';
-import 'package:voxbox/widgets/widgets.dart';
+import 'package:voxbox/services/global_audio_player_service.dart';
+import 'package:voxbox/view/creations/folders_screen.dart';
+import 'package:voxbox/functions/appconstants.dart';
 
+/// Page Créations - Affichage et lecture des enregistrements
 class RecordingsListScreen extends StatefulWidget {
   const RecordingsListScreen({super.key});
 
@@ -15,45 +15,26 @@ class RecordingsListScreen extends StatefulWidget {
 
 class _RecordingsListScreenState extends State<RecordingsListScreen> {
   final AudioRecorderService _recorderService = AudioRecorderService();
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  
+  final GlobalAudioPlayerService _audioPlayerService = GlobalAudioPlayerService();
+
   List<AudioRecording> _recordings = [];
   bool _isLoading = true;
-  String? _playingRecording;
-  bool _isPlaying = false;
-  Duration _currentPosition = Duration.zero;
-  Duration _totalDuration = Duration.zero;
 
   @override
   void initState() {
     super.initState();
     _loadRecordings();
-    _setupAudioPlayer();
+    _setupAudioListeners();
   }
 
-  void _setupAudioPlayer() {
-    _audioPlayer.onPlayerStateChanged.listen((state) {
-      if (mounted) {
-        setState(() {
-          _isPlaying = state == PlayerState.playing;
-        });
-      }
+  void _setupAudioListeners() {
+    // Écouter les changements du lecteur audio pour rafraîchir l'UI
+    _audioPlayerService.isPlayingStream.listen((_) {
+      if (mounted) setState(() {});
     });
 
-    _audioPlayer.onDurationChanged.listen((duration) {
-      if (mounted) {
-        setState(() {
-          _totalDuration = duration;
-        });
-      }
-    });
-
-    _audioPlayer.onPositionChanged.listen((position) {
-      if (mounted) {
-        setState(() {
-          _currentPosition = position;
-        });
-      }
+    _audioPlayerService.audioInfoStream.listen((_) {
+      if (mounted) setState(() {});
     });
   }
 
@@ -62,76 +43,45 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
       _isLoading = true;
     });
 
-    try {
-      final recordings = await _recorderService.getRecordings();
+    final recordings = await _recorderService.getRecordings();
+
+    if (mounted) {
       setState(() {
         _recordings = recordings;
         _isLoading = false;
       });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      _showErrorSnackBar('Erreur lors du chargement des enregistrements');
     }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   Future<void> _playRecording(AudioRecording recording) async {
     try {
-      if (_playingRecording == recording.path && _isPlaying) {
-        await _audioPlayer.pause();
-      } else {
-        await _audioPlayer.play(DeviceFileSource(recording.path));
-        setState(() {
-          _playingRecording = recording.path;
-        });
-      }
+      await _audioPlayerService.playAudio(recording.path, title: recording.name);
     } catch (e) {
-      _showErrorSnackBar('Erreur lors de la lecture');
+      _showSnackBar('Erreur de lecture: $e', isError: true);
     }
-  }
-
-  Future<void> _stopPlayback() async {
-    await _audioPlayer.stop();
-    setState(() {
-      _playingRecording = null;
-      _isPlaying = false;
-      _currentPosition = Duration.zero;
-    });
   }
 
   Future<void> _deleteRecording(AudioRecording recording) async {
-    final confirmed = await _showDeleteConfirmation(recording.name);
-    if (confirmed) {
-      final success = await _recorderService.deleteRecording(recording.path);
-      if (success) {
-        _showSuccessSnackBar('Enregistrement supprimé');
-        _loadRecordings();
-      } else {
-        _showErrorSnackBar('Erreur lors de la suppression');
-      }
-    }
-  }
-
-  Future<void> _renameRecording(AudioRecording recording) async {
-    final newName = await _showRenameDialog(recording.name);
-    if (newName != null && newName.isNotEmpty) {
-      final success = await _recorderService.renameRecording(recording.path, newName);
-      if (success) {
-        _showSuccessSnackBar('Enregistrement renommé');
-        _loadRecordings();
-      } else {
-        _showErrorSnackBar('Erreur lors du renommage');
-      }
-    }
-  }
-
-  Future<bool> _showDeleteConfirmation(String name) async {
-    return await showDialog<bool>(
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Supprimer l\'enregistrement'),
-        content: Text('Êtes-vous sûr de vouloir supprimer "$name" ?'),
+        backgroundColor: Colors.grey[900],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Text(
+          'Supprimer l\'enregistrement',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'Voulez-vous vraiment supprimer "${recording.name}" ?',
+          style: const TextStyle(color: Colors.white70),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -144,23 +94,52 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
           ),
         ],
       ),
-    ) ?? false;
+    );
+
+    if (confirm == true) {
+      // Arrêter la lecture si c'est le fichier en cours
+      if (_audioPlayerService.currentAudioPath == recording.path) {
+        await _audioPlayerService.stop();
+      }
+
+      final success = await _recorderService.deleteRecording(recording.path);
+      if (success) {
+        await _loadRecordings();
+        _showSnackBar('Enregistrement supprimé', isError: false);
+      } else {
+        _showSnackBar('Erreur lors de la suppression', isError: true);
+      }
+    }
   }
 
-  Future<String?> _showRenameDialog(String currentName) async {
-    final controller = TextEditingController(text: currentName.replaceAll('.aac', '').replaceAll('.m4a', ''));
-    
-    return await showDialog<String>(
+  Future<void> _renameRecording(AudioRecording recording) async {
+    final controller = TextEditingController(text: recording.name);
+
+    final newName = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Renommer l\'enregistrement'),
+        backgroundColor: Colors.grey[900],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Text(
+          'Renommer l\'enregistrement',
+          style: TextStyle(color: Colors.white),
+        ),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Nouveau nom',
-            border: OutlineInputBorder(),
-          ),
           autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'Nouveau nom',
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+            ),
+            focusedBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.blue),
+            ),
+          ),
         ),
         actions: [
           TextButton(
@@ -174,276 +153,473 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
         ],
       ),
     );
+
+    if (newName != null && newName.isNotEmpty && newName != recording.name) {
+      final success = await _recorderService.renameRecording(
+        recording.path,
+        newName,
+      );
+      if (success) {
+        await _loadRecordings();
+        _showSnackBar('Enregistrement renommé', isError: false);
+      } else {
+        _showSnackBar('Erreur lors du renommage', isError: true);
+      }
+    }
   }
 
-  void _showErrorSnackBar(String message) {
+  void _showSnackBar(String message, {required bool isError}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red,
+        backgroundColor: isError ? Colors.red : Colors.green,
         behavior: SnackBarBehavior.floating,
       ),
     );
-  }
-
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _audioPlayer.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const MyText(
-          text: 'Mes Enregistrements',
-          color: Colors.white,
-          size: 20,
-          fontweight: FontWeight.bold,
-        ),
-        backgroundColor: AppConstance.primary,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: _loadRecordings,
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _recordings.isEmpty
-              ? _buildEmptyState()
-              : Column(
-                  children: [
-                    // Contrôles de lecture
-                    if (_playingRecording != null) _buildPlaybackControls(),
-                    
-                    // Liste des enregistrements
-                    Expanded(
-                      child: RefreshIndicator(
-                        onRefresh: _loadRecordings,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _recordings.length,
-                          itemBuilder: (context, index) {
-                            final recording = _recordings[index];
-                            return _buildRecordingCard(recording);
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.mic_off,
-            size: 80,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Aucun enregistrement',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppConstance.primary,
+                AppConstance.primary.withOpacity(0.8),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Commencez par créer votre premier enregistrement',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[500],
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.mic),
-            label: const Text('Nouvel enregistrement'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppConstance.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlaybackControls() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Barre de progression
-          Slider(
-            value: _totalDuration.inMilliseconds > 0
-                ? _currentPosition.inMilliseconds / _totalDuration.inMilliseconds
-                : 0.0,
-            onChanged: (value) {
-              final position = Duration(
-                milliseconds: (value * _totalDuration.inMilliseconds).round(),
-              );
-              _audioPlayer.seek(position);
-            },
-            activeColor: AppConstance.primary,
-          ),
-          
-          // Contrôles
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              Text(
-                _formatDuration(_currentPosition),
-                style: const TextStyle(fontSize: 12),
+          child: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            centerTitle: true,
+            leading: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: const Padding(
+                padding: EdgeInsets.all(12),
+                child: Icon(Icons.arrow_back_ios, color: Colors.white),
               ),
+            ),
+            title: const Text(
+              'Créations',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            actions: [
               IconButton(
-                onPressed: _isPlaying ? _stopPlayback : () {
-                  final recording = _recordings.firstWhere(
-                    (r) => r.path == _playingRecording,
+                icon: const Icon(Icons.folder_open, color: Colors.white),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const FoldersScreen()),
                   );
-                  _playRecording(recording);
                 },
-                icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
-                color: AppConstance.primary,
-              ),
-              Text(
-                _formatDuration(_totalDuration),
-                style: const TextStyle(fontSize: 12),
+                tooltip: 'Mes dossiers',
               ),
             ],
           ),
-        ],
+        ),
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.grey[900]!,
+              Colors.black,
+            ],
+          ),
+        ),
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              )
+            : _recordings.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(40),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              width: 2,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.music_note,
+                            color: Colors.white30,
+                            size: 80,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'Aucun enregistrement',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Vos enregistrements apparaîtront ici',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.6),
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _recordings.length,
+                    itemBuilder: (context, index) {
+                      final recording = _recordings[index];
+                      final isCurrentlyPlaying = _audioPlayerService.currentAudioPath == recording.path;
+
+                      return _buildRecordingCard(recording, isCurrentlyPlaying);
+                    },
+                  ),
       ),
     );
   }
 
-  Widget _buildRecordingCard(AudioRecording recording) {
-    final isPlaying = _playingRecording == recording.path;
-    
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: isPlaying ? AppConstance.primary : Colors.grey[300],
-          child: Icon(
-            isPlaying ? Icons.equalizer : Icons.audiotrack,
-            color: Colors.white,
-          ),
+  Widget _buildRecordingCard(AudioRecording recording, bool isCurrentlyPlaying) {
+    return Dismissible(
+      key: Key(recording.path),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(20),
         ),
-        title: Text(
-          recording.name.replaceAll('.aac', '').replaceAll('.m4a', ''),
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(Icons.delete, color: Colors.white, size: 32),
+      ),
+      confirmDismiss: (direction) async {
+        return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: Colors.grey[900],
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text(
+              'Supprimer l\'enregistrement',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: Text(
+              'Voulez-vous vraiment supprimer "${recording.name}" ?',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Annuler'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Supprimer'),
+              ),
+            ],
           ),
+        );
+      },
+      onDismissed: (direction) async {
+        // Arrêter la lecture si c'est le fichier en cours
+        if (_audioPlayerService.currentAudioPath == recording.path) {
+          await _audioPlayerService.stop();
+        }
+
+        final success = await _recorderService.deleteRecording(recording.path);
+        if (success) {
+          await _loadRecordings();
+          _showSnackBar('Enregistrement supprimé', isError: false);
+        } else {
+          _showSnackBar('Erreur lors de la suppression', isError: true);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.white.withOpacity(isCurrentlyPlaying ? 0.15 : 0.08),
+              Colors.white.withOpacity(isCurrentlyPlaying ? 0.1 : 0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isCurrentlyPlaying
+                ? AppConstance.primary.withOpacity(0.5)
+                : Colors.white.withOpacity(0.1),
+            width: isCurrentlyPlaying ? 2 : 1,
+          ),
+          boxShadow: isCurrentlyPlaying
+              ? [
+                  BoxShadow(
+                    color: AppConstance.primary.withOpacity(0.3),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                  ),
+                ]
+              : [],
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
           children: [
-            Text(
-              '${recording.formattedDuration} • ${recording.formattedSize}',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  // Bouton Play/Pause
+                  GestureDetector(
+                    onTap: () async {
+                      if (isCurrentlyPlaying && _audioPlayerService.isPlaying) {
+                        await _audioPlayerService.pause();
+                      } else {
+                        await _playRecording(recording);
+                      }
+                    },
+                    child: Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: isCurrentlyPlaying && _audioPlayerService.isPlaying
+                              ? [AppConstance.primary, AppConstance.primary.withOpacity(0.8)]
+                              : [Colors.grey.shade700, Colors.grey.shade900],
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: isCurrentlyPlaying && _audioPlayerService.isPlaying
+                                ? AppConstance.primary.withOpacity(0.4)
+                                : Colors.black.withOpacity(0.3),
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        isCurrentlyPlaying && _audioPlayerService.isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 16),
+
+                  // Infos de l'enregistrement
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Titre cliquable pour renommer
+                        GestureDetector(
+                          onTap: () => _renameRecording(recording),
+                          child: Text(
+                            recording.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        StreamBuilder<Duration>(
+                          stream: _audioPlayerService.positionStream,
+                          builder: (context, snapshot) {
+                            final currentPosition = isCurrentlyPlaying
+                                ? (_audioPlayerService.currentPosition)
+                                : recording.duration;
+                            return Text(
+                              _formatDuration(currentPosition),
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.7),
+                                fontSize: 14,
+                                fontFamily: 'monospace',
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _formatDate(recording.createdAt),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.5),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Menu d'options
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: Colors.white),
+                    color: Colors.grey[900],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'rename':
+                          _renameRecording(recording);
+                          break;
+                        case 'delete':
+                          _deleteRecording(recording);
+                          break;
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'rename',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit, color: Colors.blue, size: 20),
+                            SizedBox(width: 12),
+                            Text('Renommer', style: TextStyle(color: Colors.white)),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete, color: Colors.red, size: 20),
+                            SizedBox(width: 12),
+                            Text('Supprimer', style: TextStyle(color: Colors.white)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            Text(
-              _formatDate(recording.createdAt),
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 12,
+
+            // Barre de progression interactive avec contrôles
+            if (isCurrentlyPlaying)
+              StreamBuilder<Duration>(
+                stream: _audioPlayerService.positionStream,
+                builder: (context, snapshot) {
+                  final position = _audioPlayerService.currentPosition;
+                  final duration = _audioPlayerService.totalDuration;
+                  final progress = duration.inMilliseconds > 0
+                      ? position.inMilliseconds / duration.inMilliseconds
+                      : 0.0;
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Column(
+                      children: [
+                        // Slider interactif
+                        SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            activeTrackColor: AppConstance.primary,
+                            inactiveTrackColor: Colors.white.withOpacity(0.1),
+                            thumbColor: AppConstance.primary,
+                            overlayColor: AppConstance.primary.withOpacity(0.2),
+                            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                            trackHeight: 4,
+                          ),
+                          child: Slider(
+                            value: progress.clamp(0.0, 1.0),
+                            onChanged: (value) {
+                              final newPosition = Duration(
+                                milliseconds: (value * duration.inMilliseconds).round(),
+                              );
+                              _audioPlayerService.seek(newPosition);
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Contrôles de temps
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _formatDuration(position),
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.6),
+                                  fontSize: 12,
+                                  fontFamily: 'monospace',
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                // Bouton -10s
+                                IconButton(
+                                  icon: const Icon(Icons.replay_10),
+                                  color: Colors.white.withOpacity(0.8),
+                                  iconSize: 24,
+                                  onPressed: () => _audioPlayerService.seekBackward(),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                                const SizedBox(width: 16),
+                                // Bouton +10s
+                                IconButton(
+                                  icon: const Icon(Icons.forward_10),
+                                  color: Colors.white.withOpacity(0.8),
+                                  iconSize: 24,
+                                  onPressed: () => _audioPlayerService.seekForward(),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
+                            ),
+                            Flexible(
+                              child: Text(
+                                _formatDuration(duration),
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.6),
+                                  fontSize: 12,
+                                  fontFamily: 'monospace',
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
-            ),
           ],
         ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            switch (value) {
-              case 'play':
-                _playRecording(recording);
-                break;
-              case 'rename':
-                _renameRecording(recording);
-                break;
-              case 'delete':
-                _deleteRecording(recording);
-                break;
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'play',
-              child: Row(
-                children: [
-                  Icon(Icons.play_arrow),
-                  SizedBox(width: 8),
-                  Text('Lire'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'rename',
-              child: Row(
-                children: [
-                  Icon(Icons.edit),
-                  SizedBox(width: 8),
-                  Text('Renommer'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(Icons.delete, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('Supprimer', style: TextStyle(color: Colors.red)),
-                ],
-              ),
-            ),
-          ],
-        ),
-        onTap: () => _playRecording(recording),
       ),
     );
   }
@@ -457,13 +633,13 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays == 0) {
       return 'Aujourd\'hui à ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     } else if (difference.inDays == 1) {
       return 'Hier à ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     } else if (difference.inDays < 7) {
-      return 'Il y a ${difference.inDays} jour${difference.inDays > 1 ? 's' : ''}';
+      return 'Il y a ${difference.inDays} jours';
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }

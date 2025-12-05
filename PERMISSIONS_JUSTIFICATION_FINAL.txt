@@ -1,0 +1,24 @@
+================================================================================
+  JUSTIFICATIONS POUR GOOGLE PLAY STORE - À COPIER-COLLER DIRECTEMENT
+================================================================================
+
+✅ READ_MEDIA_IMAGES (68 mots)
+────────────────────────────────────────────────────────────────────────────────
+
+Permission essentielle pour la fonctionnalité principale de VoXY Box : gestion de créations musicales avec photos.
+
+Fonctionnalités : capture de photos via bouton caméra dans "Mes Créations", sélection depuis la galerie, organisation dans dossiers personnalisables, prévisualisation avec miniatures, visionneuse plein écran avec zoom.
+
+Les utilisateurs accèdent régulièrement à leurs photos pour organisation et gestion. Fonctionnalité principale. Accès demandé contextuellement uniquement lors de prise/sélection de photos. Stockage local, aucun partage avec tiers.
+
+
+✅ READ_MEDIA_VIDEO (33 mots)
+────────────────────────────────────────────────────────────────────────────────
+
+Permission requise pour compatibilité avec le package image_picker utilisé pour la sélection de médias depuis la galerie. Assure une expérience utilisateur cohérente pour tous types de fichiers multimédias, même si l'application se concentre principalement sur photos et audio.
+
+
+================================================================================
+  TOTAL : 101 mots (bien en dessous de la limite de 250 mots)
+================================================================================
+

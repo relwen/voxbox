@@ -14,11 +14,7 @@
     <!-- Permissions pour Android 13+ (API 33+) - Remplacement de READ/WRITE_EXTERNAL_STORAGE -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     
-    <!-- Note: MANAGE_EXTERNAL_STORAGE a été retirée car elle nécessite une justification spéciale pour Google Play Store.
-         Les permissions READ/WRITE_EXTERNAL_STORAGE et READ_MEDIA_* sont suffisantes pour la plupart des cas d'usage.
-         Le file_picker utilise le Storage Access Framework qui ne nécessite pas cette permission. -->
     
     <application
         android:label="VoxyBox"

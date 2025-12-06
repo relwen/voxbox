@@ -4,6 +4,7 @@ import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/widgets/widgets.dart';
 import 'package:voxbox/models/messe.dart';
 import 'package:voxbox/services/messe_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/view/messes/messe_sections.dart';
 
 class MessesScreen extends StatefulWidget {
@@ -63,26 +64,20 @@ class _MessesScreenState extends State<MessesScreen> {
         setState(() {
           messes = response.data!;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Messes synchronisées avec succès'),
-            backgroundColor: Colors.green,
-          ),
+        ToastService.success(
+          context,
+          'Messes synchronisées avec succès',
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur de synchronisation: ${response.error}'),
-            backgroundColor: Colors.red,
-          ),
+        ToastService.error(
+          context,
+          'Erreur de synchronisation: ${response.error}',
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
+      ToastService.error(
+        context,
+        'Erreur: $e',
       );
     } finally {
       setState(() {

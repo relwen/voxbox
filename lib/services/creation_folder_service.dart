@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
@@ -29,7 +30,7 @@ class CreationFolderService {
       }
       return [];
     } catch (e) {
-      print('Erreur lors de la récupération des dossiers: $e');
+      debugPrint('Erreur lors de la récupération des dossiers: $e');
       return [];
     }
   }
@@ -41,7 +42,7 @@ class CreationFolderService {
       String foldersJson = jsonEncode(folders.map((folder) => folder.toJson()).toList());
       await prefs.setString(_foldersKey, foldersJson);
     } catch (e) {
-      print('Erreur lors de la sauvegarde des dossiers: $e');
+      debugPrint('Erreur lors de la sauvegarde des dossiers: $e');
     }
   }
 
@@ -72,7 +73,7 @@ class CreationFolderService {
 
       return folder;
     } catch (e) {
-      print('Erreur lors de la création du dossier: $e');
+      debugPrint('Erreur lors de la création du dossier: $e');
       rethrow;
     }
   }
@@ -89,7 +90,7 @@ class CreationFolderService {
 
       return true;
     } catch (e) {
-      print('Erreur lors de la suppression du dossier: $e');
+      debugPrint('Erreur lors de la suppression du dossier: $e');
       return false;
     }
   }
@@ -110,7 +111,7 @@ class CreationFolderService {
       }
       return false;
     } catch (e) {
-      print('Erreur lors du renommage du dossier: $e');
+      debugPrint('Erreur lors du renommage du dossier: $e');
       return false;
     }
   }
@@ -134,7 +135,7 @@ class CreationFolderService {
       }
       return false;
     } catch (e) {
-      print('Erreur lors de l\'ajout d\'un élément: $e');
+      debugPrint('Erreur lors de l\'ajout d\'un élément: $e');
       return false;
     }
   }
@@ -159,7 +160,7 @@ class CreationFolderService {
       }
       return false;
     } catch (e) {
-      print('Erreur lors de la suppression d\'un élément: $e');
+      debugPrint('Erreur lors de la suppression d\'un élément: $e');
       return false;
     }
   }
@@ -240,7 +241,7 @@ class CreationFolderService {
         await folder.create(recursive: true);
       }
     } catch (e) {
-      print('Erreur lors de la création du dossier physique: $e');
+      debugPrint('Erreur lors de la création du dossier physique: $e');
     }
   }
 
@@ -253,20 +254,32 @@ class CreationFolderService {
         await folder.delete(recursive: true);
       }
     } catch (e) {
-      print('Erreur lors de la suppression du dossier physique: $e');
+      debugPrint('Erreur lors de la suppression du dossier physique: $e');
     }
   }
 
-  /// Déplacer un fichier audio vers un dossier
+  /// Organiser un fichier audio dans un dossier (déplacement virtuel)
   Future<bool> moveAudioToFolder(
-    String folderId, 
-    String audioPath, 
+    String folderId,
+    String audioPath,
     String audioName, {
-    int? duration, 
+    int? duration,
     int? fileSize,
     String? pupitreNom,
   }) async {
     try {
+      // Vérifier si c'est un fichier local (pas une URL)
+      final isLocalFile = !audioPath.startsWith('http://') && !audioPath.startsWith('https://');
+
+      if (isLocalFile) {
+        // Vérifier que le fichier existe
+        final sourceFile = File(audioPath);
+        if (!await sourceFile.exists()) {
+          debugPrint('Fichier source introuvable: $audioPath');
+          return false;
+        }
+      }
+
       // Créer les métadonnées avec le pupitre si fourni
       Map<String, dynamic>? metadata;
       if (pupitreNom != null && pupitreNom.isNotEmpty) {
@@ -275,32 +288,50 @@ class CreationFolderService {
           'pupitre_nom': pupitreNom,
         };
       }
-      
+
+      // Créer l'item avec le chemin original (pas de copie)
       final item = await createAudioItem(
         name: audioName,
-        filePath: audioPath,
+        filePath: audioPath, // Garder le chemin d'origine
         duration: duration,
         fileSize: fileSize,
         metadata: metadata,
       );
+
+      debugPrint('Audio organisé dans le dossier (référence): $audioPath');
       return await addItemToFolder(folderId, item);
     } catch (e) {
-      print('Erreur lors du déplacement de l\'audio: $e');
+      debugPrint('Erreur lors de l\'organisation de l\'audio: $e');
       return false;
     }
   }
 
-  /// Déplacer une photo vers un dossier
+  /// Organiser une photo dans un dossier (déplacement virtuel)
   Future<bool> movePhotoToFolder(String folderId, String photoPath, String photoName, {int? fileSize}) async {
     try {
+      // Vérifier si c'est un fichier local (pas une URL)
+      final isLocalFile = !photoPath.startsWith('http://') && !photoPath.startsWith('https://');
+
+      if (isLocalFile) {
+        // Vérifier que le fichier existe
+        final sourceFile = File(photoPath);
+        if (!await sourceFile.exists()) {
+          debugPrint('Fichier source introuvable: $photoPath');
+          return false;
+        }
+      }
+
+      // Créer l'item avec le chemin original (pas de copie)
       final item = await createImageItem(
         name: photoName,
-        filePath: photoPath,
+        filePath: photoPath, // Garder le chemin d'origine
         fileSize: fileSize,
       );
+
+      debugPrint('Photo organisée dans le dossier (référence): $photoPath');
       return await addItemToFolder(folderId, item);
     } catch (e) {
-      print('Erreur lors du déplacement de la photo: $e');
+      debugPrint('Erreur lors de l\'organisation de la photo: $e');
       return false;
     }
   }
@@ -330,7 +361,7 @@ class CreationFolderService {
         'texts': totalTexts,
       };
     } catch (e) {
-      print('Erreur lors du calcul des statistiques: $e');
+      debugPrint('Erreur lors du calcul des statistiques: $e');
       return {
         'folders': 0,
         'items': 0,

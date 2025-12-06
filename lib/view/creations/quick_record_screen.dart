@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:voxbox/services/global_recorder_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 
 /// Écran d'enregistrement rapide
 class QuickRecordScreen extends StatefulWidget {
@@ -75,11 +76,9 @@ class _QuickRecordScreenState extends State<QuickRecordScreen>
     final success = await _recorderService.startRecording();
     if (!success && mounted) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Impossible de démarrer l\'enregistrement'),
-          backgroundColor: Colors.red,
-        ),
+      ToastService.error(
+        context,
+        'Impossible de démarrer l\'enregistrement',
       );
     }
   }
@@ -126,11 +125,9 @@ class _QuickRecordScreenState extends State<QuickRecordScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur de lecture: $e'),
-            backgroundColor: Colors.red,
-          ),
+        ToastService.error(
+          context,
+          'Erreur de lecture: $e',
         );
       }
     }
@@ -149,12 +146,10 @@ class _QuickRecordScreenState extends State<QuickRecordScreen>
     final path = await _recorderService.stopRecording();
     if (path != null && mounted) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enregistrement sauvegardé dans Créations'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
+      ToastService.success(
+        context,
+        'Enregistrement sauvegardé dans Créations',
+        duration: const Duration(seconds: 2),
       );
     }
   }

@@ -11,6 +11,7 @@ import 'package:voxbox/models/chorale_pupitre.dart';
 import 'package:voxbox/models/user.dart';
 import 'package:voxbox/services/creation_folder_service.dart';
 import 'package:voxbox/services/global_audio_player_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/view/creations/add_item_dialog.dart';
 
 class FolderDetailScreen extends StatefulWidget {
@@ -85,7 +86,7 @@ class _FolderDetailScreenState extends State<FolderDetailScreen> with SingleTick
         });
       }
     } catch (e) {
-      print('Erreur lors du chargement de l\'utilisateur: $e');
+      debugPrint('Erreur lors du chargement de l\'utilisateur: $e');
       setState(() {
         _isLoadingPupitres = false;
         _tabController = TabController(length: 1, vsync: this); // Seulement Général
@@ -136,7 +137,7 @@ class _FolderDetailScreenState extends State<FolderDetailScreen> with SingleTick
         });
       }
     } catch (e) {
-      print('Erreur lors du chargement des pupitres: $e');
+      debugPrint('Erreur lors du chargement des pupitres: $e');
       setState(() {
         _pupitres = [];
         _tabController?.dispose();
@@ -220,23 +221,11 @@ class _FolderDetailScreenState extends State<FolderDetailScreen> with SingleTick
   }
 
   void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    ToastService.error(context, message);
   }
 
   void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    ToastService.success(context, message);
   }
 
   @override
@@ -771,11 +760,20 @@ class _FolderDetailScreenState extends State<FolderDetailScreen> with SingleTick
                       StreamBuilder<Duration>(
                         stream: _audioPlayerService.positionStream,
                         builder: (context, snapshot) {
-                          final currentPosition = isCurrentlyPlaying
+                          // Si c'est l'audio en cours de lecture, afficher la position actuelle
+                          // Sinon, afficher la durée totale de l'item
+                          final displayDuration = isCurrentlyPlaying
                               ? _audioPlayerService.currentPosition
                               : (item.duration != null ? Duration(seconds: item.duration!) : Duration.zero);
+
+                          final totalDuration = isCurrentlyPlaying
+                              ? _audioPlayerService.totalDuration
+                              : (item.duration != null ? Duration(seconds: item.duration!) : Duration.zero);
+
                           return Text(
-                            _formatDuration(currentPosition),
+                            isCurrentlyPlaying
+                                ? '${_formatDuration(displayDuration)} / ${_formatDuration(totalDuration)}'
+                                : _formatDuration(displayDuration),
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.7),
                               fontSize: 14,
@@ -1034,11 +1032,28 @@ class _FolderDetailScreenState extends State<FolderDetailScreen> with SingleTick
   }
 
   Future<void> _playAudio(CreationItem item) async {
-    if (item.filePath == null) return;
+    if (item.filePath == null) {
+      _showErrorSnackBar('Le chemin du fichier audio est introuvable');
+      return;
+    }
+
+    // Vérifier si le fichier existe (seulement pour les fichiers locaux)
+    final isRemoteUrl = item.filePath!.startsWith('http://') || item.filePath!.startsWith('https://');
+
+    if (!isRemoteUrl) {
+      // Pour les fichiers locaux, vérifier l'existence
+      final file = File(item.filePath!);
+      if (!await file.exists()) {
+        _showErrorSnackBar('Le fichier audio n\'existe pas: ${item.name}');
+        return;
+      }
+    }
+
     try {
       await _audioPlayerService.playAudio(item.filePath!, title: item.name);
     } catch (e) {
-      _showErrorSnackBar('Erreur de lecture: $e');
+      debugPrint('Erreur de lecture audio: $e');
+      _showErrorSnackBar('Erreur de lecture: ${e.toString()}');
     }
   }
 

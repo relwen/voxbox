@@ -7,6 +7,7 @@ import 'package:voxbox/services/audio_recorder_service.dart';
 import 'package:voxbox/services/global_audio_player_service.dart';
 import 'package:voxbox/services/photo_service.dart';
 import 'package:voxbox/services/creation_folder_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/models/creation_folder.dart';
 import 'package:voxbox/models/user.dart';
 import 'package:voxbox/view/creations/folders_screen.dart';
@@ -179,11 +180,6 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
     }
   }
 
-  /// Supprimer une photo du service sans afficher de dialogue (utilisé après déplacement)
-  Future<bool> _removePhotoFromService(PhotoItem photo) async {
-    return await _photoService.deletePhoto(photo.id);
-  }
-
   Future<void> _moveAudioToFolder(AudioRecording recording) async {
     final folders = await _folderService.getFolders();
 
@@ -344,7 +340,7 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
             pupitreNom = currentUser.voicePart;
           }
         } catch (e) {
-          print('Erreur lors de la récupération du pupitre: $e');
+          debugPrint('Erreur lors de la récupération du pupitre: $e');
         }
         
         success = await _folderService.moveAudioToFolder(
@@ -356,10 +352,10 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
           pupitreNom: pupitreNom,
         );
         if (success) {
-          // Supprimer l'enregistrement de la liste principale après déplacement
-          await _recorderService.deleteRecording(recording.path);
-          await _loadRecordings(); // Recharger la liste pour enlever l'enregistrement
-          _showSnackBar('Enregistrement déplacé', isError: false);
+          // NE PAS supprimer le fichier - il reste à son emplacement d'origine
+          // Le dossier contient juste une référence au fichier
+          await _loadRecordings(); // Recharger la liste
+          _showSnackBar('Enregistrement organisé dans le dossier', isError: false);
         }
       } else if (photo != null) {
         final file = File(photo.path);
@@ -371,10 +367,10 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
           fileSize: fileSize,
         );
         if (success) {
-          // Supprimer la photo du service sans afficher de dialogue
-          await _removePhotoFromService(photo);
-          await _loadRecordings(); // Recharger la liste pour enlever la photo
-          _showSnackBar('Photo déplacée', isError: false);
+          // NE PAS supprimer la photo - elle reste à son emplacement d'origine
+          // Le dossier contient juste une référence à la photo
+          await _loadRecordings(); // Recharger la liste
+          _showSnackBar('Photo organisée dans le dossier', isError: false);
         }
       }
 
@@ -494,13 +490,11 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
   }
 
   void _showSnackBar(String message, {required bool isError}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red : Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    if (isError) {
+      ToastService.error(context, message);
+    } else {
+      ToastService.success(context, message);
+    }
   }
 
   @override

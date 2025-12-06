@@ -5,7 +5,10 @@
       "Bash(cat:*)",
       "Bash(ls:*)",
       "Bash(awk:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(flutter pub get:*)",
+      "Bash(echo:*)",
+      "Bash(/Users/apple/Desktop/Tech/KuilingaTechnologies/ProjectHouse/voxbobackend/.env.example)"
     ],
     "deny": [],
     "ask": []

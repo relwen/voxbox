@@ -4,6 +4,9 @@ import 'package:voxbox/models/partition.dart';
 import 'package:voxbox/models/vocalise.dart';
 import 'package:voxbox/models/messe.dart';
 import 'package:voxbox/models/chant_de_messe.dart';
+import 'package:voxbox/services/search_service.dart';
+import 'package:voxbox/services/toast_service.dart';
+import 'package:voxbox/view/messes/messe_sections.dart';
 
 class SearchResultsScreen extends StatefulWidget {
   final String query;
@@ -38,11 +41,24 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     });
 
     try {
-      // TODO: Implémenter les appels API pour la recherche
-      // Pour l'instant, nous créons des résultats vides
-      await Future.delayed(const Duration(seconds: 1)); // Simulation d'un appel API
+      // Appel au service de recherche
+      final response = await SearchService.searchAll(widget.query);
+
+      if (response.error != null) {
+        setState(() {
+          isLoading = false;
+          errorMessage = response.error;
+        });
+        return;
+      }
+
+      final results = response.data!;
 
       setState(() {
+        partitionResults = results.partitions;
+        vocaliseResults = results.vocalises;
+        messeResults = results.messes;
+        chantResults = results.chants;
         isLoading = false;
       });
     } catch (e) {
@@ -388,11 +404,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         ),
         onTap: () {
           // TODO: Naviguer vers les détails de la partition
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Ouverture de "${partition.title}"'),
-              backgroundColor: AppConstance.primary,
-            ),
+          ToastService.info(
+            context,
+            'Ouverture de "${partition.title}"',
           );
         },
       ),
@@ -449,11 +463,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         ),
         onTap: () {
           // TODO: Naviguer vers les détails de la vocalise
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Ouverture de "${vocalise.title}"'),
-              backgroundColor: Colors.orange,
-            ),
+          ToastService.info(
+            context,
+            'Ouverture de "${vocalise.title}"',
           );
         },
       ),
@@ -509,11 +521,11 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           color: Colors.grey.shade400,
         ),
         onTap: () {
-          // TODO: Naviguer vers les détails de la messe
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Ouverture de "${messe.nom}"'),
-              backgroundColor: Colors.blue,
+          // Naviguer vers les sections de la messe
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MesseSectionsScreen(messe: messe),
             ),
           );
         },
@@ -571,11 +583,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         ),
         onTap: () {
           // TODO: Naviguer vers les détails du chant
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Ouverture de "${chant.titre}"'),
-              backgroundColor: Colors.purple,
-            ),
+          ToastService.info(
+            context,
+            'Ouverture de "${chant.titre}"',
           );
         },
       ),

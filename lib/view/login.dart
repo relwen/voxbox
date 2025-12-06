@@ -3,6 +3,7 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/services/auth_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/view/otp_screen.dart';
 
 class Login extends StatefulWidget {
@@ -94,9 +95,10 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
 
   void sendOTP() async {
     if (phoneController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Veuillez saisir votre numéro de téléphone'),
-          backgroundColor: Colors.orange));
+      ToastService.warning(
+        context,
+        'Veuillez saisir votre numéro de téléphone',
+      );
       return;
     }
 
@@ -119,6 +121,20 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
       if (response.error == null && response.data != null) {
         // OTP envoyé avec succès
         print('✅ OTP envoyé avec succès');
+        
+        // Vérifier si l'OTP est retourné en mode debug
+        final responseData = response.data as Map<String, dynamic>?;
+        if (responseData != null && responseData.containsKey('otp')) {
+          print('🔑 Code OTP (DEBUG): ${responseData['otp']}');
+          // Afficher un message informatif pour les numéros de test
+          if (mounted) {
+            ToastService.info(
+              context,
+              'Mode test: OTP = ${responseData['otp']}',
+              duration: const Duration(seconds: 5),
+            );
+          }
+        }
 
         if (!mounted) return;
 
@@ -135,11 +151,10 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
 
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(response.error ?? 'Erreur lors de l\'envoi du code'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
-        ));
+        ToastService.error(
+          context,
+          response.error ?? 'Erreur lors de l\'envoi du code',
+        );
       }
     } catch (e) {
       setState(() {
@@ -150,8 +165,10 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red));
+      ToastService.error(
+        context,
+        'Erreur: $e',
+      );
     }
   }
 

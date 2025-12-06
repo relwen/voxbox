@@ -4,6 +4,7 @@ import 'package:voxbox/services/audio_recorder_service.dart';
 import 'package:voxbox/services/audio_editor_service.dart';
 import 'package:voxbox/services/global_audio_player_service.dart';
 import 'package:voxbox/services/creation_folder_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/models/creation_folder.dart';
 import 'package:voxbox/view/creations/folders_screen.dart';
 
@@ -152,23 +153,11 @@ class _RecordingsHistorySheetState extends State<RecordingsHistorySheet> {
   }
 
   void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    ToastService.error(context, message);
   }
 
   void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    ToastService.success(context, message);
   }
 
   @override
@@ -790,8 +779,8 @@ class _RecordingsHistorySheetState extends State<RecordingsHistorySheet> {
         );
 
         if (success) {
-          _showSuccessSnackBar('Audio déplacé vers le dossier');
-          // Optionnel: supprimer l'audio de la liste
+          _showSuccessSnackBar('Audio organisé dans le dossier');
+          // Le fichier reste à son emplacement d'origine
           // _loadData();
         } else {
           _showErrorSnackBar('Erreur lors du déplacement');

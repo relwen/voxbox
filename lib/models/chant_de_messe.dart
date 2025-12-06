@@ -21,22 +21,32 @@ class ChantDeMesse {
   final DateTime createdAt;
   final DateTime updatedAt;
   
+  // Helper pour générer une URL complète
+  static String _buildUrl(String file) {
+    // Si c'est déjà une URL complète, la retourner telle quelle
+    if (file.startsWith('http://') || file.startsWith('https://')) {
+      return file;
+    }
+    // Sinon, construire l'URL avec la base
+    return '${AppConstance.baseURL}/storage/$file';
+  }
+  
   // URLs complètes
-  String? get audioUrl => audioPath != null ? '${AppConstance.baseURL}/storage/$audioPath' : null;
-  String? get pdfUrl => pdfPath != null ? '${AppConstance.baseURL}/storage/$pdfPath' : null;
-  String? get imageUrl => imagePath != null ? '${AppConstance.baseURL}/storage/$imagePath' : null;
+  String? get audioUrl => audioPath != null ? _buildUrl(audioPath!) : null;
+  String? get pdfUrl => pdfPath != null ? _buildUrl(pdfPath!) : null;
+  String? get imageUrl => imagePath != null ? _buildUrl(imagePath!) : null;
   
   // URLs des fichiers multiples
-  List<String> get audioUrls => audioFiles?.map((file) => '${AppConstance.baseURL}/storage/$file').toList() ?? [];
-  List<String> get pdfUrls => pdfFiles?.map((file) => '${AppConstance.baseURL}/storage/$file').toList() ?? [];
-  List<String> get imageUrls => imageFiles?.map((file) => '${AppConstance.baseURL}/storage/$file').toList() ?? [];
+  List<String> get audioUrls => audioFiles?.map((file) => _buildUrl(file)).toList() ?? [];
+  List<String> get pdfUrls => pdfFiles?.map((file) => _buildUrl(file)).toList() ?? [];
+  List<String> get imageUrls => imageFiles?.map((file) => _buildUrl(file)).toList() ?? [];
   
   // URLs des pupitres
-  List<String> get sopranoUrls => sopranoFiles?.map((file) => '${AppConstance.baseURL}/storage/$file').toList() ?? [];
-  List<String> get altoUrls => altoFiles?.map((file) => '${AppConstance.baseURL}/storage/$file').toList() ?? [];
-  List<String> get tenorUrls => tenorFiles?.map((file) => '${AppConstance.baseURL}/storage/$file').toList() ?? [];
-  List<String> get basseUrls => basseFiles?.map((file) => '${AppConstance.baseURL}/storage/$file').toList() ?? [];
-  List<String> get tuttiUrls => tuttiFiles?.map((file) => '${AppConstance.baseURL}/storage/$file').toList() ?? [];
+  List<String> get sopranoUrls => sopranoFiles?.map((file) => _buildUrl(file)).toList() ?? [];
+  List<String> get altoUrls => altoFiles?.map((file) => _buildUrl(file)).toList() ?? [];
+  List<String> get tenorUrls => tenorFiles?.map((file) => _buildUrl(file)).toList() ?? [];
+  List<String> get basseUrls => basseFiles?.map((file) => _buildUrl(file)).toList() ?? [];
+  List<String> get tuttiUrls => tuttiFiles?.map((file) => _buildUrl(file)).toList() ?? [];
 
   ChantDeMesse({
     required this.id,

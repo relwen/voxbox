@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:voxbox/services/global_recorder_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 
 /// Widget flottant qui s'affiche en haut de l'écran pendant l'enregistrement
 class FloatingRecorderWidget extends StatefulWidget {
@@ -212,11 +213,9 @@ class _FloatingRecorderWidgetState extends State<FloatingRecorderWidget>
   Future<void> _cancelRecording(BuildContext context) async {
     final success = await widget.recorderService.cancelRecording();
     if (success && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enregistrement annulé'),
-          backgroundColor: Colors.orange,
-        ),
+      ToastService.warning(
+        context,
+        'Enregistrement annulé',
       );
     }
   }
@@ -224,18 +223,9 @@ class _FloatingRecorderWidgetState extends State<FloatingRecorderWidget>
   Future<void> _stopRecording(BuildContext context) async {
     final path = await widget.recorderService.stopRecording();
     if (path != null && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Enregistrement sauvegardé dans Créations'),
-          backgroundColor: Colors.green,
-          action: SnackBarAction(
-            label: 'Voir',
-            textColor: Colors.white,
-            onPressed: () {
-              // TODO: Naviguer vers Créations
-            },
-          ),
-        ),
+      ToastService.success(
+        context,
+        'Enregistrement sauvegardé dans Créations',
       );
     }
   }

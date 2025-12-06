@@ -13,7 +13,9 @@ import 'package:voxbox/view/messes/messes.dart';
 import 'package:voxbox/view/profile.dart';
 import 'package:voxbox/view/vocalize/vocalize.dart';
 import 'package:voxbox/view/complete_profile_screen.dart';
+import 'package:voxbox/view/search_results_screen.dart';
 import 'package:voxbox/services/auth_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -86,6 +88,8 @@ class _MyHomePageState extends State<HomePage> {
   }
 
   void _showSearchDialog() {
+    final TextEditingController searchController = TextEditingController();
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -144,9 +148,9 @@ class _MyHomePageState extends State<HomePage> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Champ de recherche
                 Container(
                   decoration: BoxDecoration(
@@ -155,6 +159,7 @@ class _MyHomePageState extends State<HomePage> {
                     border: Border.all(color: Colors.grey.shade300),
                   ),
                   child: TextField(
+                    controller: searchController,
                     autofocus: true,
                     decoration: InputDecoration(
                       hintText: 'Rechercher une partition, chant, vocalise...',
@@ -177,9 +182,6 @@ class _MyHomePageState extends State<HomePage> {
                       fontSize: 14,
                       color: Colors.black87,
                     ),
-                    onChanged: (value) {
-                      // TODO: Implémenter la recherche en temps réel
-                    },
                     onSubmitted: (value) {
                       if (value.isNotEmpty) {
                         _performSearch(value);
@@ -188,67 +190,53 @@ class _MyHomePageState extends State<HomePage> {
                     },
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
-                // Suggestions de recherche
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Suggestions',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildSearchSuggestion('Kyrié'),
-                        _buildSearchSuggestion('Gloria'),
-                        _buildSearchSuggestion('Ave Maria'),
-                        _buildSearchSuggestion('Vocalises'),
-                        _buildSearchSuggestion('Chants'),
-                        _buildSearchSuggestion('Messes'),
-                      ],
-                    ),
-                  ],
-                ),
-                
-                const SizedBox(height: 20),
-                
-                // Bouton de recherche
+
+                // Bouton de validation
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                  child: ElevatedButton.icon(
                     onPressed: () {
-                      // TODO: Implémenter la recherche
+                      debugPrint('🔍 Bouton rechercher cliqué');
+                      final query = searchController.text.trim();
+                      debugPrint('🔍 Texte de recherche: "$query"');
+
+                      if (query.isEmpty) {
+                        debugPrint('⚠️ Recherche vide');
+                        ToastService.warning(
+                          context,
+                          'Veuillez entrer un terme de recherche',
+                        );
+                        return;
+                      }
+
+                      debugPrint('✅ Fermeture du dialog et navigation vers les résultats');
                       Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Fonctionnalité de recherche en cours de développement'),
-                          backgroundColor: Colors.blue,
+
+                      // Navigation vers les résultats
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SearchResultsScreen(query: query),
                         ),
                       );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppConstance.primary,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
+                    icon: const Icon(Icons.search_rounded, size: 20),
+                    label: const Text(
                       'Rechercher',
                       style: TextStyle(
-                        fontWeight: FontWeight.w600,
                         fontSize: 16,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -261,47 +249,21 @@ class _MyHomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildSearchSuggestion(String suggestion) {
-    return GestureDetector(
-      onTap: () {
-        _performSearch(suggestion);
-        Navigator.of(context).pop();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppConstance.primary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppConstance.primary.withOpacity(0.3),
-            width: 1,
-          ),
-        ),
-        child: Text(
-          suggestion,
-          style: TextStyle(
-            color: AppConstance.primary,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
 
   void _performSearch(String query) {
-    // TODO: Implémenter la logique de recherche
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Recherche pour: "$query"'),
-        backgroundColor: AppConstance.primary,
-        action: SnackBarAction(
-          label: 'Voir résultats',
-          textColor: Colors.white,
-          onPressed: () {
-            // TODO: Naviguer vers les résultats de recherche
-          },
-        ),
+    if (query.trim().isEmpty) {
+      ToastService.warning(
+        context,
+        'Veuillez entrer un terme de recherche',
+      );
+      return;
+    }
+
+    // Naviguer vers l'écran des résultats de recherche
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SearchResultsScreen(query: query),
       ),
     );
   }
@@ -395,15 +357,15 @@ class _MyHomePageState extends State<HomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Bonjour,',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                const SizedBox(height: 2),
+                // Text(
+                //   'Bonjour,',
+                //   style: TextStyle(
+                //     color: Colors.white.withOpacity(0.8),
+                //     fontSize: 14,
+                //     fontWeight: FontWeight.w400,
+                //   ),
+                // ),
+                // const SizedBox(height: 2),
                 Text(
                   user.name ?? "Utilisateur",
                   style: const TextStyle(
@@ -567,11 +529,9 @@ class _MyHomePageState extends State<HomePage> {
             ),
             child: IconButton(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Ouverture de "${partitionSelectionnee['titre']}"...'),
-                    backgroundColor: partitionSelectionnee['color'] as Color,
-                  ),
+                ToastService.info(
+                  context,
+                  'Ouverture de "${partitionSelectionnee['titre']}"...',
                 );
               },
               icon: const Icon(
@@ -609,8 +569,8 @@ class _MyHomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Sélection du jour
-            _buildSelectionDuJour(),
-            const SizedBox(height: 30),
+            // _buildSelectionDuJour(),
+            // const SizedBox(height: 30),
             
             const Text(
               'Menu Principal',

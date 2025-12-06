@@ -230,6 +230,10 @@ class PartitionService {
     String? audioFilePath,
     String? pdfFilePath,
     String? imageFilePath,
+    int? rubriqueSectionId,
+    int? pupitreId,
+    String? messePart, // Nom de la partie de messe (ex: "Kyrié", "Sanctus")
+    String? messeSubPart, // Sous-partie optionnelle
   }) async {
     ApiResponse apiResponse = ApiResponse();
     try {
@@ -255,38 +259,157 @@ class PartitionService {
 
       // Ajouter les champs
       request.fields['title'] = title;
-      if (description != null) request.fields['description'] = description;
+      if (description != null && description.isNotEmpty) {
+        request.fields['description'] = description;
+      }
       request.fields['category_id'] = categoryId.toString();
       request.fields['chorale_id'] = choraleId.toString();
+      if (rubriqueSectionId != null) {
+        request.fields['rubrique_section_id'] = rubriqueSectionId.toString();
+      }
+      if (pupitreId != null) {
+        request.fields['pupitre_id'] = pupitreId.toString();
+      }
+      
+      // Ajouter messe_part au format JSON attendu par le backend
+      if (messePart != null) {
+        final messePartJson = {
+          'part': messePart,
+          'subPart': messeSubPart,
+        };
+        request.fields['messe_part'] = jsonEncode(messePartJson);
+        print('📋 messe_part: ${request.fields['messe_part']}');
+      }
 
-      // Ajouter les fichiers
+      print('📤 Champs envoyés:');
+      print('  - title: $title');
+      print('  - category_id: ${categoryId.toString()}');
+      print('  - chorale_id: ${choraleId.toString()}');
+      print('  - rubrique_section_id: ${rubriqueSectionId?.toString()}');
+      print('  - pupitre_id: ${pupitreId?.toString()}');
+      print('  - messe_part: ${messePart != null ? request.fields['messe_part'] : "absent"}');
+      print('  - audio_file: ${audioFilePath != null ? "présent" : "absent"}');
+      print('  - pdf_file: ${pdfFilePath != null ? "présent" : "absent"}');
+      print('  - image_file: ${imageFilePath != null ? "présent" : "absent"}');
+
+      // Ajouter les fichiers dans le champ 'files[]' comme attendu par le backend
+      // Le backend attend tous les fichiers dans un seul champ 'files[]'
+      List<File> filesToUpload = [];
+      
       if (audioFilePath != null) {
-        var audioFile = await http.MultipartFile.fromPath('audio_file', audioFilePath);
-        request.files.add(audioFile);
+        final audioFileObj = File(audioFilePath);
+        if (await audioFileObj.exists()) {
+          final fileSize = await audioFileObj.length();
+          final fileName = audioFilePath.split('/').last;
+          print('📁 Fichier audio trouvé: $audioFilePath');
+          print('   - Nom: $fileName');
+          print('   - Taille: ${fileSize} bytes (${(fileSize / 1024).toStringAsFixed(2)} KB)');
+          filesToUpload.add(audioFileObj);
+        } else {
+          print('❌ Fichier audio introuvable: $audioFilePath');
+          apiResponse.error = 'Fichier audio introuvable: $audioFilePath';
+          return apiResponse;
+        }
       }
 
       if (pdfFilePath != null) {
-        var pdfFile = await http.MultipartFile.fromPath('pdf_file', pdfFilePath);
-        request.files.add(pdfFile);
+        final pdfFileObj = File(pdfFilePath);
+        if (await pdfFileObj.exists()) {
+          final fileSize = await pdfFileObj.length();
+          final fileName = pdfFilePath.split('/').last;
+          print('📁 Fichier PDF trouvé: $pdfFilePath');
+          print('   - Nom: $fileName');
+          print('   - Taille: ${fileSize} bytes (${(fileSize / 1024).toStringAsFixed(2)} KB)');
+          filesToUpload.add(pdfFileObj);
+        } else {
+          print('❌ Fichier PDF introuvable: $pdfFilePath');
+        }
       }
 
       if (imageFilePath != null) {
-        var imageFile = await http.MultipartFile.fromPath('image_file', imageFilePath);
-        request.files.add(imageFile);
+        final imageFileObj = File(imageFilePath);
+        if (await imageFileObj.exists()) {
+          final fileSize = await imageFileObj.length();
+          final fileName = imageFilePath.split('/').last;
+          print('📁 Fichier image trouvé: $imageFilePath');
+          print('   - Nom: $fileName');
+          print('   - Taille: ${fileSize} bytes (${(fileSize / 1024).toStringAsFixed(2)} KB)');
+          filesToUpload.add(imageFileObj);
+        } else {
+          print('❌ Fichier image introuvable: $imageFilePath');
+        }
+      }
+
+      // Ajouter tous les fichiers dans le champ 'files[]' comme attendu par le backend
+      for (var file in filesToUpload) {
+        final fileName = file.path.split('/').last;
+        var multipartFile = await http.MultipartFile.fromPath(
+          'files[]', // Le backend attend 'files[]' pour un tableau de fichiers
+          file.path,
+          filename: fileName,
+        );
+        request.files.add(multipartFile);
+        print('✅ Fichier ajouté à la requête multipart (field: files[], filename: $fileName)');
+      }
+
+      print('📦 Total fichiers dans la requête: ${request.files.length}');
+      for (var file in request.files) {
+        print('   - ${file.field}: ${file.filename ?? "sans nom"} (${file.length} bytes)');
       }
 
       // Envoyer la requête
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
 
+      print('📡 Réponse création partition - Status: ${response.statusCode}');
+      print('📄 Body: ${response.body}');
+
       switch (response.statusCode) {
         case 201:
-          var responseData = jsonDecode(response.body);
-          if (responseData['success'] == true) {
-            apiResponse.data = Partition.fromJson(responseData['data']);
-            apiResponse.error = null;
-          } else {
-            apiResponse.error = responseData['message'] ?? 'Erreur lors de la création';
+        case 200:
+          try {
+            var responseData = jsonDecode(response.body);
+            print('📦 Données parsées: $responseData');
+            if (responseData['success'] == true && responseData['data'] != null) {
+              try {
+                final partitionData = responseData['data'];
+                print('📋 Données de la partition créée:');
+                print('   - ID: ${partitionData['id']}');
+                print('   - Titre: ${partitionData['title']}');
+                print('   - audio_path: ${partitionData['audio_path']}');
+                print('   - pdf_path: ${partitionData['pdf_path']}');
+                print('   - image_path: ${partitionData['image_path']}');
+                print('   - audio_files: ${partitionData['audio_files']}');
+                print('   - files: ${partitionData['files']}');
+                
+                apiResponse.data = Partition.fromJson(partitionData);
+                apiResponse.error = null;
+                print('✅ Partition créée avec succès: ${apiResponse.data?.id}');
+                
+                // Vérifier si les fichiers ont été sauvegardés
+                if (audioFilePath != null) {
+                  if (apiResponse.data?.audioPath == null || apiResponse.data?.audioPath!.isEmpty == true) {
+                    print('⚠️ ATTENTION: Le fichier audio n\'a pas été sauvegardé sur le serveur!');
+                    print('   Fichier envoyé: $audioFilePath');
+                    print('   Chemin retourné: ${apiResponse.data?.audioPath}');
+                  } else {
+                    print('✅ Fichier audio sauvegardé: ${apiResponse.data?.audioPath}');
+                  }
+                }
+              } catch (e, stackTrace) {
+                print('❌ Erreur lors de la conversion Partition.fromJson: $e');
+                print('📋 Stack trace: $stackTrace');
+                print('📋 Données reçues: ${responseData['data']}');
+                apiResponse.error = 'Erreur de conversion: $e';
+              }
+            } else {
+              apiResponse.error = responseData['message'] ?? 'Erreur lors de la création';
+              print('⚠️ Réponse sans succès: ${responseData['message']}');
+            }
+          } catch (e, stackTrace) {
+            print('❌ Erreur lors du parsing JSON: $e');
+            print('📋 Stack trace: $stackTrace');
+            apiResponse.error = 'Erreur de parsing: $e';
           }
           break;
         case 422:

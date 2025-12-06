@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 /// Service global pour la lecture audio persistante à travers toute l'application
 class GlobalAudioPlayerService {
@@ -86,20 +87,30 @@ class GlobalAudioPlayerService {
     });
   }
 
-  /// Jouer un fichier audio
+  /// Jouer un fichier audio (local ou distant)
   Future<void> playAudio(String path, {String? title}) async {
     try {
       _currentAudioPath = path;
       _currentAudioTitle = title ?? _extractFileName(path);
 
-      await _audioPlayer.play(DeviceFileSource(path));
+      // Déterminer si c'est une URL ou un fichier local
+      Source audioSource;
+      if (path.startsWith('http://') || path.startsWith('https://')) {
+        // C'est une URL distante
+        audioSource = UrlSource(path);
+      } else {
+        // C'est un fichier local
+        audioSource = DeviceFileSource(path);
+      }
+
+      await _audioPlayer.play(audioSource);
 
       _audioInfoController.add(AudioInfo(
         path: path,
         title: _currentAudioTitle!,
       ));
     } catch (e) {
-      print('Erreur lors de la lecture: $e');
+      debugPrint('Erreur lors de la lecture: $e');
       rethrow;
     }
   }

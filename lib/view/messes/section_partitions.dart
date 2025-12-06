@@ -4,6 +4,7 @@ import 'package:voxbox/functions/styles.dart';
 import 'package:voxbox/models/category.dart';
 import 'package:voxbox/models/partition.dart';
 import 'package:voxbox/services/partition_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 
 class SectionPartitionsScreen extends StatefulWidget {
   final Category section;
@@ -66,11 +67,9 @@ class _SectionPartitionsScreenState extends State<SectionPartitionsScreen> {
           sectionPartitions = allPartitions.where((p) => p.categoryId == widget.section.id).toList();
           syncing = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Synchronisation terminée'),
-            backgroundColor: Colors.green,
-          ),
+        ToastService.success(
+          context,
+          'Synchronisation terminée',
         );
       } else {
         setState(() {
@@ -96,26 +95,20 @@ class _SectionPartitionsScreenState extends State<SectionPartitionsScreen> {
     if (partition.audioPath != null) {
       try {
         // TODO: Implémenter la lecture audio
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lecture audio: ${partition.title}'),
-            backgroundColor: Colors.green,
-          ),
+        ToastService.info(
+          context,
+          'Lecture audio: ${partition.title}',
         );
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur de lecture: $e'),
-            backgroundColor: Colors.red,
-          ),
+        ToastService.error(
+          context,
+          'Erreur de lecture: $e',
         );
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Aucun fichier audio disponible'),
-          backgroundColor: Colors.orange,
-        ),
+      ToastService.warning(
+        context,
+        'Aucun fichier audio disponible',
       );
     }
   }
@@ -123,18 +116,14 @@ class _SectionPartitionsScreenState extends State<SectionPartitionsScreen> {
   void _downloadFile(Partition partition, String fileType) async {
     try {
       // TODO: Implémenter le téléchargement
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Téléchargement $fileType: ${partition.title}'),
-          backgroundColor: Colors.blue,
-        ),
+      ToastService.info(
+        context,
+        'Téléchargement $fileType: ${partition.title}',
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur de téléchargement: $e'),
-          backgroundColor: Colors.red,
-        ),
+      ToastService.error(
+        context,
+        'Erreur de téléchargement: $e',
       );
     }
   }

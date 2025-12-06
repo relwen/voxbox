@@ -48,28 +48,36 @@ class Partition {
   });
 
   factory Partition.fromJson(Map<String, dynamic> json) {
+    // Fonction helper pour convertir en int
+    int _toInt(dynamic value) {
+      if (value == null) return 0;
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
+
     return Partition(
-      id: json['id'],
-      title: json['title'],
-      description: json['description'],
-      audioPath: json['audio_path'],
+      id: _toInt(json['id']),
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString(),
+      audioPath: json['audio_path']?.toString(),
       audioUrl: json['audio_path'] != null ? '${AppConstance.baseURL}/storage/${json['audio_path']}' : null,
-      pdfPath: json['pdf_path'],
+      pdfPath: json['pdf_path']?.toString(),
       pdfUrl: json['pdf_path'] != null ? '${AppConstance.baseURL}/storage/${json['pdf_path']}' : null,
-      imagePath: json['image_path'],
+      imagePath: json['image_path']?.toString(),
       imageUrl: json['image_path'] != null ? '${AppConstance.baseURL}/storage/${json['image_path']}' : null,
-      categoryId: json['category_id'],
-      categoryName: json['category']?['name'] ?? json['category_name'],
-      categoryColor: json['category']?['color'] ?? json['category_color'],
-      categoryIcon: json['category']?['icon'] ?? json['category_icon'],
-      choraleId: json['chorale_id'],
-      choraleName: json['chorale']?['name'] ?? json['chorale_name'],
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
-      isDownloaded: json['is_downloaded'] ?? false,
-      localAudioPath: json['local_audio_path'],
-      localPdfPath: json['local_pdf_path'],
-      localImagePath: json['local_image_path'],
+      categoryId: _toInt(json['category_id']),
+      categoryName: json['category']?['name']?.toString() ?? json['category_name']?.toString(),
+      categoryColor: json['category']?['color']?.toString() ?? json['category_color']?.toString(),
+      categoryIcon: json['category']?['icon']?.toString() ?? json['category_icon']?.toString(),
+      choraleId: _toInt(json['chorale_id']),
+      choraleName: json['chorale']?['name']?.toString() ?? json['chorale_name']?.toString(),
+      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now() : DateTime.now(),
+      updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString()) ?? DateTime.now() : DateTime.now(),
+      isDownloaded: json['is_downloaded'] == true || json['is_downloaded'] == 'true',
+      localAudioPath: json['local_audio_path']?.toString(),
+      localPdfPath: json['local_pdf_path']?.toString(),
+      localImagePath: json['local_image_path']?.toString(),
     );
   }
 

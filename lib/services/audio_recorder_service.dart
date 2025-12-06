@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_sound/flutter_sound.dart';
@@ -36,13 +37,13 @@ class AudioRecorderService {
       // Demander la permission microphone (obligatoire)
       final microphoneStatus = await Permission.microphone.request();
       
-      print('Permissions - Microphone: $microphoneStatus');
+      debugPrint('Permissions - Microphone: $microphoneStatus');
       
       // Pour l'enregistrement audio, seule la permission microphone est nécessaire
       // Le stockage interne de l'application ne nécessite pas de permission
       return microphoneStatus.isGranted;
     } catch (e) {
-      print('Erreur lors de la demande de permissions: $e');
+      debugPrint('Erreur lors de la demande de permissions: $e');
       return false;
     }
   }
@@ -52,13 +53,13 @@ class AudioRecorderService {
     try {
       final microphonePermission = await Permission.microphone.isGranted;
       
-      print('Permissions actuelles - Microphone: $microphonePermission');
+      debugPrint('Permissions actuelles - Microphone: $microphonePermission');
       
       // Pour l'enregistrement audio, seule la permission microphone est nécessaire
       // Le stockage interne de l'application ne nécessite pas de permission
       return microphonePermission;
     } catch (e) {
-      print('Erreur lors de la vérification des permissions: $e');
+      debugPrint('Erreur lors de la vérification des permissions: $e');
       return false;
     }
   }
@@ -68,51 +69,76 @@ class AudioRecorderService {
     await _audioRecorder.openRecorder();
   }
 
+  /// Réinitialise l'état de l'enregistrement (force l'arrêt si nécessaire)
+  Future<void> resetRecordingState() async {
+    try {
+      if (_isRecording) {
+        debugPrint('🔄 Réinitialisation: arrêt de l\'enregistrement en cours...');
+        try {
+          await _audioRecorder.stopRecorder();
+        } catch (e) {
+          debugPrint('⚠️ Erreur lors de l\'arrêt forcé: $e');
+        }
+        _isRecording = false;
+        _isPaused = false;
+        _recordingTimer?.cancel();
+        _visualizerService.stopVisualization();
+        _currentRecordingPath = null;
+        _recordingDuration = Duration.zero;
+        _stateController.add(RecordingState.stopped);
+        debugPrint('✅ État réinitialisé');
+      }
+    } catch (e) {
+      debugPrint('❌ Erreur lors de la réinitialisation: $e');
+    }
+  }
+
   /// Démarre l'enregistrement
   Future<bool> startRecording({String? fileName}) async {
     try {
-      print('🎙️ Démarrage de l\'enregistrement...');
+      debugPrint('🎙️ Démarrage de l\'enregistrement...');
       
+      // Réinitialiser l'état si un enregistrement est en cours
       if (_isRecording) {
-        print('❌ Enregistrement déjà en cours');
-        return false;
+        debugPrint('⚠️ Enregistrement déjà en cours, réinitialisation...');
+        await resetRecordingState();
       }
 
       // Vérifier les permissions
-      print('🔐 Vérification des permissions...');
+      debugPrint('🔐 Vérification des permissions...');
       if (!await hasPermissions()) {
-        print('⚠️ Permissions non accordées, demande en cours...');
+        debugPrint('⚠️ Permissions non accordées, demande en cours...');
         if (!await requestPermissions()) {
-          print('❌ Permission microphone refusée par l\'utilisateur');
+          debugPrint('❌ Permission microphone refusée par l\'utilisateur');
           throw Exception('Permission microphone requise. Veuillez autoriser l\'accès au microphone dans les paramètres de l\'application.');
         }
       }
-      print('✅ Permissions accordées');
+      debugPrint('✅ Permissions accordées');
 
       // Initialiser l'enregistreur
-      print('🔧 Initialisation de l\'enregistreur...');
+      debugPrint('🔧 Initialisation de l\'enregistreur...');
       await _initializeRecorder();
-      print('✅ Enregistreur initialisé');
+      debugPrint('✅ Enregistreur initialisé');
 
       // Créer le répertoire d'enregistrement
-      print('📁 Création du répertoire d\'enregistrement...');
+      debugPrint('📁 Création du répertoire d\'enregistrement...');
       final directory = await getApplicationDocumentsDirectory();
       final recordingsDir = Directory(path.join(directory.path, 'recordings'));
       if (!await recordingsDir.exists()) {
         await recordingsDir.create(recursive: true);
-        print('✅ Répertoire créé: ${recordingsDir.path}');
+        debugPrint('✅ Répertoire créé: ${recordingsDir.path}');
       } else {
-        print('✅ Répertoire existe: ${recordingsDir.path}');
+        debugPrint('✅ Répertoire existe: ${recordingsDir.path}');
       }
 
       // Générer le nom de fichier
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final finalFileName = fileName ?? 'recording_$timestamp.aac';
       _currentRecordingPath = path.join(recordingsDir.path, finalFileName);
-      print('📄 Fichier d\'enregistrement: $_currentRecordingPath');
+      debugPrint('📄 Fichier d\'enregistrement: $_currentRecordingPath');
 
       // Démarrer l'enregistrement
-      print('🎵 Démarrage de l\'enregistrement audio...');
+      debugPrint('🎵 Démarrage de l\'enregistrement audio...');
       await _audioRecorder.startRecorder(
         toFile: _currentRecordingPath!,
         codec: Codec.aacADTS,
@@ -127,10 +153,10 @@ class AudioRecorderService {
           _visualizerService.startVisualization();
           _stateController.add(RecordingState.recording);
 
-          print('✅ Enregistrement démarré avec succès');
+          debugPrint('✅ Enregistrement démarré avec succès');
           return true;
     } catch (e) {
-      print('❌ Erreur lors du démarrage de l\'enregistrement: $e');
+      debugPrint('❌ Erreur lors du démarrage de l\'enregistrement: $e');
       return false;
     }
   }
@@ -148,7 +174,7 @@ class AudioRecorderService {
 
           return true;
     } catch (e) {
-      print('Erreur lors de la pause: $e');
+      debugPrint('Erreur lors de la pause: $e');
       return false;
     }
   }
@@ -166,7 +192,7 @@ class AudioRecorderService {
 
           return true;
     } catch (e) {
-      print('Erreur lors de la reprise: $e');
+      debugPrint('Erreur lors de la reprise: $e');
       return false;
     }
   }
@@ -185,7 +211,7 @@ class AudioRecorderService {
 
           return _currentRecordingPath;
     } catch (e) {
-      print('Erreur lors de l\'arrêt: $e');
+      debugPrint('Erreur lors de l\'arrêt: $e');
       return null;
     }
   }
@@ -215,7 +241,7 @@ class AudioRecorderService {
 
           return true;
     } catch (e) {
-      print('Erreur lors de l\'annulation: $e');
+      debugPrint('Erreur lors de l\'annulation: $e');
       return false;
     }
   }
@@ -250,7 +276,7 @@ class AudioRecorderService {
 
       return true;
     } catch (e) {
-      print('Erreur lors du remplacement: $e');
+      debugPrint('Erreur lors du remplacement: $e');
       return false;
     }
   }
@@ -298,7 +324,7 @@ class AudioRecorderService {
       recordings.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return recordings;
     } catch (e) {
-      print('Erreur lors de la récupération des enregistrements: $e');
+      debugPrint('Erreur lors de la récupération des enregistrements: $e');
       return [];
     }
   }
@@ -313,7 +339,7 @@ class AudioRecorderService {
       }
       return false;
     } catch (e) {
-      print('Erreur lors de la suppression: $e');
+      debugPrint('Erreur lors de la suppression: $e');
       return false;
     }
   }
@@ -331,7 +357,7 @@ class AudioRecorderService {
           await oldFile.rename(newPath);
           return true;
     } catch (e) {
-      print('Erreur lors du renommage: $e');
+      debugPrint('Erreur lors du renommage: $e');
       return false;
     }
   }

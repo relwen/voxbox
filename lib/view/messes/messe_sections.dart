@@ -4,7 +4,9 @@ import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/widgets/widgets.dart';
 import 'package:voxbox/models/messe.dart';
 import 'package:voxbox/models/messe_section.dart';
+import 'package:voxbox/models/chant_de_messe.dart';
 import 'package:voxbox/services/messe_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/view/messes/section_chants.dart';
 
 class MesseSectionsScreen extends StatefulWidget {
@@ -35,30 +37,45 @@ class _MesseSectionsScreenState extends State<MesseSectionsScreen> {
     try {
       var response = await MesseService.getMesseSections(widget.messe.id);
       if (response.error == null) {
+        List<MesseSection> loadedSections = response.data as List<MesseSection>;
+        
+        // Si les chants ne sont pas chargés dans les sections, les charger séparément
+        for (var section in loadedSections) {
+          if (section.chants == null || section.chants!.isEmpty) {
+            // Charger les chants pour cette section
+            var chantsResponse = await MesseService.getSectionChants(section.id, messeId: section.messeId);
+            if (chantsResponse.error == null && chantsResponse.data != null) {
+              // Mettre à jour la section avec les chants chargés
+              int sectionIndex = loadedSections.indexWhere((s) => s.id == section.id);
+              if (sectionIndex != -1) {
+                loadedSections[sectionIndex] = section.copyWith(
+                  chants: chantsResponse.data as List<ChantDeMesse>,
+                );
+              }
+            }
+          }
+        }
+        
         setState(() {
-          sections = response.data as List<MesseSection>;
+          sections = loadedSections;
           loading = false;
         });
       } else {
         setState(() {
           loading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: ${response.error}'),
-            backgroundColor: Colors.red,
-          ),
+        ToastService.error(
+          context,
+          'Erreur: ${response.error}',
         );
       }
     } catch (e) {
       setState(() {
         loading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
+      ToastService.error(
+        context,
+        'Erreur: $e',
       );
     }
   }
@@ -71,18 +88,14 @@ class _MesseSectionsScreenState extends State<MesseSectionsScreen> {
     try {
       // Recharger les sections
       _loadSections();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sections synchronisées'),
-          backgroundColor: Colors.green,
-        ),
+      ToastService.success(
+        context,
+        'Sections synchronisées',
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
+      ToastService.error(
+        context,
+        'Erreur: $e',
       );
     } finally {
       setState(() {

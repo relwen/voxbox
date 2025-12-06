@@ -192,6 +192,18 @@ Future<ApiResponse> verifyOTP(String phoneNumber, String otp) async {
           // Sauvegarder l'utilisateur
           await prefs.setString('user', jsonEncode(user.toJson()));
 
+          // Sauvegarder chorale_id séparément pour un accès facile
+          if (user.choraleId != null) {
+            await prefs.setInt('chorale_id', user.choraleId!);
+            print('💾 Chorale ID sauvegardé: ${user.choraleId}');
+          }
+
+          // Sauvegarder le nom de la chorale si disponible
+          if (user.chorale != null && user.chorale!['name'] != null) {
+            await prefs.setString('chorale_name', user.chorale!['name'].toString());
+            print('💾 Nom de la chorale sauvegardé: ${user.chorale!['name']}');
+          }
+
           // Retourner l'utilisateur
           apiResponse.data = user;
           print('🎉 Connexion réussie via OTP!');
@@ -314,7 +326,26 @@ Future<ApiResponse> loginByPhone(String phoneNumber) async {
           AppConstance.token = responseData['token'];
           SharedPreferences prefs = await SharedPreferences.getInstance();
           await prefs.setString('token', responseData['token']);
-          apiResponse.data = User.fromJson(responseData['user']);
+          
+          // Créer l'utilisateur
+          User user = User.fromJson(responseData['user']);
+          
+          // Sauvegarder l'utilisateur
+          await prefs.setString('user', jsonEncode(user.toJson()));
+
+          // Sauvegarder chorale_id séparément pour un accès facile
+          if (user.choraleId != null) {
+            await prefs.setInt('chorale_id', user.choraleId!);
+            print('💾 Chorale ID sauvegardé: ${user.choraleId}');
+          }
+
+          // Sauvegarder le nom de la chorale si disponible
+          if (user.chorale != null && user.chorale!['name'] != null) {
+            await prefs.setString('chorale_name', user.chorale!['name'].toString());
+            print('💾 Nom de la chorale sauvegardé: ${user.chorale!['name']}');
+          }
+          
+          apiResponse.data = user;
           print('🎉 Connexion par téléphone réussie!');
         } else {
           apiResponse.error = responseData['message'];
@@ -388,6 +419,18 @@ Future<ApiResponse> loginWithLaravel(String email, String password) async {
           
           // Sauvegarder l'utilisateur
           await prefs.setString('user', jsonEncode(user.toJson()));
+
+          // Sauvegarder chorale_id séparément pour un accès facile
+          if (user.choraleId != null) {
+            await prefs.setInt('chorale_id', user.choraleId!);
+            print('💾 Chorale ID sauvegardé: ${user.choraleId}');
+          }
+
+          // Sauvegarder le nom de la chorale si disponible
+          if (user.chorale != null && user.chorale!['name'] != null) {
+            await prefs.setString('chorale_name', user.chorale!['name'].toString());
+            print('💾 Nom de la chorale sauvegardé: ${user.chorale!['name']}');
+          }
           
           apiResponse.data = user;
           print('🎉 Connexion réussie!');
@@ -455,6 +498,18 @@ Future<ApiResponse> getUserInfo() async {
           
           // Sauvegarder l'utilisateur mis à jour
           await prefs.setString('user', jsonEncode(user.toJson()));
+
+          // Sauvegarder chorale_id séparément pour un accès facile
+          if (user.choraleId != null) {
+            await prefs.setInt('chorale_id', user.choraleId!);
+            print('💾 Chorale ID sauvegardé: ${user.choraleId}');
+          }
+
+          // Sauvegarder le nom de la chorale si disponible
+          if (user.chorale != null && user.chorale!['name'] != null) {
+            await prefs.setString('chorale_name', user.chorale!['name'].toString());
+            print('💾 Nom de la chorale sauvegardé: ${user.chorale!['name']}');
+          }
           
           apiResponse.data = user;
         } else {

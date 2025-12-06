@@ -4,6 +4,7 @@ import 'package:voxbox/services/global_recorder_service.dart';
 import 'package:voxbox/services/audio_recorder_service.dart';
 import 'package:voxbox/services/photo_service.dart';
 import 'package:voxbox/services/creation_folder_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/models/creation_folder.dart';
 import 'package:voxbox/widgets/voice_recorder_button.dart';
 import 'package:voxbox/view/creations/recordings_history_sheet.dart';
@@ -180,12 +181,9 @@ class _SimpleCreationsScreenState extends State<SimpleCreationsScreen> {
                     VoiceRecorderButton(
                       onRecordingComplete: () {
                         setState(() {});
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Enregistrement sauvegardé'),
-                            backgroundColor: Colors.green,
-                            behavior: SnackBarBehavior.floating,
-                          ),
+                        ToastService.success(
+                          context,
+                          'Enregistrement sauvegardé',
                         );
                       },
                     ),
@@ -325,22 +323,16 @@ class _SimpleCreationsScreenState extends State<SimpleCreationsScreen> {
       final photo = await _photoService.takePhoto();
       if (photo != null && mounted) {
         setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Photo sauvegardée'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
+        ToastService.success(
+          context,
+          'Photo sauvegardée',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
+        ToastService.error(
+          context,
+          'Erreur: $e',
         );
       }
     }
@@ -525,31 +517,22 @@ class _SimpleCreationsScreenState extends State<SimpleCreationsScreen> {
         );
 
         if (success && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Photo déplacée vers le dossier'),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-            ),
+          ToastService.success(
+            context,
+            'Photo déplacée vers le dossier',
           );
           setState(() {});
         } else if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Erreur lors du déplacement'),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-            ),
+          ToastService.error(
+            context,
+            'Erreur lors du déplacement',
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erreur: $e'),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-            ),
+          ToastService.error(
+            context,
+            'Erreur: $e',
           );
         }
       }
@@ -580,20 +563,14 @@ class _SimpleCreationsScreenState extends State<SimpleCreationsScreen> {
       final success = await _photoService.deletePhoto(photo.path);
       if (success && mounted) {
         setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Photo supprimée'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
+        ToastService.success(
+          context,
+          'Photo supprimée',
         );
       } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Erreur lors de la suppression'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
+        ToastService.error(
+          context,
+          'Erreur lors de la suppression',
         );
       }
     }
@@ -652,11 +629,9 @@ class _SimpleCreationsScreenState extends State<SimpleCreationsScreen> {
             icon: const Icon(Icons.play_arrow, color: Colors.white),
             onPressed: () {
               // TODO: Jouer l'enregistrement
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Lecture en cours de développement'),
-                  behavior: SnackBarBehavior.floating,
-                ),
+              ToastService.info(
+                context,
+                'Lecture en cours de développement',
               );
             },
           ),

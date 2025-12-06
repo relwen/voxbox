@@ -4,6 +4,7 @@ import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/widgets/widgets.dart';
 import 'package:voxbox/services/global_recorder_service.dart';
 import 'package:voxbox/services/audio_recorder_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/view/creations/recordings_history_sheet.dart';
 import 'package:voxbox/view/creations/folders_screen.dart';
 
@@ -154,23 +155,11 @@ class _CreationsScreenState extends State<CreationsScreen>
   }
 
   void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    ToastService.error(context, message);
   }
 
   void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    ToastService.success(context, message);
   }
 
 

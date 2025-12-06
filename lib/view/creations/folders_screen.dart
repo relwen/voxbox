@@ -3,6 +3,7 @@ import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/widgets/widgets.dart';
 import 'package:voxbox/models/creation_folder.dart';
 import 'package:voxbox/services/creation_folder_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/view/creations/folder_detail_screen.dart';
 import 'package:voxbox/view/creations/create_folder_dialog.dart';
 
@@ -94,23 +95,11 @@ class _FoldersScreenState extends State<FoldersScreen> {
   }
 
   void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    ToastService.error(context, message);
   }
 
   void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    ToastService.success(context, message);
   }
 
   @override

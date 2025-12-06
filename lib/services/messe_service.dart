@@ -119,7 +119,8 @@ class MesseService {
         final data = json.decode(response.body);
         if (data['success'] == true) {
           // Utiliser l'adaptateur pour convertir les références en sections
-          List<MesseSection> sections = BackendAdapter.referencesToMesseSections(data['data']);
+          // Passer messeId pour que les sections aient le bon ID de RubriqueSection
+          List<MesseSection> sections = BackendAdapter.referencesToMesseSections(data['data'], messeId: messeId);
           return ApiResponse<List<MesseSection>>(data: sections);
         } else {
           return ApiResponse<List<MesseSection>>(error: data['message'] ?? 'Erreur serveur');
@@ -133,7 +134,9 @@ class MesseService {
   }
 
   /// Récupérer les chants d'une section
-  static Future<ApiResponse<List<ChantDeMesse>>> getSectionChants(int sectionId) async {
+  /// sectionId: ID de la section (référence générée)
+  /// messeId: ID réel de la RubriqueSection (messe) - utilisé pour récupérer les partitions
+  static Future<ApiResponse<List<ChantDeMesse>>> getSectionChants(int sectionId, {int? messeId}) async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
@@ -141,8 +144,15 @@ class MesseService {
       if (token == null) {
         return ApiResponse<List<ChantDeMesse>>(error: 'Token non disponible');
       }
+      
+      // Utiliser messeId si fourni, sinon utiliser sectionId (pour compatibilité)
+      // Le backend attend l'ID réel de la RubriqueSection (messeId)
+      final referenceId = messeId ?? sectionId;
+      
+      print('🔄 Récupération des partitions pour sectionId: $sectionId, messeId: $messeId, referenceId utilisé: $referenceId');
+      
       final response = await http.get(
-        Uri.parse('${AppConstance.baseURL}/api/references/$sectionId/partitions'),
+        Uri.parse('${AppConstance.baseURL}/api/references/$referenceId/partitions'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -151,18 +161,44 @@ class MesseService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        print('📥 Réponse brute du serveur pour partitions: ${response.body}');
+        
         if (data['success'] == true) {
-          // Utiliser l'adaptateur pour convertir les partitions en chants
-          List<ChantDeMesse> chants = BackendAdapter.partitionsToChantsDeMesse(data['data']);
-          
-          // Sauvegarder les chants dans le cache unifié
-          await UnifiedCacheService.saveChants(chants);
-          
-          return ApiResponse<List<ChantDeMesse>>(data: chants);
+          // Vérifier si data existe et n'est pas null
+          if (data['data'] != null && data['data'] is List) {
+            final partitionsList = data['data'] as List;
+            print('📦 ${partitionsList.length} partition(s) reçue(s) du serveur');
+            
+            // Utiliser l'adaptateur pour convertir les partitions en chants
+            // IMPORTANT: Passer sectionId pour que les chants soient correctement associés à leur section
+            // Le sectionId est l'ID de la référence générée, pas le messeId (rubrique_section_id)
+            List<ChantDeMesse> chants = BackendAdapter.partitionsToChantsDeMesse(partitionsList, sectionId: sectionId);
+            print('✅ ${chants.length} chant(s) converti(s) depuis les partitions pour la section $sectionId');
+            
+            // Vérifier que tous les chants ont le bon sectionId
+            for (var i = 0; i < chants.length; i++) {
+              if (chants[i].sectionId != sectionId) {
+                print('⚠️ Correction sectionId pour chant ${chants[i].id}: ${chants[i].sectionId} -> $sectionId');
+                chants[i] = chants[i].copyWith(sectionId: sectionId);
+              }
+            }
+            
+            // Sauvegarder les chants dans le cache unifié (en mettant à jour les existants)
+            // Utiliser updateChant pour chaque chant pour éviter d'écraser les autres sections
+            for (var chant in chants) {
+              await UnifiedCacheService.updateChant(chant);
+            }
+            
+            return ApiResponse<List<ChantDeMesse>>(data: chants);
+          } else {
+            print('⚠️ Aucune partition dans la réponse (data est null ou vide)');
+            return ApiResponse<List<ChantDeMesse>>(data: []);
+          }
         } else {
           return ApiResponse<List<ChantDeMesse>>(error: data['message'] ?? 'Erreur serveur');
         }
       } else {
+        print('❌ Erreur HTTP ${response.statusCode}: ${response.body}');
         return ApiResponse<List<ChantDeMesse>>(error: 'Erreur HTTP: ${response.statusCode}');
       }
     } catch (e) {
@@ -171,10 +207,17 @@ class MesseService {
   }
 
   /// Récupérer les chants d'une section depuis le cache local
-  static Future<List<ChantDeMesse>> getSectionChantsFromCache(int sectionId) async {
+  /// sectionId: ID de la section (référence générée) - DOIT être utilisé pour filtrer
+  /// messeId: ID réel de la RubriqueSection (messe) - utilisé uniquement pour récupérer depuis le serveur
+  static Future<List<ChantDeMesse>> getSectionChantsFromCache(int sectionId, {int? messeId}) async {
     try {
-      // Utiliser le service unifié pour récupérer les chants avec leurs fichiers locaux
-      return await UnifiedCacheService.getChantsBySection(sectionId);
+      // IMPORTANT: Toujours utiliser sectionId pour filtrer, pas messeId
+      // Car plusieurs sections (Kyrié, Sanctus, etc.) peuvent avoir le même messeId
+      // mais chaque section a son propre sectionId unique
+      print('🔍 Récupération cache pour sectionId: $sectionId (messeId: $messeId)');
+      final chants = await UnifiedCacheService.getChantsBySection(sectionId);
+      print('📦 ${chants.length} chant(s) trouvé(s) dans le cache pour la section $sectionId');
+      return chants;
     } catch (e) {
       print('Erreur lors de la récupération des chants du cache: $e');
       return [];

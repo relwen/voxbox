@@ -264,6 +264,18 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
           
           await prefs.setString('user', jsonEncode(updatedUser.toJson()));
 
+          // Sauvegarder chorale_id séparément pour un accès facile
+          if (updatedUser.choraleId != null) {
+            await prefs.setInt('chorale_id', updatedUser.choraleId!);
+            print('💾 Chorale ID sauvegardé: ${updatedUser.choraleId}');
+          }
+
+          // Sauvegarder le nom de la chorale si disponible
+          if (updatedUser.chorale != null && updatedUser.chorale!['name'] != null) {
+            await prefs.setString('chorale_name', updatedUser.chorale!['name'].toString());
+            print('💾 Nom de la chorale sauvegardé: ${updatedUser.chorale!['name']}');
+          }
+
           if (mounted) {
             // Vérifier explicitement que tous les champs requis sont remplis
             // Nom, Chorale et Pupitre doivent être présents avant de vérifier le statut

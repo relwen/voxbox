@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:voxbox/services/audio_recorder_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 
 class QuickRecorderModal extends StatefulWidget {
@@ -229,14 +230,19 @@ class _QuickRecorderModalState extends State<QuickRecorderModal>
   }
 
   void _showSnackBar(String message, {required bool isError}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red : Colors.green,
-        behavior: SnackBarBehavior.floating,
+    if (isError) {
+      ToastService.error(
+        context,
+        message,
         duration: const Duration(seconds: 2),
-      ),
-    );
+      );
+    } else {
+      ToastService.success(
+        context,
+        message,
+        duration: const Duration(seconds: 2),
+      );
+    }
   }
 
   @override

@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/models/vocalise.dart';
 import 'package:voxbox/services/api_response.dart';
+import 'package:voxbox/services/backend_adapter.dart';
 
 class VocaliseService {
   static const String _localVocalisesKey = 'local_vocalises';
@@ -68,33 +69,61 @@ class VocaliseService {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
-      
+
       if (token == null) {
         apiResponse.error = 'Token non disponible';
         return apiResponse;
       }
-      
+
+      print('🔄 Synchronisation des vocalises depuis le backend...');
+
       final response = await http.get(
         Uri.parse(AppConstance.vocalisesURL),
         headers: {
           'Accept': 'application/json',
+          'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
       );
 
       switch (response.statusCode) {
         case 200:
-          List<dynamic> serverVocalises = jsonDecode(response.body)['data'];
-          List<Vocalise> vocalises = serverVocalises.map((v) => Vocalise.fromJson(v)).toList();
-          
-          // Mettre à jour le stockage local
-          await saveLocalVocalises(vocalises);
-          
-          // Télécharger automatiquement les fichiers audio
-          await _downloadAllAudioFiles(vocalises);
-          
-          apiResponse.data = vocalises;
-          apiResponse.error = null;
+          print('📥 Réponse brute du serveur: ${response.body}');
+          final responseData = jsonDecode(response.body);
+          print('📦 Success: ${responseData['success']}, Data présent: ${responseData['data'] != null}');
+
+          if (responseData['success'] == true) {
+            // Vérifier si data existe et n'est pas null
+            if (responseData['data'] != null) {
+              try {
+                // Utiliser l'adaptateur pour convertir les données backend
+                List<Vocalise> vocalises = BackendAdapter.backendDataListToVocalises(responseData['data']);
+
+                print('✅ ${vocalises.length} vocalise(s) récupérée(s) avec leurs fichiers organisés par pupitre');
+
+                // Mettre à jour le stockage local
+                await saveLocalVocalises(vocalises);
+
+                // Télécharger automatiquement les fichiers audio
+                await _downloadAllAudioFiles(vocalises);
+
+                apiResponse.data = vocalises;
+                apiResponse.error = null;
+              } catch (e) {
+                print('❌ Erreur lors du parsing des vocalises: $e');
+                apiResponse.error = 'Erreur de parsing: $e';
+              }
+            } else {
+              // Aucune vocalise disponible, mais ce n'est pas une erreur
+              print('ℹ️ Aucune vocalise disponible');
+              apiResponse.data = [];
+              apiResponse.error = null;
+            }
+          } else {
+            print('❌ Erreur backend: ${responseData['message']}');
+            print('📋 Structure de réponse: ${responseData.keys}');
+            apiResponse.error = responseData['message'] ?? 'Erreur serveur';
+          }
           break;
         case 401:
           apiResponse.error = 'Non autorisé';
@@ -104,6 +133,7 @@ class VocaliseService {
           break;
       }
     } catch (e) {
+      print('❌ Erreur de connexion: $e');
       apiResponse.error = 'Erreur de connexion';
     }
     return apiResponse;
@@ -134,33 +164,39 @@ class VocaliseService {
       switch (response.statusCode) {
         case 200:
           Map<String, dynamic> responseData = jsonDecode(response.body);
-          List<dynamic> newVocalises = responseData['data'];
-          String newLastSync = responseData['last_sync'];
-          
-          if (newVocalises.isNotEmpty) {
-            List<Vocalise> vocalises = newVocalises.map((v) => Vocalise.fromJson(v)).toList();
-            
-            // Fusionner avec les vocalises existantes
-            List<Vocalise> existingVocalises = await getLocalVocalises();
-            Map<int, Vocalise> vocaliseMap = {
-              for (var v in existingVocalises) v.id: v
-            };
-            
-            // Mettre à jour ou ajouter les nouvelles vocalises
-            for (var vocalise in vocalises) {
-              vocaliseMap[vocalise.id] = vocalise;
+
+          if (responseData['success'] == true && responseData['data'] != null) {
+            List<dynamic> newVocalises = responseData['data'];
+            String newLastSync = responseData['last_sync'] ?? DateTime.now().toIso8601String();
+
+            if (newVocalises.isNotEmpty) {
+              // Utiliser l'adaptateur pour convertir les données backend avec sous-dossiers
+              List<Vocalise> vocalises = BackendAdapter.backendDataListToVocalises(newVocalises);
+
+              // Fusionner avec les vocalises existantes
+              List<Vocalise> existingVocalises = await getLocalVocalises();
+              Map<int, Vocalise> vocaliseMap = {
+                for (var v in existingVocalises) v.id: v
+              };
+
+              // Mettre à jour ou ajouter les nouvelles vocalises
+              for (var vocalise in vocalises) {
+                vocaliseMap[vocalise.id] = vocalise;
+              }
+
+              await saveLocalVocalises(vocaliseMap.values.toList());
+
+              // Télécharger automatiquement les fichiers audio des nouvelles vocalises
+              await _downloadAllAudioFiles(vocalises);
             }
-            
-            await saveLocalVocalises(vocaliseMap.values.toList());
-            
-            // Télécharger automatiquement les fichiers audio des nouvelles vocalises
-            await _downloadAllAudioFiles(vocalises);
+
+            await saveLastSync(newLastSync);
+
+            apiResponse.data = await getLocalVocalises();
+            apiResponse.error = null;
+          } else {
+            apiResponse.error = responseData['message'] ?? 'Erreur serveur';
           }
-          
-          await saveLastSync(newLastSync);
-          
-          apiResponse.data = await getLocalVocalises();
-          apiResponse.error = null;
           break;
         case 401:
           apiResponse.error = 'Non autorisé';
@@ -178,7 +214,12 @@ class VocaliseService {
   // Télécharger un fichier audio
   static Future<bool> downloadAudio(Vocalise vocalise) async {
     try {
-      if (vocalise.audioUrl == null || vocalise.audioUrl!.isEmpty) {
+      // Vérifier si un fichier audio est disponible (audioPath ou audioFiles)
+      bool hasAudio = (vocalise.audioPath != null && vocalise.audioPath!.isNotEmpty) ||
+                      (vocalise.audioFiles != null && vocalise.audioFiles!.isNotEmpty);
+      
+      if (!hasAudio) {
+        print('⚠️ Aucun fichier audio disponible pour la vocalise ${vocalise.id}');
         return false;
       }
 
@@ -296,23 +337,43 @@ class VocaliseService {
 
       switch (response.statusCode) {
         case 201:
-          var responseData = jsonDecode(response.body);
-          if (responseData['success'] == true) {
-            apiResponse.data = Vocalise.fromJson(responseData['data']);
-            apiResponse.error = null;
-          } else {
-            apiResponse.error = responseData['message'] ?? 'Erreur lors de la création';
+          try {
+            var responseData = jsonDecode(response.body);
+            if (responseData['success'] == true && responseData['data'] != null) {
+              // Utiliser l'adaptateur pour convertir les données backend
+              apiResponse.data = BackendAdapter.backendDataToVocalise(responseData['data']);
+              apiResponse.error = null;
+            } else {
+              apiResponse.error = responseData['message'] ?? 'Erreur lors de la création';
+            }
+          } catch (e) {
+            print('❌ Erreur lors du parsing de la réponse: $e');
+            apiResponse.error = 'Erreur de parsing: $e';
           }
           break;
         case 422:
-          var errors = jsonDecode(response.body)['errors'];
-          apiResponse.error = errors[errors.keys.elementAt(0)][0];
+          try {
+            var responseData = jsonDecode(response.body);
+            if (responseData['errors'] != null && responseData['errors'].isNotEmpty) {
+              var errors = responseData['errors'];
+              apiResponse.error = errors[errors.keys.elementAt(0)][0];
+            } else {
+              apiResponse.error = responseData['message'] ?? 'Erreur de validation';
+            }
+          } catch (e) {
+            apiResponse.error = 'Erreur de validation';
+          }
           break;
         case 401:
           apiResponse.error = 'Non autorisé';
           break;
         default:
-          apiResponse.error = 'Erreur serveur lors de la création';
+          try {
+            var responseData = jsonDecode(response.body);
+            apiResponse.error = responseData['message'] ?? 'Erreur serveur lors de la création';
+          } catch (e) {
+            apiResponse.error = 'Erreur serveur lors de la création (${response.statusCode})';
+          }
           break;
       }
     } catch (e) {
@@ -439,7 +500,16 @@ class VocaliseService {
       print('🎵 Téléchargement automatique des fichiers audio...');
       
       for (Vocalise vocalise in vocalises) {
-        if (vocalise.audioPath != null && !vocalise.isDownloaded) {
+        // Vérifier si un fichier audio est disponible (audioPath ou audioFiles ou fichiers par pupitre)
+        bool hasAudio = (vocalise.audioPath != null && vocalise.audioPath!.isNotEmpty) ||
+                        (vocalise.audioFiles != null && vocalise.audioFiles!.isNotEmpty) ||
+                        (vocalise.sopranoFiles != null && vocalise.sopranoFiles!.isNotEmpty) ||
+                        (vocalise.altoFiles != null && vocalise.altoFiles!.isNotEmpty) ||
+                        (vocalise.tenorFiles != null && vocalise.tenorFiles!.isNotEmpty) ||
+                        (vocalise.basseFiles != null && vocalise.basseFiles!.isNotEmpty) ||
+                        (vocalise.tuttiFiles != null && vocalise.tuttiFiles!.isNotEmpty);
+        
+        if (hasAudio && !vocalise.isDownloaded) {
           print('📥 Téléchargement: ${vocalise.title}');
           await VocaliseService.downloadAudio(vocalise);
         }

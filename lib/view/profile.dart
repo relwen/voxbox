@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/models/user.dart';
+import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/view/login.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -207,45 +209,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      // Mettre à jour l'objet utilisateur
-      user.name = _nameController.text.trim();
-      user.email = _emailController.text.trim();
-      user.phone = _phoneController.text.trim();
-      user.voicePart = _voicePartController.text.trim();
-
-      // Sauvegarder dans SharedPreferences
+      // Récupérer le token
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user', jsonEncode(user.toJson()));
+      String? token = prefs.getString('token');
 
-      setState(() {
-        isEditing = false;
-        isLoading = false;
-      });
+      if (token == null) {
+        throw Exception('Token non trouvé');
+      }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Profil mis à jour avec succès'),
-          backgroundColor: AppConstance.primary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
+      // Préparer les données à envoyer
+      final requestBody = {
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'voice_part': _voicePartController.text.trim(),
+      };
+
+      print('📤 Mise à jour du profil:');
+      print('   - Name: ${requestBody['name']}');
+      print('   - Email: ${requestBody['email']}');
+      print('   - Phone: ${requestBody['phone']}');
+      print('   - Voice Part: ${requestBody['voice_part']}');
+
+      // Mettre à jour le profil via l'API
+      final response = await http.put(
+        Uri.parse('${AppConstance.baseURL}/api/me'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
       );
+
+      print('📥 Réponse du serveur (${response.statusCode}):');
+      print('   ${response.body}');
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        
+        if (responseData['success'] == true) {
+          // Mettre à jour l'utilisateur en cache
+          User updatedUser = User.fromJson(responseData['user']);
+          updatedUser.profileComplete = responseData['profile_complete'] ?? false;
+          updatedUser.profileIncomplete = responseData['profile_incomplete'] ?? true;
+          
+          await prefs.setString('user', jsonEncode(updatedUser.toJson()));
+
+          // Sauvegarder chorale_id séparément pour un accès facile
+          if (updatedUser.choraleId != null) {
+            await prefs.setInt('chorale_id', updatedUser.choraleId!);
+          }
+
+          // Sauvegarder le nom de la chorale si disponible
+          if (updatedUser.chorale != null && updatedUser.chorale!['name'] != null) {
+            await prefs.setString('chorale_name', updatedUser.chorale!['name'].toString());
+          }
+
+          // Mettre à jour l'objet utilisateur local
+          setState(() {
+            user = updatedUser;
+            isEditing = false;
+            isLoading = false;
+          });
+
+          ToastService.success(
+            context,
+            'Profil mis à jour avec succès',
+          );
+        } else {
+          throw Exception(responseData['message'] ?? 'Erreur lors de la mise à jour');
+        }
+      } else {
+        final responseData = jsonDecode(response.body);
+        throw Exception(responseData['message'] ?? 'Erreur serveur (${response.statusCode})');
+      }
     } catch (e) {
       setState(() {
         isLoading = false;
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur lors de la mise à jour: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
+      ToastService.error(
+        context,
+        'Erreur lors de la mise à jour: $e',
       );
     }
   }
@@ -259,7 +305,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildProfileHeader() {
     return Container(
+
       padding: const EdgeInsets.all(20),
+      width: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,

@@ -57,9 +57,19 @@ class UnifiedCacheService {
   }
 
   /// Récupérer les chants d'une section
+  /// sectionId: ID de la section (référence générée) - utilisé pour filtrer les chants
   static Future<List<ChantDeMesse>> getChantsBySection(int sectionId) async {
     final chants = await getChants();
-    return chants.where((chant) => chant.sectionId == sectionId).toList();
+    final filteredChants = chants.where((chant) => chant.sectionId == sectionId).toList();
+    print('🔍 Filtrage chants pour section $sectionId: ${chants.length} total -> ${filteredChants.length} pour cette section');
+    if (filteredChants.length != chants.length) {
+      // Afficher les sectionId des chants qui ne correspondent pas pour debug
+      final otherSections = chants.where((chant) => chant.sectionId != sectionId).map((c) => c.sectionId).toSet();
+      if (otherSections.isNotEmpty) {
+        print('⚠️ Chants trouvés avec d\'autres sectionId: ${otherSections.join(", ")}');
+      }
+    }
+    return filteredChants;
   }
 
   /// Mettre à jour un chant spécifique

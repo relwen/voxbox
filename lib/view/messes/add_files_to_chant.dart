@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/services/file_upload_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/widgets/widgets.dart';
 import 'package:voxbox/models/chant_de_messe.dart';
 
@@ -308,20 +309,16 @@ class _AddFilesToChantScreenState extends State<AddFilesToChantScreen> {
           selectedAudioFiles.addAll(files);
         });
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${files.length} fichier(s) audio ajouté(s)'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
+        ToastService.success(
+          context,
+          '${files.length} fichier(s) audio ajouté(s)',
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur lors de la sélection des fichiers audio: $e'),
-          backgroundColor: Colors.red,
-        ),
+      ToastService.error(
+        context,
+        'Erreur lors de la sélection des fichiers audio: $e',
       );
     }
   }
@@ -335,20 +332,16 @@ class _AddFilesToChantScreenState extends State<AddFilesToChantScreen> {
           selectedPdfFiles.addAll(files);
         });
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${files.length} fichier(s) PDF ajouté(s)'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
+        ToastService.success(
+          context,
+          '${files.length} fichier(s) PDF ajouté(s)',
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur lors de la sélection des fichiers PDF: $e'),
-          backgroundColor: Colors.red,
-        ),
+      ToastService.error(
+        context,
+        'Erreur lors de la sélection des fichiers PDF: $e',
       );
     }
   }
@@ -362,20 +355,16 @@ class _AddFilesToChantScreenState extends State<AddFilesToChantScreen> {
           selectedImageFiles.addAll(files);
         });
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${files.length} image(s) ajoutée(s)'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
+        ToastService.success(
+          context,
+          '${files.length} image(s) ajoutée(s)',
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur lors de la sélection des images: $e'),
-          backgroundColor: Colors.red,
-        ),
+      ToastService.error(
+        context,
+        'Erreur lors de la sélection des images: $e',
       );
     }
   }
@@ -407,20 +396,16 @@ class _AddFilesToChantScreenState extends State<AddFilesToChantScreen> {
       // TODO: Implémenter la sauvegarde des fichiers
       await Future.delayed(const Duration(seconds: 2)); // Simulation
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Fichiers sauvegardés avec succès'),
-          backgroundColor: Colors.green,
-        ),
+      ToastService.success(
+        context,
+        'Fichiers sauvegardés avec succès',
       );
       
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
+      ToastService.error(
+        context,
+        'Erreur: $e',
       );
     } finally {
       setState(() {

@@ -28,8 +28,8 @@ class AppConstance {
   // Changez cette URL selon votre configuration
   // static String baseURL = 'http://10.0.2.2:8000'; // Pour émulateur Android
   // static String baseURL = 'http://localhost:8000'; // Pour iOS Simulator
-  static String baseURL = 'http://192.168.11.108:8000'; // ← IP locale WiFi pour backend localhost:8000
-  // static String baseURL = 'https://voxy.stcamillejeunesse.site'; // ← IP locale WiFi pour backend localhost:8000
+  // static String baseURL = 'http://192.168.11.108:8000'; // ← IP locale WiFi pour backend localhost:8000
+  static String baseURL = 'https://voxy.stcamillejeunesse.site'; // ← IP locale WiFi pour backend localhost:8000
   
   static String appName = 'Voxy Box';
   

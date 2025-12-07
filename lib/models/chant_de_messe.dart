@@ -165,4 +165,19 @@ class ChantDeMesse {
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
+
+  // Vérifier si le chant a un fichier audio
+  bool hasAudio() {
+    return audioPath != null || (audioFiles != null && audioFiles!.isNotEmpty);
+  }
+
+  // Vérifier si le chant a un PDF
+  bool hasPdf() {
+    return pdfPath != null || (pdfFiles != null && pdfFiles!.isNotEmpty);
+  }
+
+  // Vérifier si le chant a une image
+  bool hasImage() {
+    return imagePath != null || (imageFiles != null && imageFiles!.isNotEmpty);
+  }
 }

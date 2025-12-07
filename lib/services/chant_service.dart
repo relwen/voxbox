@@ -5,24 +5,91 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/models/chant_de_messe.dart';
+import 'package:voxbox/models/chant_section.dart';
 import 'package:voxbox/services/api_response.dart';
 import 'package:voxbox/services/unified_cache_service.dart';
 
 class ChantService {
   static const String _chantsKey = 'local_chants';
+  static const String _sectionsKey = 'local_chant_sections';
 
-  /// Récupérer un chant spécifique depuis le serveur
-  static Future<ApiResponse<ChantDeMesse>> getChantFromServer(int chantId) async {
+  /// Récupérer toutes les sections de chants depuis le serveur
+  static Future<ApiResponse<List<ChantSection>>> getSectionsFromServer() async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
       
       if (token == null) {
-        return ApiResponse<ChantDeMesse>(error: 'Token non disponible');
+        return ApiResponse<List<ChantSection>>(error: 'Token non disponible');
       }
       
       final response = await http.get(
-        Uri.parse('${AppConstance.baseURL}/api/chants-de-messe/$chantId'),
+        Uri.parse(AppConstance.chantsDeMesseURL),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('🌐 ChantService::getSectionsFromServer - Réponse reçue');
+      print('📡 Status Code: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ Données décodées: success=${data['success']}, data count=${data['data']?.length ?? 0}');
+        
+        if (data['success'] == true) {
+          try {
+            List<dynamic> sectionsData = data['data'] ?? [];
+            print('📦 ${sectionsData.length} section(s) reçue(s) du serveur');
+            
+            List<ChantSection> sections = sectionsData
+                .map((sectionData) {
+                  try {
+                    return ChantSection.fromJson(sectionData);
+                  } catch (e) {
+                    print('❌ Erreur parsing section: $e');
+                    print('📄 Données: $sectionData');
+                    return null;
+                  }
+                })
+                .where((section) => section != null)
+                .cast<ChantSection>()
+                .toList();
+            
+            print('✅ ${sections.length} section(s) récupérée(s)');
+            return ApiResponse<List<ChantSection>>(data: sections);
+          } catch (e, stackTrace) {
+            print('❌ Erreur lors du parsing des sections: $e');
+            print('📚 Stack trace: $stackTrace');
+            return ApiResponse<List<ChantSection>>(error: 'Erreur de parsing: $e');
+          }
+        } else {
+          print('❌ Erreur serveur: ${data['message'] ?? 'Erreur inconnue'}');
+          return ApiResponse<List<ChantSection>>(error: data['message'] ?? 'Erreur serveur');
+        }
+      } else {
+        print('❌ Erreur HTTP: ${response.statusCode}');
+        print('📄 Response: ${response.body}');
+        return ApiResponse<List<ChantSection>>(error: 'Erreur HTTP: ${response.statusCode}');
+      }
+    } catch (e) {
+      return ApiResponse<List<ChantSection>>(error: 'Erreur de connexion: $e');
+    }
+  }
+
+  /// Récupérer les chants d'une section depuis le serveur
+  static Future<ApiResponse<List<ChantDeMesse>>> getSectionChants(int sectionId) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+      
+      if (token == null) {
+        return ApiResponse<List<ChantDeMesse>>(error: 'Token non disponible');
+      }
+      
+      final response = await http.get(
+        Uri.parse('${AppConstance.chantsDeMesseURL}/$sectionId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -32,16 +99,46 @@ class ChantService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
-          ChantDeMesse chant = ChantDeMesse.fromJson(data['data']);
-          return ApiResponse<ChantDeMesse>(data: chant);
+          List<dynamic> chantsData = data['data'] ?? [];
+          List<ChantDeMesse> chants = chantsData
+              .map((chantData) => ChantDeMesse.fromJson(chantData))
+              .toList();
+          return ApiResponse<List<ChantDeMesse>>(data: chants);
         } else {
-          return ApiResponse<ChantDeMesse>(error: data['message'] ?? 'Erreur serveur');
+          return ApiResponse<List<ChantDeMesse>>(error: data['message'] ?? 'Erreur serveur');
         }
       } else {
-        return ApiResponse<ChantDeMesse>(error: 'Erreur HTTP: ${response.statusCode}');
+        return ApiResponse<List<ChantDeMesse>>(error: 'Erreur HTTP: ${response.statusCode}');
       }
     } catch (e) {
-      return ApiResponse<ChantDeMesse>(error: 'Erreur de connexion: $e');
+      return ApiResponse<List<ChantDeMesse>>(error: 'Erreur de connexion: $e');
+    }
+  }
+
+  /// Récupérer les sections locales
+  static Future<List<ChantSection>> getLocalSections() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final sectionsJson = prefs.getString(_sectionsKey);
+      if (sectionsJson != null) {
+        final List<dynamic> sectionsList = json.decode(sectionsJson);
+        return sectionsList.map((json) => ChantSection.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('Erreur lors de la récupération des sections locales: $e');
+      return [];
+    }
+  }
+
+  /// Sauvegarder les sections localement
+  static Future<void> saveLocalSections(List<ChantSection> sections) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final sectionsJson = json.encode(sections.map((section) => section.toJson()).toList());
+      await prefs.setString(_sectionsKey, sectionsJson);
+    } catch (e) {
+      print('Erreur lors de la sauvegarde des sections: $e');
     }
   }
 
@@ -83,26 +180,24 @@ class ChantService {
     }
   }
 
-  /// Synchroniser un chant spécifique
-  static Future<ApiResponse<ChantDeMesse>> syncChant(int chantId) async {
+  /// Synchroniser toutes les sections
+  static Future<ApiResponse<List<ChantSection>>> syncAllSections() async {
     try {
       // Récupérer depuis le serveur
-      final serverResponse = await getChantFromServer(chantId);
+      final serverResponse = await getSectionsFromServer();
       if (serverResponse.error != null) {
         return serverResponse;
       }
 
-      // Mettre à jour localement
-      List<ChantDeMesse> localChants = await getLocalChants();
-      localChants.removeWhere((chant) => chant.id == chantId);
-      localChants.add(serverResponse.data as ChantDeMesse);
-      await saveLocalChants(localChants);
+      // Sauvegarder localement
+      await saveLocalSections(serverResponse.data as List<ChantSection>);
       
       return serverResponse;
     } catch (e) {
-      return ApiResponse<ChantDeMesse>(error: 'Erreur de synchronisation: $e');
+      return ApiResponse<List<ChantSection>>(error: 'Erreur de synchronisation: $e');
     }
   }
+
 
   /// Ajouter des fichiers audio à un chant
   static Future<ApiResponse> addAudioFiles(int chantId, List<File> audioFiles) async {
@@ -139,8 +234,7 @@ class ChantService {
       if (response.statusCode == 200) {
         final data = json.decode(responseBody);
         if (data['success'] == true) {
-          // Synchroniser le chant mis à jour
-          await syncChant(chantId);
+          // Note: La synchronisation se fait via getSectionChants
           return ApiResponse(data: data['message']);
         } else {
           return ApiResponse(error: data['message'] ?? 'Erreur serveur');
@@ -188,8 +282,7 @@ class ChantService {
       if (response.statusCode == 200) {
         final data = json.decode(responseBody);
         if (data['success'] == true) {
-          // Synchroniser le chant mis à jour
-          await syncChant(chantId);
+          // Note: La synchronisation se fait via getSectionChants
           return ApiResponse(data: data['message']);
         } else {
           return ApiResponse(error: data['message'] ?? 'Erreur serveur');
@@ -237,8 +330,7 @@ class ChantService {
       if (response.statusCode == 200) {
         final data = json.decode(responseBody);
         if (data['success'] == true) {
-          // Synchroniser le chant mis à jour
-          await syncChant(chantId);
+          // Note: La synchronisation se fait via getSectionChants
           return ApiResponse(data: data['message']);
         } else {
           return ApiResponse(error: data['message'] ?? 'Erreur serveur');
@@ -289,8 +381,7 @@ class ChantService {
       if (response.statusCode == 200) {
         final data = json.decode(responseBody);
         if (data['success'] == true) {
-          // Synchroniser le chant mis à jour
-          await syncChant(chantId);
+          // Note: La synchronisation se fait via getSectionChants
           return ApiResponse(data: data['message']);
         } else {
           return ApiResponse(error: data['message'] ?? 'Erreur serveur');
@@ -336,8 +427,7 @@ class ChantService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
-          // Synchroniser le chant mis à jour
-          await syncChant(chantId);
+          // Note: La synchronisation se fait via getSectionChants
           return ApiResponse(data: data['message']);
         } else {
           return ApiResponse(error: data['message'] ?? 'Erreur serveur');

@@ -2,35 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/widgets/widgets.dart';
-import 'package:voxbox/models/messe_section.dart';
+import 'package:voxbox/models/chant_section.dart';
 import 'package:voxbox/models/chant_de_messe.dart';
 import 'package:voxbox/models/chorale_pupitre.dart';
 import 'package:voxbox/models/user.dart';
-import 'package:voxbox/services/messe_service.dart';
+import 'package:voxbox/services/chant_service.dart';
 import 'package:voxbox/services/chorale_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/services/global_audio_player_service.dart';
 import 'package:voxbox/services/pdf_service.dart';
 import 'package:voxbox/services/local_file_service.dart';
-import 'package:voxbox/services/unified_cache_service.dart';
-import 'package:voxbox/services/toast_service.dart';
-import 'package:voxbox/view/messes/add_files_to_messe_section_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:io';
 
-class SectionChantsScreen extends StatefulWidget {
-  final MesseSection section;
+class ChantSectionsScreen extends StatefulWidget {
+  final ChantSection section;
 
-  const SectionChantsScreen({
-    super.key,
-    required this.section,
-  });
+  const ChantSectionsScreen({super.key, required this.section});
 
   @override
-  State<SectionChantsScreen> createState() => _SectionChantsScreenState();
+  State<ChantSectionsScreen> createState() => _ChantSectionsScreenState();
 }
 
-class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTickerProviderStateMixin {
+class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTickerProviderStateMixin {
   List<ChantDeMesse> chants = [];
   bool loading = false;
   bool syncing = false;
@@ -57,13 +52,13 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
       if (chant.imageFiles != null) allFiles.addAll(chant.imageUrls);
       if (chant.audioFiles != null) allFiles.addAll(chant.audioUrls);
     }
-    
+
     final statuses = <String, FileDownloadStatus>{};
     for (var file in allFiles) {
       final status = await LocalFileService.getFileStatus(file);
       statuses[file] = status;
     }
-    
+
     if (mounted) {
       setState(() {
         _fileStatuses = statuses;
@@ -79,7 +74,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
         Map<String, dynamic> userMap = jsonDecode(userString);
         User user = User.fromJson(userMap);
         _choraleId = user.choraleId;
-        
+
         if (_choraleId != null) {
           final response = await ChoraleService.getPupitres(_choraleId!);
           if (response.error == null && response.data != null) {
@@ -113,128 +108,25 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
     });
 
     try {
-      print('🔄 Chargement des chants pour la section ID: ${widget.section.id} (${widget.section.nom})');
-      
-      // Utiliser messeId (ID réel de la RubriqueSection) pour récupérer les partitions
-      final messeId = widget.section.messeId;
-      print('📋 Section ID: ${widget.section.id}, Messe ID (RubriqueSection): $messeId');
-      
-      // PRIORITÉ 1: Utiliser les chants déjà chargés dans la section (depuis les références)
-      if (widget.section.chants != null && widget.section.chants!.isNotEmpty) {
-        print('📦 ${widget.section.chants!.length} chant(s) déjà chargé(s) dans la section');
+      var response = await ChantService.getSectionChants(widget.section.id);
+      if (response.error == null) {
         setState(() {
-          chants = widget.section.chants!;
+          chants = response.data as List<ChantDeMesse>;
           loading = false;
         });
-        
-        // Sauvegarder dans le cache
-        await UnifiedCacheService.saveChants(widget.section.chants!);
-        return;
-      }
-      
-      // PRIORITÉ 2: Charger depuis le cache local (avec fichiers ajoutés)
-      // IMPORTANT: Utiliser widget.section.id (sectionId) pour filtrer, pas messeId
-      // Car chaque section a son propre ID unique, même si elles partagent le même messeId
-      final cachedChants = await MesseService.getSectionChantsFromCache(widget.section.id, messeId: messeId);
-      if (cachedChants.isNotEmpty) {
-        print('📦 ${cachedChants.length} chant(s) trouvé(s) dans le cache pour la section ${widget.section.id} (${widget.section.nom})');
-        // Vérifier que tous les chants appartiennent bien à cette section
-        final validChants = cachedChants.where((chant) => chant.sectionId == widget.section.id).toList();
-        if (validChants.length != cachedChants.length) {
-          print('⚠️ ${cachedChants.length - validChants.length} chant(s) filtré(s) car ils n\'appartiennent pas à la section ${widget.section.id}');
-          // Afficher les sectionId incorrects pour debug
-          final incorrectSectionIds = cachedChants
-              .where((chant) => chant.sectionId != widget.section.id)
-              .map((c) => c.sectionId)
-              .toSet();
-          print('   SectionId incorrects trouvés: ${incorrectSectionIds.join(", ")}');
-        }
-        print('✅ ${validChants.length} chant(s) valide(s) pour la section ${widget.section.id} (${widget.section.nom})');
-        setState(() {
-          chants = validChants;
-          loading = false;
-        });
-      }
 
-      // PRIORITÉ 3: Synchroniser avec le serveur
-      // Utiliser messeId (ID réel de la RubriqueSection) pour récupérer depuis le serveur
-      // Passer aussi le nom de la section pour filtrer par messe_part et éviter le mélange entre messes
-      // Mais les chants retournés doivent avoir le bon sectionId (widget.section.id)
-      var response = await MesseService.getSectionChants(
-        widget.section.id,
-        messeId: messeId,
-        sectionName: widget.section.nom, // Filtrer par nom de section pour distinguer les messes
-      );
-      if (response.error == null && response.data != null) {
-        final loadedChants = response.data as List<ChantDeMesse>;
-        print('✅ ${loadedChants.length} chant(s) chargé(s) depuis le serveur pour la section ${widget.section.id} (${widget.section.nom})');
-        
-        // Vérifier et corriger le sectionId de chaque chant
-        final validChants = <ChantDeMesse>[];
-        for (var chant in loadedChants) {
-          if (chant.sectionId != widget.section.id) {
-            print('⚠️ Correction sectionId pour chant ${chant.id}: ${chant.sectionId} -> ${widget.section.id}');
-            validChants.add(chant.copyWith(sectionId: widget.section.id));
-          } else {
-            validChants.add(chant);
-          }
-        }
-        
-        // Afficher les détails de chaque chant
-        for (var chant in validChants) {
-          print('   - ${chant.titre} (sectionId: ${chant.sectionId})');
-          print('     Audio: ${chant.audioFiles?.length ?? 0} fichiers');
-          print('     PDF: ${chant.pdfFiles?.length ?? 0} fichiers');
-          print('     Images: ${chant.imageFiles?.length ?? 0} fichiers');
-        }
-        
-        // Afficher un résumé des fichiers trouvés
-        int totalAudioFiles = 0;
-        int totalPdfFiles = 0;
-        int totalImageFiles = 0;
-        Map<String, int> pupitreCounts = {};
-        
-        for (var chant in validChants) {
-          totalAudioFiles += chant.audioFiles?.length ?? (chant.audioPath != null ? 1 : 0);
-          totalPdfFiles += chant.pdfFiles?.length ?? (chant.pdfPath != null ? 1 : 0);
-          totalImageFiles += chant.imageFiles?.length ?? (chant.imagePath != null ? 1 : 0);
-          
-          if (chant.sopranoFiles != null) pupitreCounts['soprano'] = (pupitreCounts['soprano'] ?? 0) + chant.sopranoFiles!.length;
-          if (chant.altoFiles != null) pupitreCounts['alto'] = (pupitreCounts['alto'] ?? 0) + chant.altoFiles!.length;
-          if (chant.tenorFiles != null) pupitreCounts['tenor'] = (pupitreCounts['tenor'] ?? 0) + chant.tenorFiles!.length;
-          if (chant.basseFiles != null) pupitreCounts['basse'] = (pupitreCounts['basse'] ?? 0) + chant.basseFiles!.length;
-          if (chant.tuttiFiles != null) pupitreCounts['tutti'] = (pupitreCounts['tutti'] ?? 0) + chant.tuttiFiles!.length;
-        }
-        
-        print('📊 Résumé des fichiers:');
-        print('   Audio: $totalAudioFiles');
-        print('   PDF: $totalPdfFiles');
-        print('   Images: $totalImageFiles');
-        print('   Par pupitre: $pupitreCounts');
-        
+        // Vérifier les statuts des fichiers après le chargement
+        _checkFilesStatus();
+      } else {
         setState(() {
-          chants = validChants;
           loading = false;
         });
-      } else {
-        print('❌ Erreur lors du chargement: ${response.error}');
-        // Si erreur mais qu'on a des chants en cache, les garder
-        if (cachedChants.isEmpty) {
-          setState(() {
-            loading = false;
-          });
-          ToastService.error(
-            context,
-            'Erreur: ${response.error}',
-          );
-        } else {
-          setState(() {
-            loading = false;
-          });
-        }
+        ToastService.error(
+          context,
+          'Erreur: ${response.error}',
+        );
       }
     } catch (e) {
-      print('💥 Exception lors du chargement des chants: $e');
       setState(() {
         loading = false;
       });
@@ -268,55 +160,6 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
     }
   }
 
-  Future<void> _openAddFilesScreen() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AddFilesToMesseSectionScreen(section: widget.section),
-      ),
-    );
-
-    // Si des fichiers ont été ajoutés, recharger les chants
-    if (result == true) {
-      _loadChants();
-    }
-  }
-
-  // Organiser les fichiers par type et pupitre
-  Map<String, List<String>> _organizeFilesByType() {
-    Map<String, List<String>> organized = {
-      'general': [], // Fichiers non-audio (PDF, images)
-    };
-    
-    for (var chant in chants) {
-      // Fichiers PDF dans Général
-      if (chant.pdfFiles != null) {
-        organized['general']!.addAll(chant.pdfUrls);
-      }
-      if (chant.pdfPath != null) {
-        organized['general']!.add(chant.pdfUrl!);
-      }
-      
-      // Fichiers images dans Général
-      if (chant.imageFiles != null) {
-        organized['general']!.addAll(chant.imageUrls);
-      }
-      if (chant.imagePath != null) {
-        organized['general']!.add(chant.imageUrl!);
-      }
-      
-      // Fichiers audio seront organisés par pupitre (pour l'instant dans général)
-      if (chant.audioFiles != null) {
-        organized['general']!.addAll(chant.audioUrls);
-      }
-      if (chant.audioPath != null) {
-        organized['general']!.add(chant.audioUrl!);
-      }
-    }
-    
-    return organized;
-  }
-
   List<String> _getFilesForPupitre(int pupitreId) {
     // Récupérer le nom du pupitre depuis la liste des pupitres
     final pupitre = _pupitres.firstWhere(
@@ -324,9 +167,9 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
       orElse: () => _pupitres.first,
     );
     final pupitreNom = pupitre.nom.toLowerCase();
-    
+
     List<String> files = [];
-    
+
     // Vérifier si au moins un chant a des fichiers organisés par pupitre
     bool hasPupitreSpecificFiles = chants.any((chant) =>
       (chant.sopranoFiles != null && chant.sopranoFiles!.isNotEmpty) ||
@@ -335,11 +178,11 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
       (chant.basseFiles != null && chant.basseFiles!.isNotEmpty) ||
       (chant.tuttiFiles != null && chant.tuttiFiles!.isNotEmpty)
     );
-    
+
     // D'abord, chercher les fichiers spécifiques au pupitre pour TOUS les chants
     for (var chant in chants) {
       List<String>? chantFilesForPupitre;
-      
+
       // Vérifier les fichiers par pupitre selon le nom
       if (pupitreNom.contains('soprano') || pupitreNom.contains('soprane')) {
         if (chant.sopranoFiles != null && chant.sopranoFiles!.isNotEmpty) {
@@ -362,13 +205,13 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
           chantFilesForPupitre = chant.tuttiUrls;
         }
       }
-      
+
       // Ajouter uniquement les fichiers spécifiques au pupitre pour ce chant
       if (chantFilesForPupitre != null && chantFilesForPupitre.isNotEmpty) {
         files.addAll(chantFilesForPupitre);
       }
     }
-    
+
     // Seulement si AUCUN fichier spécifique au pupitre n'a été trouvé ET
     // qu'aucun chant n'a de fichiers organisés par pupitre,
     // utiliser les fichiers audio généraux (fallback)
@@ -386,7 +229,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
     } else {
       print('ℹ️ Aucun fichier pour pupitre $pupitreNom (les chants sont organisés par pupitre mais ce pupitre n\'a pas de fichiers)');
     }
-    
+
     return files;
   }
 
@@ -401,15 +244,13 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
             size: 20,
             fontweight: FontWeight.bold,
           ),
-          backgroundColor: AppConstance.primary,
+          backgroundColor: Color(int.parse(widget.section.couleur.replaceAll('#', '0xFF'))),
         ),
         body: const Center(
           child: CircularProgressIndicator(),
         ),
       );
     }
-
-    final organizedFiles = _organizeFilesByType();
 
     return Scaffold(
       appBar: AppBar(
@@ -419,7 +260,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
           size: 20,
           fontweight: FontWeight.bold,
         ),
-        backgroundColor: AppConstance.primary,
+        backgroundColor: Color(int.parse(widget.section.couleur.replaceAll('#', '0xFF'))),
         actions: [
           if (_audioPlayerService.isPlaying)
             IconButton(
@@ -427,11 +268,6 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
               onPressed: () => _audioPlayerService.pause(),
               tooltip: 'Arrêter la lecture',
             ),
-          IconButton(
-            icon: const Icon(Icons.add, color: Colors.white),
-            onPressed: () => _openAddFilesScreen(),
-            tooltip: 'Ajouter des fichiers',
-          ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: syncing ? null : _syncChants,
@@ -491,10 +327,10 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
                       child: TabBarView(
                         controller: _tabController!,
                         children: [
-                          _buildGeneralTab(organizedFiles['general'] ?? []),
+                          _buildGeneralTab(),
                           ..._pupitres.map((pupitre) {
                             List<String> pupitreFiles = _getFilesForPupitre(pupitre.id);
-                            Color pupitreColor = pupitre.color != null 
+                            Color pupitreColor = pupitre.color != null
                                 ? Color(int.parse(pupitre.color!.replaceAll('#', '0xFF')))
                                 : Colors.blue;
                             return _buildPupitreTab(pupitre.nom, pupitreFiles, pupitreColor);
@@ -504,12 +340,6 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
                     ),
                   ],
                 ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openAddFilesScreen,
-        backgroundColor: AppConstance.primary,
-        child: const Icon(Icons.add, color: Colors.white),
-        tooltip: 'Ajouter des fichiers',
-      ),
     );
   }
 
@@ -529,12 +359,12 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
     }
   }
 
-  Widget _buildGeneralTab(List<String> files) {
+  Widget _buildGeneralTab() {
     // Collecter TOUS les fichiers PDF, images et texte de TOUS les chants
     List<String> pdfFiles = [];
     List<String> imageFiles = [];
     List<String> textFiles = [];
-    
+
     for (var chant in chants) {
       // Collecter les fichiers PDF (listes et fichiers uniques)
       if (chant.pdfFiles != null && chant.pdfFiles!.isNotEmpty) {
@@ -546,7 +376,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
           pdfFiles.add(chant.pdfUrl!);
         }
       }
-      
+
       // Collecter les fichiers images (listes et fichiers uniques)
       if (chant.imageFiles != null && chant.imageFiles!.isNotEmpty) {
         imageFiles.addAll(chant.imageUrls);
@@ -557,18 +387,10 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
           imageFiles.add(chant.imageUrl!);
         }
       }
-      
-      // Pour les fichiers texte, on peut les détecter depuis les fichiers généraux
-      // ou depuis d'autres sources si disponibles dans le futur
-      // Pour l'instant, on peut détecter les fichiers .txt dans les chemins
     }
-    
-      // Détecter les fichiers texte depuis les chemins (si disponibles)
-      // Cette logique peut être étendue si le backend envoie des fichiers texte
-      // Pour l'instant, on se concentre sur PDF et images
-    
+
     print('📁 Onglet Général - PDF: ${pdfFiles.length}, Images: ${imageFiles.length}, Texte: ${textFiles.length}');
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -582,10 +404,10 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
               color: Colors.red,
               files: pdfFiles,
             ),
-          
+
           if (pdfFiles.isNotEmpty && (imageFiles.isNotEmpty || textFiles.isNotEmpty))
             const SizedBox(height: 16),
-          
+
           // Fichiers Images
           if (imageFiles.isNotEmpty)
             _buildFileSection(
@@ -594,10 +416,10 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
               color: Colors.blue,
               files: imageFiles,
             ),
-          
+
           if (imageFiles.isNotEmpty && textFiles.isNotEmpty)
             const SizedBox(height: 16),
-          
+
           // Fichiers Texte
           if (textFiles.isNotEmpty)
             _buildFileSection(
@@ -606,12 +428,12 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
               color: Colors.green,
               files: textFiles,
             ),
-          
+
           // Message si aucun fichier
           if (pdfFiles.isEmpty && imageFiles.isEmpty && textFiles.isEmpty)
-            Center(
+            const Center(
               child: Padding(
-                padding: const EdgeInsets.all(40.0),
+                padding: EdgeInsets.all(40.0),
                 child: Column(
                   children: [
                     Icon(Icons.folder_open, size: 64, color: Colors.grey),
@@ -685,7 +507,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
 
   Widget _buildPupitreTab(String pupitreName, List<String> files, Color color) {
     print('🎭 Onglet $pupitreName - ${files.length} fichier(s)');
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -730,9 +552,9 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           if (files.isEmpty)
             _buildEmptyState(pupitreName, color)
           else
@@ -753,12 +575,12 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
     bool isImage = _isImageFile(file);
     final fileStatus = _fileStatuses[file] ?? FileDownloadStatus.notDownloaded;
     final isDownloading = _downloadingFiles[file] ?? false;
-    
+
     // Icône selon l'état du fichier
     IconData statusIcon;
     Color statusColor;
     String statusText;
-    
+
     if (isDownloading) {
       statusIcon = Icons.download;
       statusColor = Colors.orange;
@@ -782,7 +604,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
           break;
       }
     }
-    
+
     // Obtenir le chemin local si le fichier est téléchargé (pour les images)
     Future<String?> getLocalPath() async {
       if (fileStatus == FileDownloadStatus.downloaded || fileStatus == FileDownloadStatus.outdated) {
@@ -795,8 +617,8 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
       }
       return null;
     }
-    
-    // Fonction pour ouvrir le fichier selon son type (comme dans folder_detail_screen et recordings_history)
+
+    // Fonction pour ouvrir le fichier selon son type
     Future<void> openFile() async {
       // Vérifier si le fichier est en cours de téléchargement
       if (isDownloading) {
@@ -811,7 +633,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
         // Construire l'URL complète si nécessaire
         final isRemoteUrl = file.startsWith('http://') || file.startsWith('https://');
         String fileUrl = file;
-        
+
         if (!isRemoteUrl && !file.startsWith('/')) {
           // C'est un chemin relatif, construire l'URL complète
           fileUrl = '${AppConstance.baseURL}/storage/$file';
@@ -828,40 +650,40 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
             return;
           }
         }
-        
+
         // Pour les URLs distantes, vérifier si déjà téléchargé
         String? localPath = await LocalFileService.getLocalFilePath(fileUrl);
-        
+
         if (localPath == null) {
           // Télécharger le fichier
           setState(() {
             _downloadingFiles[file] = true;
           });
-          
+
           localPath = await LocalFileService.downloadFile(fileUrl);
-          
+
           setState(() {
             _downloadingFiles[file] = false;
           });
-          
+
           if (localPath == null) {
             throw Exception('Impossible de télécharger le fichier');
           }
-          
+
           // Mettre à jour le statut
           final newStatus = await LocalFileService.getFileStatus(fileUrl);
           setState(() {
             _fileStatuses[file] = newStatus;
           });
         }
-        
+
         // Vérifier que le fichier existe
         final localFile = File(localPath);
         if (!await localFile.exists()) {
           throw Exception('Le fichier n\'existe pas: ${localPath.split('/').last}');
         }
-        
-        // Ouvrir le fichier selon son type avec le chemin local (comme dans recordings_history)
+
+        // Ouvrir le fichier selon son type avec le chemin local
         if (isAudio) {
           _playAudioLocal(localPath);
         } else if (isPdf) {
@@ -885,7 +707,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
         }
       }
     }
-    
+
     return InkWell(
       onTap: openFile,
       borderRadius: BorderRadius.circular(8),
@@ -898,7 +720,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
         ),
         child: Row(
           children: [
-            // Pour les images téléchargées, afficher une miniature (comme dans folder_detail_screen)
+            // Pour les images téléchargées, afficher une miniature
             if (isImage && (fileStatus == FileDownloadStatus.downloaded || fileStatus == FileDownloadStatus.outdated))
               FutureBuilder<String?>(
                 future: getLocalPath(),
@@ -1042,7 +864,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
     return imageExtensions.any((ext) => file.toLowerCase().endsWith(ext));
   }
 
-  // Jouer un audio avec un chemin local (comme dans recordings_history)
+  // Jouer un audio avec un chemin local
   Future<void> _playAudioLocal(String localPath) async {
     try {
       // Vérifier que le fichier existe
@@ -1050,11 +872,11 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
       if (!await file.exists()) {
         throw Exception('Le fichier audio n\'existe pas: ${localPath.split('/').last}');
       }
-      
-      // Utiliser GlobalAudioPlayerService directement avec le chemin local (comme dans recordings_history)
+
+      // Utiliser GlobalAudioPlayerService directement avec le chemin local
       final fileName = localPath.split('/').last;
       await _audioPlayerService.playAudio(localPath, title: fileName);
-      
+
       print('✅ Audio en cours de lecture: $fileName');
     } catch (e) {
       print('❌ Erreur lors de la lecture audio: $e');
@@ -1076,7 +898,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
       if (!await file.exists()) {
         throw Exception('Le fichier PDF n\'existe pas: ${localPath.split('/').last}');
       }
-      
+
       // Ouvrir le PDF avec PdfService
       if (mounted) {
         await PdfService.showPdfOptions(localPath, context);
@@ -1093,7 +915,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
     }
   }
 
-  // Afficher une image avec un chemin local (comme dans folder_detail_screen)
+  // Afficher une image avec un chemin local
   Future<void> _viewImageLocal(String localPath) async {
     try {
       // Vérifier que le fichier existe
@@ -1101,10 +923,10 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
       if (!await file.exists()) {
         throw Exception('Le fichier image n\'existe pas: ${localPath.split('/').last}');
       }
-      
+
       final imageName = localPath.split('/').last;
-      
-      // Ouvrir l'image avec ImageViewerScreen comme dans folder_detail_screen
+
+      // Ouvrir l'image avec ImageViewerScreen
       if (mounted) {
         Navigator.push(
           context,
@@ -1129,7 +951,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
   }
 }
 
-/// Écran de visionneuse d'images avec zoom et navigation (identique à folder_detail_screen)
+/// Écran de visionneuse d'images avec zoom et navigation
 class ImageViewerScreen extends StatelessWidget {
   final String imagePath;
   final String imageName;
@@ -1169,7 +991,6 @@ class ImageViewerScreen extends StatelessWidget {
   }
 
   Widget _buildImageWidget() {
-    // Toujours utiliser Image.file car l'image est téléchargée localement avant d'être affichée
     return InteractiveViewer(
       minScale: 0.5,
       maxScale: 4.0,

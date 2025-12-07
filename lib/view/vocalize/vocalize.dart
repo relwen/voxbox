@@ -5,8 +5,8 @@ import 'package:voxbox/services/vocalise_service.dart';
 import 'package:voxbox/models/vocalise.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:voxbox/widgets/audio_player_widget.dart';
 import 'package:voxbox/view/vocalize/add_vocalise.dart';
+import 'package:voxbox/view/vocalize/vocalise_details.dart';
 import 'package:voxbox/widgets/sync_status_widget.dart';
 
 class VocaliseScreen extends StatefulWidget {
@@ -93,47 +93,6 @@ class _VocaliseScreenState extends State<VocaliseScreen> {
     }
   }
 
-  void _downloadAudio(Vocalise vocalise) async {
-    if (vocalise.isDownloaded) {
-      // Supprimer le fichier téléchargé
-      bool deleted = await VocaliseService.deleteDownloadedAudio(vocalise);
-      if (deleted) {
-        setState(() {
-          int index = vocalises.indexWhere((v) => v.id == vocalise.id);
-          if (index != -1) {
-            vocalises[index] = vocalise.copyWith(
-              isDownloaded: false,
-              localAudioPath: null,
-            );
-          }
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fichier audio supprimé')),
-        );
-      }
-    } else {
-      // Télécharger le fichier
-      bool downloaded = await VocaliseService.downloadAudio(vocalise);
-      if (downloaded) {
-        setState(() {
-          int index = vocalises.indexWhere((v) => v.id == vocalise.id);
-          if (index != -1) {
-            vocalises[index] = vocalise.copyWith(
-              isDownloaded: true,
-              localAudioPath: 'local_path', // Le service gère le chemin
-            );
-          }
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fichier audio téléchargé')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur lors du téléchargement')),
-        );
-      }
-    }
-  }
 
   void _addVocalise() async {
     final result = await Navigator.push(
@@ -147,82 +106,6 @@ class _VocaliseScreenState extends State<VocaliseScreen> {
     }
   }
 
-  // Vérifier si des vocalises ont des fichiers audio
-  bool _hasVocalisesWithAudio(List<Vocalise> vocalises) {
-    return vocalises.any((vocalise) => 
-      (vocalise.audioPath != null && vocalise.audioUrl != null) ||
-      (vocalise.isDownloaded && vocalise.localAudioPath != null)
-    );
-  }
-
-  // Obtenir les vocalises qui ont des fichiers audio
-  List<Vocalise> _getVocalisesWithAudio(List<Vocalise> vocalises) {
-    return vocalises.where((vocalise) => 
-      (vocalise.audioPath != null && vocalise.audioUrl != null) ||
-      (vocalise.isDownloaded && vocalise.localAudioPath != null)
-    ).toList();
-  }
-
-  // Vérifier si une vocalise a un fichier audio disponible
-  bool _hasAudioFile(Vocalise vocalise) {
-    return (vocalise.audioPath != null && vocalise.audioUrl != null) ||
-           (vocalise.isDownloaded && vocalise.localAudioPath != null);
-  }
-
-  void _showAudioPlayer(Vocalise vocalise) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.6,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          children: [
-            // Handle
-            Container(
-              margin: EdgeInsets.only(top: 8),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            
-            // Titre
-            Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Lecteur Audio',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppConstance.primary,
-                ),
-              ),
-            ),
-            
-            // Lecteur audio
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: AudioPlayerWidget(
-                  vocalise: vocalise,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -314,29 +197,13 @@ class _VocaliseScreenState extends State<VocaliseScreen> {
                               ],
                             ),
                           )
-                        : Column(
-                            children: [
-                              // Lecteur audio (seulement si des vocalises ont des fichiers audio)
-                              if (vocalises.isNotEmpty && _hasVocalisesWithAudio(vocalises))
-                                Container(
-                                  margin: EdgeInsets.all(16),
-                                  child: AudioPlayerWidget(
-                                    playlist: _getVocalisesWithAudio(vocalises),
-                                    showPlaylistControls: true,
-                                  ),
-                                ),
-                              
-                              // Liste des vocalises
-                              Expanded(
-                                child: ListView.builder(
-                                  itemCount: vocalises.length,
-                                  itemBuilder: (context, index) {
-                                    final vocalise = vocalises[index];
-                                    return _buildVocaliseCard(vocalise);
-                                  },
-                                ),
-                              ),
-                            ],
+                        : ListView.builder(
+                            itemCount: vocalises.length,
+                            padding: const EdgeInsets.only(top: 8),
+                            itemBuilder: (context, index) {
+                              final vocalise = vocalises[index];
+                              return _buildVocaliseCard(vocalise);
+                            },
                           ),
           ),
         ],
@@ -344,7 +211,32 @@ class _VocaliseScreenState extends State<VocaliseScreen> {
     );
   }
 
+  void _openVocaliseDetails(Vocalise vocalise) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VocaliseDetailsScreen(vocalise: vocalise),
+      ),
+    );
+  }
+
   Widget _buildVocaliseCard(Vocalise vocalise) {
+    // Compter le nombre de fichiers
+    int fileCount = 0;
+    if (vocalise.audioFiles != null) fileCount += vocalise.audioFiles!.length;
+    if (vocalise.pdfFiles != null) fileCount += vocalise.pdfFiles!.length;
+    if (vocalise.imageFiles != null) fileCount += vocalise.imageFiles!.length;
+    if (vocalise.sopranoFiles != null) fileCount += vocalise.sopranoFiles!.length;
+    if (vocalise.altoFiles != null) fileCount += vocalise.altoFiles!.length;
+    if (vocalise.tenorFiles != null) fileCount += vocalise.tenorFiles!.length;
+    if (vocalise.basseFiles != null) fileCount += vocalise.basseFiles!.length;
+    if (vocalise.tuttiFiles != null) fileCount += vocalise.tuttiFiles!.length;
+
+    // Fichiers uniques (legacy)
+    if (fileCount == 0) {
+      if (vocalise.audioPath != null) fileCount++;
+    }
+
     return Card(
       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ListTile(
@@ -363,7 +255,11 @@ class _VocaliseScreenState extends State<VocaliseScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (vocalise.description != null)
-              Text(vocalise.description!),
+              Text(
+                vocalise.description!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             SizedBox(height: 4),
             Row(
               children: [
@@ -372,50 +268,23 @@ class _VocaliseScreenState extends State<VocaliseScreen> {
                     vocalise.voicePart,
                     style: TextStyle(fontSize: 12),
                   ),
-                  backgroundColor: AppConstance.primary.withOpacity(0.1),
+                  backgroundColor: AppConstance.primary.withValues(alpha: 0.1),
                 ),
                 SizedBox(width: 8),
-                if (vocalise.choraleName != null)
+                if (fileCount > 0)
                   Chip(
                     label: Text(
-                      vocalise.choraleName!,
+                      '$fileCount fichier${fileCount > 1 ? 's' : ''}',
                       style: TextStyle(fontSize: 12),
                     ),
-                    backgroundColor: AppConstance.secondary.withOpacity(0.1),
+                    backgroundColor: Colors.blue.withValues(alpha: 0.1),
                   ),
               ],
             ),
           ],
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (vocalise.audioPath != null || vocalise.audioUrl != null)
-              IconButton(
-                icon: Icon(
-                  vocalise.isDownloaded ? Icons.delete : Icons.download,
-                  color: vocalise.isDownloaded ? Colors.red : AppConstance.primary,
-                ),
-                onPressed: () => _downloadAudio(vocalise),
-                tooltip: vocalise.isDownloaded ? 'Supprimer' : 'Télécharger',
-              ),
-            if (_hasAudioFile(vocalise))
-              IconButton(
-                icon: Icon(Icons.play_arrow, color: AppConstance.primary),
-                onPressed: () {
-                  // Ouvrir le lecteur audio pour cette vocalise
-                  _showAudioPlayer(vocalise);
-                },
-                tooltip: 'Lire la vocalise',
-              )
-            else
-              IconButton(
-                icon: Icon(Icons.music_off, color: Colors.grey),
-                onPressed: null,
-                tooltip: 'Aucun fichier audio disponible',
-              ),
-          ],
-        ),
+        trailing: const Icon(Icons.arrow_forward_ios),
+        onTap: () => _openVocaliseDetails(vocalise),
       ),
     );
   }

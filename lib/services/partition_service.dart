@@ -12,13 +12,16 @@ class PartitionService {
   static const String _lastSyncKey = 'last_partitions_sync';
 
   // Récupérer les partitions depuis le stockage local
+  // Exclut les partitions liées aux messes (rubrique_section_id != null)
   static Future<List<Partition>> getLocalPartitions() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? partitionsJson = prefs.getString(_localPartitionsKey);
 
     if (partitionsJson != null) {
       List<dynamic> partitionsList = jsonDecode(partitionsJson);
-      return partitionsList.map((json) => Partition.fromJson(json)).toList();
+      List<Partition> partitions = partitionsList.map((json) => Partition.fromJson(json)).toList();
+      // Filtrer les partitions liées aux messes
+      return partitions.where((p) => p.rubriqueSectionId == null).toList();
     }
     return [];
   }
@@ -54,6 +57,10 @@ class PartitionService {
         case 200:
           List<dynamic> serverPartitions = jsonDecode(response.body)['data'];
           List<Partition> partitions = serverPartitions.map((p) => Partition.fromJson(p)).toList();
+          
+          // Filtrer les partitions liées aux messes (rubrique_section_id != null)
+          // Ces partitions ne doivent pas apparaître dans la liste des créations
+          partitions = partitions.where((p) => p.rubriqueSectionId == null).toList();
           
           // Vérifier les fichiers téléchargés
           for (var partition in partitions) {
@@ -150,7 +157,13 @@ class PartitionService {
           List<dynamic> serverPartitions = jsonDecode(response.body)['data'];
           List<Partition> newPartitions = serverPartitions.map((p) => Partition.fromJson(p)).toList();
 
+          // Filtrer les partitions liées aux messes (rubrique_section_id != null)
+          newPartitions = newPartitions.where((p) => p.rubriqueSectionId == null).toList();
+
           List<Partition> localPartitions = await getLocalPartitions();
+          // Filtrer aussi les partitions locales liées aux messes
+          localPartitions = localPartitions.where((p) => p.rubriqueSectionId == null).toList();
+          
           Map<int, Partition> localMap = {for (var p in localPartitions) p.id: p};
 
           for (var newPartition in newPartitions) {

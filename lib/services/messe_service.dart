@@ -99,7 +99,9 @@ class MesseService {
   }
 
   /// Récupérer les sections d'une messe
+  /// messeId: ID de la messe (RubriqueSection)
   static Future<ApiResponse<List<MesseSection>>> getMesseSections(int messeId) async {
+    print('🔄 Récupération des sections pour la messe ID: $messeId');
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
@@ -121,6 +123,10 @@ class MesseService {
           // Utiliser l'adaptateur pour convertir les références en sections
           // Passer messeId pour que les sections aient le bon ID de RubriqueSection
           List<MesseSection> sections = BackendAdapter.referencesToMesseSections(data['data'], messeId: messeId);
+          print('✅ ${sections.length} section(s) trouvée(s) pour la messe $messeId');
+          for (var section in sections) {
+            print('   - ${section.nom} (ID: ${section.id}, messeId: ${section.messeId})');
+          }
           return ApiResponse<List<MesseSection>>(data: sections);
         } else {
           return ApiResponse<List<MesseSection>>(error: data['message'] ?? 'Erreur serveur');
@@ -136,7 +142,8 @@ class MesseService {
   /// Récupérer les chants d'une section
   /// sectionId: ID de la section (référence générée)
   /// messeId: ID réel de la RubriqueSection (messe) - utilisé pour récupérer les partitions
-  static Future<ApiResponse<List<ChantDeMesse>>> getSectionChants(int sectionId, {int? messeId}) async {
+  /// sectionName: Nom de la section (ex: "Kyrié", "Sanctus") - utilisé pour filtrer par messe_part
+  static Future<ApiResponse<List<ChantDeMesse>>> getSectionChants(int sectionId, {int? messeId, String? sectionName}) async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
@@ -169,11 +176,62 @@ class MesseService {
             final partitionsList = data['data'] as List;
             print('📦 ${partitionsList.length} partition(s) reçue(s) du serveur');
             
+            // Filtrer les partitions par messe_part pour éviter le mélange entre différentes messes
+            // Si plusieurs messes ont des sections avec le même rubrique_section_id,
+            // on filtre par le nom de la partie (messe_part['part']) qui doit correspondre au nom de la section
+            List<dynamic> filteredPartitions = partitionsList;
+            
+            if (sectionName != null && sectionName.isNotEmpty) {
+              // Filtrer les partitions dont le messe_part['part'] correspond au nom de la section
+              filteredPartitions = partitionsList.where((partition) {
+                if (partition['messe_part'] == null) {
+                  // Si pas de messe_part, on garde la partition (pour compatibilité)
+                  return true;
+                }
+                
+                // Parser messe_part (peut être une string JSON ou un objet)
+                dynamic messePart = partition['messe_part'];
+                Map<String, dynamic>? messePartMap;
+                
+                if (messePart is String) {
+                  try {
+                    messePartMap = json.decode(messePart) as Map<String, dynamic>?;
+                  } catch (e) {
+                    print('⚠️ Erreur parsing messe_part: $e');
+                    return true; // Garder la partition si erreur de parsing
+                  }
+                } else if (messePart is Map) {
+                  messePartMap = messePart as Map<String, dynamic>;
+                }
+                
+                if (messePartMap != null) {
+                  final part = messePartMap['part']?.toString() ?? '';
+                  // Comparer le nom de la partie avec le nom de la section (insensible à la casse)
+                  // Normaliser les noms (enlever accents, espaces multiples, etc.)
+                  final normalizedPart = part.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
+                  final normalizedSectionName = sectionName.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
+                  final matches = normalizedPart == normalizedSectionName;
+                  if (!matches) {
+                    print('🔍 Partition ${partition['id']} ("${partition['title']}") filtrée: messe_part["part"]="$part" != sectionName="$sectionName"');
+                  } else {
+                    print('✅ Partition ${partition['id']} ("${partition['title']}") correspond à la section "$sectionName"');
+                  }
+                  return matches;
+                }
+                
+                return true; // Garder si pas de messe_part valide
+              }).toList();
+              
+              print('📊 ${partitionsList.length} partition(s) reçue(s) -> ${filteredPartitions.length} après filtrage par section "$sectionName"');
+            } else {
+              print('📊 ${partitionsList.length} partition(s) reçue(s) (pas de filtrage par sectionName)');
+            }
+            
             // Utiliser l'adaptateur pour convertir les partitions en chants
             // IMPORTANT: Passer sectionId pour que les chants soient correctement associés à leur section
             // Le sectionId est l'ID de la référence générée, pas le messeId (rubrique_section_id)
-            List<ChantDeMesse> chants = BackendAdapter.partitionsToChantsDeMesse(partitionsList, sectionId: sectionId);
-            print('✅ ${chants.length} chant(s) converti(s) depuis les partitions pour la section $sectionId');
+            List<ChantDeMesse> chants = BackendAdapter.partitionsToChantsDeMesse(filteredPartitions, sectionId: sectionId);
+            print('✅ ${chants.length} chant(s) converti(s) depuis les partitions pour la section $sectionId ($sectionName)');
             
             // Vérifier que tous les chants ont le bon sectionId
             for (var i = 0; i < chants.length; i++) {

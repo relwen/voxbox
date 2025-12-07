@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:voxbox/models/messe.dart';
 import 'package:voxbox/models/messe_section.dart';
 import 'package:voxbox/models/chant_de_messe.dart';
@@ -18,7 +19,48 @@ class BackendAdapter {
       print('📋 Section "$sectionName" (ID: $sectionId) - ${partitionsList.length} partition(s) trouvée(s) dans les références');
       
       if (partitionsList.isNotEmpty) {
-        chants = partitionsList
+        // Filtrer les partitions par messe_part pour éviter le mélange entre différentes messes
+        // Si plusieurs messes ont des sections avec le même rubrique_section_id,
+        // on filtre par le nom de la partie (messe_part['part']) qui doit correspondre au nom de la section
+        final filteredPartitions = partitionsList.where((partition) {
+          if (partition['messe_part'] == null) {
+            // Si pas de messe_part, on garde la partition (pour compatibilité)
+            return true;
+          }
+          
+          // Parser messe_part (peut être une string JSON ou un objet)
+          dynamic messePart = partition['messe_part'];
+          Map<String, dynamic>? messePartMap;
+          
+          if (messePart is String) {
+            try {
+              messePartMap = json.decode(messePart) as Map<String, dynamic>?;
+            } catch (e) {
+              print('⚠️ Erreur parsing messe_part dans referenceToMesseSection: $e');
+              return true; // Garder la partition si erreur de parsing
+            }
+          } else if (messePart is Map) {
+            messePartMap = messePart as Map<String, dynamic>;
+          }
+          
+          if (messePartMap != null) {
+            final part = messePartMap['part']?.toString() ?? '';
+            // Comparer le nom de la partie avec le nom de la section (insensible à la casse)
+            final normalizedPart = part.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
+            final normalizedSectionName = sectionName.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
+            final matches = normalizedPart == normalizedSectionName;
+            if (!matches) {
+              print('🔍 Partition ${partition['id']} filtrée dans referenceToMesseSection: messe_part["part"]="$part" != sectionName="$sectionName"');
+            }
+            return matches;
+          }
+          
+          return true; // Garder si pas de messe_part valide
+        }).toList();
+        
+        print('📊 ${partitionsList.length} partition(s) dans les références -> ${filteredPartitions.length} après filtrage par section "$sectionName"');
+        
+        chants = filteredPartitions
             .map((partition) {
               try {
                 return partitionToChantDeMesse(partition);
@@ -102,32 +144,32 @@ class BackendAdapter {
     
     // PRIORITÉ 2: Utiliser le champ 'files' unifié si files_with_metadata n'est pas disponible
     if (audioFiles.isEmpty && pdfFiles.isEmpty && imageFiles.isEmpty) {
-      if (partitionData['files'] != null && partitionData['files'] is List) {
-        final files = partitionData['files'] as List;
-        print('📁 ${files.length} fichier(s) dans le champ unifié');
-        
-        for (var file in files) {
-          if (file is Map) {
-            // Format avec métadonnées : {'path': '...', 'name': '...', 'type': '...'}
-            final path = file['path']?.toString() ?? '';
-            final type = file['type']?.toString() ?? '';
-            
-            if (type == 'audio' || _isAudioFile(path)) {
-              audioFiles.add(path);
-            } else if (type == 'pdf' || path.toLowerCase().endsWith('.pdf')) {
-              pdfFiles.add(path);
-            } else if (type == 'image' || _isImageFile(path)) {
-              imageFiles.add(path);
-            }
-          } else if (file is String) {
-            // Format simple : juste le chemin
-            final path = file;
-            if (_isAudioFile(path)) {
-              audioFiles.add(path);
-            } else if (path.toLowerCase().endsWith('.pdf')) {
-              pdfFiles.add(path);
-            } else if (_isImageFile(path)) {
-              imageFiles.add(path);
+    if (partitionData['files'] != null && partitionData['files'] is List) {
+      final files = partitionData['files'] as List;
+      print('📁 ${files.length} fichier(s) dans le champ unifié');
+      
+      for (var file in files) {
+        if (file is Map) {
+          // Format avec métadonnées : {'path': '...', 'name': '...', 'type': '...'}
+          final path = file['path']?.toString() ?? '';
+          final type = file['type']?.toString() ?? '';
+          
+          if (type == 'audio' || _isAudioFile(path)) {
+            audioFiles.add(path);
+          } else if (type == 'pdf' || path.toLowerCase().endsWith('.pdf')) {
+            pdfFiles.add(path);
+          } else if (type == 'image' || _isImageFile(path)) {
+            imageFiles.add(path);
+          }
+        } else if (file is String) {
+          // Format simple : juste le chemin
+          final path = file;
+          if (_isAudioFile(path)) {
+            audioFiles.add(path);
+          } else if (path.toLowerCase().endsWith('.pdf')) {
+            pdfFiles.add(path);
+          } else if (_isImageFile(path)) {
+            imageFiles.add(path);
             }
           }
         }
@@ -300,9 +342,12 @@ class BackendAdapter {
         .toList();
   }
 
-  /// Convertit les données du backend vers Vocalise avec support des sous-dossiers
+  /// Convertit les données du backend (Partition) vers Vocalise
+  /// Le backend retourne maintenant des partitions converties en format vocalise
   static Vocalise backendDataToVocalise(Map<String, dynamic> vocaliseData) {
-    print('🔄 Conversion vocalise: ${vocaliseData['id']} - ${vocaliseData['title']}');
+    final id = vocaliseData['id'] ?? 0;
+    final title = vocaliseData['titre'] ?? vocaliseData['title'] ?? 'Vocalise sans titre';
+    print('🔄 Conversion vocalise: $id - $title');
 
     // Extraire les fichiers du champ unifié 'files' ou utiliser les anciens champs
     List<String> audioFiles = [];
@@ -398,9 +443,11 @@ class BackendAdapter {
 
     return Vocalise(
       id: int.tryParse(vocaliseData['id']?.toString() ?? '0') ?? 0,
-      title: vocaliseData['title']?.toString() ?? 'Vocalise sans titre',
+      title: vocaliseData['titre']?.toString() ?? vocaliseData['title']?.toString() ?? 'Vocalise sans titre',
       description: vocaliseData['description']?.toString(),
-      voicePart: vocaliseData['voice_part']?.toString() ?? '',
+      voicePart: vocaliseData['voice_part']?.toString() ?? 
+                 (vocaliseData['pupitre'] is Map ? vocaliseData['pupitre']['nom']?.toString() : 
+                  vocaliseData['pupitre']?.toString()) ?? 'Tous',
       audioPath: audioPathValue,
       audioUrl: audioUrlValue,
       choraleId: int.tryParse(vocaliseData['chorale_id']?.toString() ?? '0') ?? 0,
@@ -425,9 +472,80 @@ class BackendAdapter {
   }
 
   /// Convertit une liste de données backend vers une liste de Vocalise
-  static List<Vocalise> backendDataListToVocalises(List<dynamic> vocalisesData) {
-    return vocalisesData
-        .map((vocaliseData) => backendDataToVocalise(vocaliseData))
-        .toList();
+  /// Convertit une liste de sections backend vers une liste de Vocalise
+  /// Le backend retourne maintenant des sections avec des vocalises (partitions) à l'intérieur
+  static List<Vocalise> backendDataListToVocalises(List<dynamic> sectionsData) {
+    List<Vocalise> allVocalises = [];
+    
+    for (var sectionData in sectionsData) {
+      if (sectionData is Map) {
+        // Extraire les vocalises de la section principale
+        if (sectionData['vocalises'] != null && sectionData['vocalises'] is List) {
+          final vocalisesList = sectionData['vocalises'] as List;
+          
+          // Les vocalises peuvent être organisées par parties
+          for (var vocaliseItem in vocalisesList) {
+            if (vocaliseItem is Map) {
+              // Si c'est une partie avec des vocalises à l'intérieur
+              if (vocaliseItem['vocalises'] != null && vocaliseItem['vocalises'] is List) {
+                final partVocalises = vocaliseItem['vocalises'] as List;
+                for (var vocaliseData in partVocalises) {
+                  if (vocaliseData is Map) {
+                    try {
+                      allVocalises.add(backendDataToVocalise(Map<String, dynamic>.from(vocaliseData)));
+                    } catch (e) {
+                      print('❌ Erreur conversion vocalise dans partie: $e');
+                    }
+                  }
+                }
+              } else {
+                // C'est directement une vocalise
+                try {
+                  allVocalises.add(backendDataToVocalise(Map<String, dynamic>.from(vocaliseItem)));
+                } catch (e) {
+                  print('❌ Erreur conversion vocalise: $e');
+                }
+              }
+            }
+          }
+        }
+        
+        // Extraire les vocalises des sous-sections
+        if (sectionData['sections'] != null && sectionData['sections'] is List) {
+          final subSections = sectionData['sections'] as List;
+          for (var subSection in subSections) {
+            if (subSection is Map && subSection['vocalises'] != null && subSection['vocalises'] is List) {
+              final subVocalisesList = subSection['vocalises'] as List;
+              
+              for (var vocaliseItem in subVocalisesList) {
+                if (vocaliseItem is Map) {
+                  if (vocaliseItem['vocalises'] != null && vocaliseItem['vocalises'] is List) {
+                    final partVocalises = vocaliseItem['vocalises'] as List;
+                    for (var vocaliseData in partVocalises) {
+                      if (vocaliseData is Map) {
+                        try {
+                          allVocalises.add(backendDataToVocalise(Map<String, dynamic>.from(vocaliseData)));
+                        } catch (e) {
+                          print('❌ Erreur conversion vocalise dans sous-section: $e');
+                        }
+                      }
+                    }
+                  } else {
+                    try {
+                      allVocalises.add(backendDataToVocalise(Map<String, dynamic>.from(vocaliseItem)));
+                    } catch (e) {
+                      print('❌ Erreur conversion vocalise sous-section: $e');
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    print('✅ ${allVocalises.length} vocalise(s) extraite(s) des sections');
+    return allVocalises;
   }
 }

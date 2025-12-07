@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:voxbox/services/global_recorder_service.dart';
 import 'package:voxbox/services/audio_recorder_service.dart';
 import 'package:voxbox/services/global_audio_player_service.dart';
 import 'package:voxbox/services/photo_service.dart';
@@ -436,6 +435,30 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
     }
   }
 
+  Future<void> _viewPhoto(PhotoItem photo) async {
+    try {
+      final file = File(photo.path);
+      if (!await file.exists()) {
+        _showSnackBar('Le fichier image n\'existe pas', isError: true);
+        return;
+      }
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ImageViewerScreen(
+              imagePath: photo.path,
+              imageName: photo.name,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      _showSnackBar('Erreur lors de l\'ouverture de l\'image: $e', isError: true);
+    }
+  }
+
   Future<void> _renamePhoto(PhotoItem photo) async {
     final controller = TextEditingController(text: photo.name);
 
@@ -722,50 +745,58 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              // Miniature de la photo
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(
-                  File(photo.path),
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: AppConstance.secondary.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.image,
-                        color: AppConstance.secondary,
-                        size: 40,
-                      ),
-                    );
-                  },
+              // Miniature de la photo (cliquable pour voir en plein écran)
+              GestureDetector(
+                onTap: () => _viewPhoto(photo),
+                child: Hero(
+                  tag: 'photo_${photo.id}',
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(
+                      File(photo.path),
+                      width: 100,
+                      height: 100,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            color: AppConstance.secondary.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.image,
+                            color: AppConstance.secondary,
+                            size: 40,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
               // Infos de la photo
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    GestureDetector(
-                      onTap: () => _renamePhoto(photo),
-                      child: Text(
-                        photo.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                child: GestureDetector(
+                  onTap: () => _viewPhoto(photo),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      GestureDetector(
+                        onTap: () => _renamePhoto(photo),
+                        child: Text(
+                          photo.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
                     const SizedBox(height: 4),
                     Text(
                       photo.formattedFileSize,
@@ -782,7 +813,8 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
                         fontSize: 12,
                       ),
                     ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               // Menu d'options
@@ -794,6 +826,9 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
                 ),
                 onSelected: (value) {
                   switch (value) {
+                    case 'view':
+                      _viewPhoto(photo);
+                      break;
                     case 'rename':
                       _renamePhoto(photo);
                       break;
@@ -806,6 +841,16 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
                   }
                 },
                 itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'view',
+                    child: Row(
+                      children: [
+                        Icon(Icons.visibility, color: Colors.blue, size: 20),
+                        SizedBox(width: 12),
+                        Text('Voir en plein écran', style: TextStyle(color: Colors.white)),
+                      ],
+                    ),
+                  ),
                   const PopupMenuItem(
                     value: 'rename',
                     child: Row(
@@ -1203,5 +1248,85 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
+  }
+}
+
+/// Écran de visionneuse d'images avec zoom et navigation
+class ImageViewerScreen extends StatelessWidget {
+  final String imagePath;
+  final String imageName;
+
+  const ImageViewerScreen({
+    super.key,
+    required this.imagePath,
+    required this.imageName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black.withOpacity(0.7),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          imageName,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4.0,
+          panEnabled: true,
+          scaleEnabled: true,
+          child: Image.file(
+            File(imagePath),
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.white70,
+                      size: 64,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Impossible de charger l\'image',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      imagePath,
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
   }
 }

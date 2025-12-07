@@ -39,18 +39,56 @@ class _MesseSectionsScreenState extends State<MesseSectionsScreen> {
       if (response.error == null) {
         List<MesseSection> loadedSections = response.data as List<MesseSection>;
         
-        // Si les chants ne sont pas chargés dans les sections, les charger séparément
+        // Charger les chants pour chaque section pour avoir les statistiques correctes
+        // Même si les chants sont déjà dans la section, on les recharge pour s'assurer
+        // qu'ils sont filtrés correctement par messe_part
         for (var section in loadedSections) {
-          if (section.chants == null || section.chants!.isEmpty) {
-            // Charger les chants pour cette section
-            var chantsResponse = await MesseService.getSectionChants(section.id, messeId: section.messeId);
-            if (chantsResponse.error == null && chantsResponse.data != null) {
-              // Mettre à jour la section avec les chants chargés
+          // Charger les chants pour cette section
+          // Passer le nom de la section pour filtrer par messe_part et éviter le mélange entre messes
+          var chantsResponse = await MesseService.getSectionChants(
+            section.id,
+            messeId: section.messeId,
+            sectionName: section.nom, // Filtrer par nom de section
+          );
+          if (chantsResponse.error == null && chantsResponse.data != null) {
+            final chants = chantsResponse.data as List<ChantDeMesse>;
+            // Mettre à jour la section avec les chants chargés (filtrés)
+            int sectionIndex = loadedSections.indexWhere((s) => s.id == section.id);
+            if (sectionIndex != -1) {
+              // S'assurer que tous les chants ont le bon sectionId
+              final validChants = chants.where((chant) => chant.sectionId == section.id).toList();
+              if (validChants.length != chants.length) {
+                print('⚠️ Section "${section.nom}": ${chants.length} -> ${validChants.length} chant(s) après filtrage par sectionId');
+              }
+              loadedSections[sectionIndex] = section.copyWith(
+                chants: validChants,
+              );
+              print('✅ Section "${section.nom}": ${validChants.length} chant(s) après filtrage (sectionId: ${section.id})');
+            }
+          } else {
+            // Si erreur mais qu'on a des chants déjà dans la section, les garder
+            // mais on filtre quand même pour avoir le bon nombre
+            int sectionIndex = loadedSections.indexWhere((s) => s.id == section.id);
+            if (sectionIndex != -1 && loadedSections[sectionIndex].chants != null) {
+              final existingChants = loadedSections[sectionIndex].chants!;
+              // Filtrer les chants existants par sectionId pour s'assurer qu'ils appartiennent bien à cette section
+              final validChants = existingChants.where((chant) => chant.sectionId == section.id).toList();
+              if (validChants.length != existingChants.length) {
+                loadedSections[sectionIndex] = loadedSections[sectionIndex].copyWith(
+                  chants: validChants,
+                );
+                print('⚠️ Section "${section.nom}": ${existingChants.length} -> ${validChants.length} chant(s) après filtrage par sectionId');
+              } else {
+                print('✅ Section "${section.nom}": ${validChants.length} chant(s) (depuis cache, sectionId: ${section.id})');
+              }
+            } else {
+              // Pas de chants dans la section et erreur de chargement
               int sectionIndex = loadedSections.indexWhere((s) => s.id == section.id);
               if (sectionIndex != -1) {
                 loadedSections[sectionIndex] = section.copyWith(
-                  chants: chantsResponse.data as List<ChantDeMesse>,
+                  chants: [], // Liste vide pour afficher 0 chants
                 );
+                print('⚠️ Section "${section.nom}": 0 chant(s) (erreur de chargement: ${chantsResponse.error})');
               }
             }
           }

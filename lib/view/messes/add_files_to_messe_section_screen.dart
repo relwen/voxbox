@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:image_picker/image_picker.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/services/file_upload_service.dart';
 import 'package:voxbox/services/audio_recorder_service.dart';
@@ -521,7 +522,7 @@ class _AddFilesToMesseSectionScreenState extends State<AddFilesToMesseSectionScr
                   ),
                 ),
                 ElevatedButton.icon(
-                  onPressed: _uploadImageFile,
+                  onPressed: _pickImage,
                   icon: const Icon(Icons.image),
                   label: const Text('Photo'),
                   style: ElevatedButton.styleFrom(
@@ -530,11 +531,11 @@ class _AddFilesToMesseSectionScreenState extends State<AddFilesToMesseSectionScr
                   ),
                 ),
                 ElevatedButton.icon(
-                  onPressed: _takePhoto,
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text('Caméra'),
+                  onPressed: _uploadPdfFile,
+                  icon: const Icon(Icons.picture_as_pdf),
+                  label: const Text('PDF'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
+                    backgroundColor: Colors.red,
                     foregroundColor: Colors.white,
                   ),
                 ),
@@ -563,7 +564,7 @@ class _AddFilesToMesseSectionScreenState extends State<AddFilesToMesseSectionScr
                 Icon(Icons.folder, color: AppConstance.primary, size: 24),
                 const SizedBox(width: 8),
                 const Text(
-                  'Fichiers à synchroniser',
+                  'Fichiers',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -835,54 +836,89 @@ class _AddFilesToMesseSectionScreenState extends State<AddFilesToMesseSectionScr
     }
   }
 
-  Future<void> _uploadImageFile() async {
+  /// Affiche un dialogue pour choisir entre galerie et caméra
+  Future<void> _pickImage() async {
     if (_selectedPupitreId == null) {
       ToastService.warning(context, 'Veuillez sélectionner un pupitre');
       return;
     }
 
+    // Afficher un bottom sheet pour choisir la source
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Colors.blue),
+                title: const Text('Galerie'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Colors.orange),
+                title: const Text('Caméra'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (source == null) return;
+
     try {
-      final photo = await _photoService.pickPhotoFromGallery();
+      PhotoItem? photo;
+      if (source == ImageSource.gallery) {
+        photo = await _photoService.pickPhotoFromGallery();
+      } else {
+        photo = await _photoService.takePhoto();
+      }
+
       if (photo != null) {
         setState(() {
           _filesByPupitre[_selectedPupitreId!] ??= [];
           _filesByPupitre[_selectedPupitreId!]!.add(
             FileItem(
-              path: photo.path,
+              path: photo!.path,
               name: photo.name,
               type: FileType.image,
               createdAt: photo.createdAt,
             ),
           );
         });
-        ToastService.success(context, 'Photo ajoutée');
+        ToastService.success(
+          context,
+          source == ImageSource.gallery ? 'Photo ajoutée' : 'Photo prise et ajoutée',
+        );
       }
     } catch (e) {
       ToastService.error(context, 'Erreur: $e');
     }
   }
 
-  Future<void> _takePhoto() async {
+  Future<void> _uploadPdfFile() async {
     if (_selectedPupitreId == null) {
       ToastService.warning(context, 'Veuillez sélectionner un pupitre');
       return;
     }
 
     try {
-      final photo = await _photoService.takePhoto();
-      if (photo != null) {
+      final file = await FileUploadService.selectPdfFile();
+      if (file != null) {
         setState(() {
           _filesByPupitre[_selectedPupitreId!] ??= [];
           _filesByPupitre[_selectedPupitreId!]!.add(
             FileItem(
-              path: photo.path,
-              name: photo.name,
-              type: FileType.image,
+              path: file.path,
+              name: file.path.split('/').last,
+              type: FileType.pdf,
               createdAt: DateTime.now(),
             ),
           );
         });
-        ToastService.success(context, 'Photo prise et ajoutée');
+        ToastService.success(context, 'Fichier PDF ajouté');
       }
     } catch (e) {
       ToastService.error(context, 'Erreur: $e');

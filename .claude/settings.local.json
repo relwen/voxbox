@@ -8,7 +8,8 @@
       "Bash(wc:*)",
       "Bash(flutter pub get:*)",
       "Bash(echo:*)",
-      "Bash(/Users/apple/Desktop/Tech/KuilingaTechnologies/ProjectHouse/voxbobackend/.env.example)"
+      "Bash(/Users/apple/Desktop/Tech/KuilingaTechnologies/ProjectHouse/voxbobackend/.env.example)",
+      "Bash(php artisan route:list:*)"
     ],
     "deny": [],
     "ask": []

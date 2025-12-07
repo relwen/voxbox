@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Configuration pour autoriser le trafic HTTP en développement et production -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <!-- Faire confiance aux certificats système -->
+            <certificates src="system" />
+            <!-- Faire confiance aux certificats utilisateur (pour les certificats auto-signés) -->
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Configuration spécifique pour les domaines locaux -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Adresses IP locales -->
+        <domain includeSubdomains="true">192.168.11.115</domain>
+        <domain includeSubdomains="true">192.168.1.1</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <!-- Votre domaine de production -->
+        <domain includeSubdomains="true">voxy.stcamillejeunesse.site</domain>
+    </domain-config>
+</network-security-config>

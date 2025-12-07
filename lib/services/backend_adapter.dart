@@ -477,11 +477,16 @@ class BackendAdapter {
   static List<Vocalise> backendDataListToVocalises(List<dynamic> sectionsData) {
     List<Vocalise> allVocalises = [];
     
+    print('🔄 Conversion de ${sectionsData.length} section(s) en vocalises');
+    
     for (var sectionData in sectionsData) {
       if (sectionData is Map) {
+        print('📁 Traitement section: ${sectionData['nom'] ?? sectionData['id']}');
+        
         // Extraire les vocalises de la section principale
         if (sectionData['vocalises'] != null && sectionData['vocalises'] is List) {
           final vocalisesList = sectionData['vocalises'] as List;
+          print('   📦 ${vocalisesList.length} élément(s) dans vocalises');
           
           // Les vocalises peuvent être organisées par parties
           for (var vocaliseItem in vocalisesList) {
@@ -489,12 +494,14 @@ class BackendAdapter {
               // Si c'est une partie avec des vocalises à l'intérieur
               if (vocaliseItem['vocalises'] != null && vocaliseItem['vocalises'] is List) {
                 final partVocalises = vocaliseItem['vocalises'] as List;
+                print('   🎵 Partie "${vocaliseItem['name'] ?? 'sans nom'}": ${partVocalises.length} vocalise(s)');
                 for (var vocaliseData in partVocalises) {
                   if (vocaliseData is Map) {
                     try {
                       allVocalises.add(backendDataToVocalise(Map<String, dynamic>.from(vocaliseData)));
-                    } catch (e) {
+                    } catch (e, stackTrace) {
                       print('❌ Erreur conversion vocalise dans partie: $e');
+                      print('📚 Stack: $stackTrace');
                     }
                   }
                 }
@@ -502,20 +509,26 @@ class BackendAdapter {
                 // C'est directement une vocalise
                 try {
                   allVocalises.add(backendDataToVocalise(Map<String, dynamic>.from(vocaliseItem)));
-                } catch (e) {
+                } catch (e, stackTrace) {
                   print('❌ Erreur conversion vocalise: $e');
+                  print('📚 Stack: $stackTrace');
+                  print('📄 Données: $vocaliseItem');
                 }
               }
             }
           }
+        } else {
+          print('   ⚠️ Pas de vocalises dans cette section');
         }
         
         // Extraire les vocalises des sous-sections
         if (sectionData['sections'] != null && sectionData['sections'] is List) {
           final subSections = sectionData['sections'] as List;
+          print('   📂 ${subSections.length} sous-section(s)');
           for (var subSection in subSections) {
             if (subSection is Map && subSection['vocalises'] != null && subSection['vocalises'] is List) {
               final subVocalisesList = subSection['vocalises'] as List;
+              print('   📦 Sous-section "${subSection['nom']}": ${subVocalisesList.length} élément(s)');
               
               for (var vocaliseItem in subVocalisesList) {
                 if (vocaliseItem is Map) {
@@ -525,16 +538,18 @@ class BackendAdapter {
                       if (vocaliseData is Map) {
                         try {
                           allVocalises.add(backendDataToVocalise(Map<String, dynamic>.from(vocaliseData)));
-                        } catch (e) {
+                        } catch (e, stackTrace) {
                           print('❌ Erreur conversion vocalise dans sous-section: $e');
+                          print('📚 Stack: $stackTrace');
                         }
                       }
                     }
                   } else {
                     try {
                       allVocalises.add(backendDataToVocalise(Map<String, dynamic>.from(vocaliseItem)));
-                    } catch (e) {
+                    } catch (e, stackTrace) {
                       print('❌ Erreur conversion vocalise sous-section: $e');
+                      print('📚 Stack: $stackTrace');
                     }
                   }
                 }
@@ -542,6 +557,8 @@ class BackendAdapter {
             }
           }
         }
+      } else {
+        print('⚠️ Section non-Map: ${sectionData.runtimeType}');
       }
     }
     

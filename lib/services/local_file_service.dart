@@ -200,14 +200,16 @@ class LocalFileService {
   /// Télécharger un fichier
   static Future<String?> downloadFile(String fileUrl, {bool forceRedownload = false}) async {
     try {
+      print('🔄 [LocalFileService] Début du téléchargement pour: $fileUrl');
+
       // Si c'est déjà un chemin local, vérifier s'il existe et le retourner
       if (fileUrl.startsWith('/')) {
         final localFile = File(fileUrl);
         if (await localFile.exists()) {
-          print('✅ Fichier local existe déjà: $fileUrl');
+          print('✅ [LocalFileService] Fichier local existe déjà: $fileUrl');
           return fileUrl;
         } else {
-          print('❌ Fichier local introuvable: $fileUrl');
+          print('❌ [LocalFileService] Fichier local introuvable: $fileUrl');
           return null;
         }
       }
@@ -218,7 +220,7 @@ class LocalFileService {
       if (!forceRedownload) {
         final localPath = await getLocalFilePath(fileUrl);
         if (localPath != null) {
-          print('✅ Fichier déjà téléchargé: $localPath');
+          print('✅ [LocalFileService] Fichier déjà téléchargé: $localPath');
           return localPath;
         }
       }
@@ -233,9 +235,25 @@ class LocalFileService {
         }
       }
 
-      print('📥 Téléchargement de: $fullUrl');
+      print('📥 [LocalFileService] URL complète: $fullUrl');
+      print('🌐 [LocalFileService] Base URL: ${AppConstance.baseURL}');
 
-      final response = await http.get(Uri.parse(fullUrl));
+      // Ajouter un timeout pour éviter les blocages infinis
+      final response = await http.get(
+        Uri.parse(fullUrl),
+        headers: {
+          'Accept': '*/*',
+          'User-Agent': 'VoxyBox-Flutter-App',
+        },
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          print('⏱️ [LocalFileService] Timeout lors du téléchargement de: $fullUrl');
+          throw Exception('Timeout lors du téléchargement');
+        },
+      );
+
+      print('📊 [LocalFileService] Status HTTP: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final downloadsDir = await _getDownloadsDirectory();
@@ -243,12 +261,24 @@ class LocalFileService {
         final safeFileName = fileName.replaceAll(RegExp(r'[^\w\s.-]'), '_');
         final localFile = File('${downloadsDir.path}/$safeFileName');
 
+        print('💾 [LocalFileService] Sauvegarde vers: ${localFile.path}');
+
         // Écrire le fichier
         await localFile.writeAsBytes(response.bodyBytes);
 
+        // Vérifier que le fichier a bien été écrit
+        final fileExists = await localFile.exists();
+        final fileSize = fileExists ? await localFile.length() : 0;
+
+        print('📁 [LocalFileService] Fichier créé: $fileExists, Taille: $fileSize bytes');
+
+        if (!fileExists || fileSize == 0) {
+          print('❌ [LocalFileService] Échec de l\'écriture du fichier');
+          return null;
+        }
+
         // Calculer le hash
         final fileHash = await _calculateFileHash(localFile);
-        final fileSize = await localFile.length();
 
         // Sauvegarder les informations
         final filesInfo = await _getFilesInfo();
@@ -260,14 +290,16 @@ class LocalFileService {
         );
         await _saveFilesInfo(filesInfo);
 
-        print('✅ Fichier téléchargé vers: ${localFile.path}');
+        print('✅ [LocalFileService] Fichier téléchargé avec succès vers: ${localFile.path}');
         return localFile.path;
       } else {
-        print('❌ Erreur HTTP: ${response.statusCode}');
+        print('❌ [LocalFileService] Erreur HTTP ${response.statusCode} pour: $fullUrl');
+        print('📄 [LocalFileService] Réponse: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
         return null;
       }
-    } catch (e) {
-      print('❌ Erreur lors du téléchargement: $e');
+    } catch (e, stackTrace) {
+      print('❌ [LocalFileService] Erreur lors du téléchargement de $fileUrl: $e');
+      print('🔍 [LocalFileService] StackTrace: $stackTrace');
       return null;
     }
   }

@@ -1,13 +1,24 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/functions/styles.dart';
-import 'package:voxbox/services/vocalise_service.dart';
+import 'package:voxbox/models/vocalise_section.dart';
+import 'package:voxbox/models/chorale_pupitre.dart';
+import 'package:voxbox/models/user.dart';
+import 'package:voxbox/models/category.dart';
+import 'package:voxbox/services/partition_service.dart';
+import 'package:voxbox/services/category_service.dart';
+import 'package:voxbox/services/chorale_service.dart';
 import 'package:voxbox/services/file_upload_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/widgets/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AddVocaliseScreen extends StatefulWidget {
-  const AddVocaliseScreen({Key? key}) : super(key: key);
+  final VocaliseSection section;
+  
+  const AddVocaliseScreen({Key? key, required this.section}) : super(key: key);
 
   @override
   _AddVocaliseScreenState createState() => _AddVocaliseScreenState();
@@ -18,23 +29,68 @@ class _AddVocaliseScreenState extends State<AddVocaliseScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   
-  String _selectedVoicePart = 'SOPRANE';
-  int _selectedChoraleId = 1;
+  int? _selectedPupitreId;
+  int? _categoryId;
+  int? _choraleId;
   File? _selectedAudioFile;
   bool _isLoading = false;
+  bool _loadingData = true;
+  List<ChoralePupitre> _pupitres = [];
 
-  final List<String> _voiceParts = [
-    'SOPRANE',
-    'TENOR', 
-    'MEZOSOPRANE',
-    'ALTO',
-    'BASSE',
-    'BARITON'
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
-  final List<Map<String, dynamic>> _chorales = [
-    
-  ];
+  Future<void> _loadData() async {
+    setState(() {
+      _loadingData = true;
+    });
+
+    try {
+      // Charger les informations de l'utilisateur
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? userString = prefs.getString('user');
+      if (userString != null) {
+        Map<String, dynamic> userMap = jsonDecode(userString);
+        User user = User.fromJson(userMap);
+        _choraleId = user.choraleId;
+
+        if (_choraleId != null) {
+          // Charger la catégorie "Vocalises"
+          var categoriesResponse = await CategoryService.getCategories();
+          if (categoriesResponse.error == null && categoriesResponse.data != null) {
+            var categories = categoriesResponse.data as List<Category>;
+            try {
+              var vocalisesCategory = categories.firstWhere(
+                (cat) => cat.name == 'Vocalises',
+              );
+              _categoryId = vocalisesCategory.id;
+            } catch (e) {
+              print('Catégorie Vocalises non trouvée: $e');
+            }
+          }
+
+          // Charger les pupitres
+          var pupitresResponse = await ChoraleService.getPupitres(_choraleId!);
+          if (pupitresResponse.error == null && pupitresResponse.data != null) {
+            _pupitres = pupitresResponse.data as List<ChoralePupitre>;
+            if (_pupitres.isNotEmpty) {
+              _selectedPupitreId = _pupitres.first.id;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Erreur lors du chargement des données: $e');
+      ToastService.error(context, 'Erreur lors du chargement des données');
+    } finally {
+      setState(() {
+        _loadingData = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -70,105 +126,88 @@ class _AddVocaliseScreenState extends State<AddVocaliseScreen> {
             ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Informations de base
-              _buildSectionTitle('Informations de base'),
-              SizedBox(height: 16),
-              
-              // Titre
-              TextFormField(
-                controller: _titleController,
-                decoration: InputDecoration(
-                  labelText: 'Titre de la vocalise',
-                  hintText: 'Ex: Échauffement Soprane - Do Ré Mi',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: Icon(Icons.music_note),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Le titre est requis';
-                  }
-                  return null;
-                },
-              ),
-              
-              SizedBox(height: 16),
-              
-              // Description
-              TextFormField(
-                controller: _descriptionController,
-                decoration: InputDecoration(
-                  labelText: 'Description (optionnel)',
-                  hintText: 'Description de l\'exercice...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: Icon(Icons.description),
-                ),
-                maxLines: 3,
-              ),
-              
-              SizedBox(height: 24),
-              
-              // Classification
-              _buildSectionTitle('Classification'),
-              SizedBox(height: 16),
-              
-              // Partie vocale
-              DropdownButtonFormField<String>(
-                value: _selectedVoicePart,
-                decoration: InputDecoration(
-                  labelText: 'Partie vocale',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: Icon(Icons.record_voice_over),
-                ),
-                items: _voiceParts.map((voicePart) {
-                  return DropdownMenuItem(
-                    value: voicePart,
-                    child: Text(voicePart),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedVoicePart = value!;
-                  });
-                },
-              ),
-              
-              SizedBox(height: 16),
-              
-              // Chorale
-              DropdownButtonFormField<int>(
-                value: _selectedChoraleId,
-                decoration: InputDecoration(
-                  labelText: 'Chorale',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: Icon(Icons.group),
-                ),
-                items: _chorales.map((chorale) {
-                  return DropdownMenuItem<int>(
-                    value: chorale['id'],
-                    child: Text(chorale['name']),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedChoraleId = value!;
-                  });
-                },
-              ),
+      body: _loadingData
+          ? Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: EdgeInsets.all(16),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Informations de base
+                    _buildSectionTitle('Informations de base'),
+                    SizedBox(height: 16),
+                    
+                    // Titre
+                    TextFormField(
+                      controller: _titleController,
+                      decoration: InputDecoration(
+                        labelText: 'Titre de la vocalise',
+                        hintText: 'Ex: Échauffement Soprane - Do Ré Mi',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        prefixIcon: Icon(Icons.music_note),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Le titre est requis';
+                        }
+                        return null;
+                      },
+                    ),
+                    
+                    SizedBox(height: 16),
+                    
+                    // Description
+                    TextFormField(
+                      controller: _descriptionController,
+                      decoration: InputDecoration(
+                        labelText: 'Description (optionnel)',
+                        hintText: 'Description de l\'exercice...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        prefixIcon: Icon(Icons.description),
+                      ),
+                      maxLines: 3,
+                    ),
+                    
+                    SizedBox(height: 24),
+                    
+                    // Classification
+                    _buildSectionTitle('Classification'),
+                    SizedBox(height: 16),
+                    
+                    // Pupitre
+                    DropdownButtonFormField<int>(
+                      value: _selectedPupitreId,
+                      decoration: InputDecoration(
+                        labelText: 'Pupitre',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        prefixIcon: Icon(Icons.record_voice_over),
+                      ),
+                      items: _pupitres.map((pupitre) {
+                        return DropdownMenuItem<int>(
+                          value: pupitre.id,
+                          child: Text(pupitre.nom),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedPupitreId = value;
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null) {
+                          return 'Veuillez sélectionner un pupitre';
+                        }
+                        return null;
+                      },
+                    ),
               
               SizedBox(height: 24),
               
@@ -318,12 +357,22 @@ class _AddVocaliseScreenState extends State<AddVocaliseScreen> {
     }
 
     if (_selectedAudioFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Veuillez sélectionner un fichier audio'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      ToastService.warning(context, 'Veuillez sélectionner un fichier audio');
+      return;
+    }
+
+    if (_categoryId == null) {
+      ToastService.error(context, 'Catégorie Vocalises introuvable');
+      return;
+    }
+
+    if (_choraleId == null) {
+      ToastService.error(context, 'Chorale introuvable');
+      return;
+    }
+
+    if (_selectedPupitreId == null) {
+      ToastService.warning(context, 'Veuillez sélectionner un pupitre');
       return;
     }
 
@@ -332,35 +381,30 @@ class _AddVocaliseScreenState extends State<AddVocaliseScreen> {
     });
 
     try {
-      // Créer la vocalise via le service
-      final response = await VocaliseService.createVocalise(
+      // Créer la partition (vocalise) via PartitionService
+      final response = await PartitionService.createPartition(
         title: _titleController.text,
         description: _descriptionController.text,
-        voicePart: _selectedVoicePart,
-        choraleId: _selectedChoraleId,
+        categoryId: _categoryId!,
+        choraleId: _choraleId!,
         audioFilePath: _selectedAudioFile?.path,
+        pdfFilePath: null,
+        imageFilePath: null,
+        rubriqueSectionId: widget.section.id,
+        pupitreId: _selectedPupitreId,
+        messePart: null,
+        messeSubPart: null,
       );
 
       if (response.error == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Vocalise créée avec succès !'),
-            backgroundColor: Colors.green,
-          ),
-        );
-
+        ToastService.success(context, 'Vocalise créée avec succès !');
         Navigator.of(context).pop(true); // Retour avec succès
       } else {
         throw Exception(response.error);
       }
       
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur lors de la création: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ToastService.error(context, 'Erreur lors de la création: $e');
     } finally {
       setState(() {
         _isLoading = false;

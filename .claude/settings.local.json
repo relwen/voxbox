@@ -9,7 +9,10 @@
       "Bash(flutter pub get:*)",
       "Bash(echo:*)",
       "Bash(/Users/apple/Desktop/Tech/KuilingaTechnologies/ProjectHouse/voxbobackend/.env.example)",
-      "Bash(php artisan route:list:*)"
+      "Bash(php artisan route:list:*)",
+      "Bash(flutter run:*)",
+      "Bash(/Users/apple/flutter/bin/flutter run:*)",
+      "Bash(fvm flutter:*)"
     ],
     "deny": [],
     "ask": []

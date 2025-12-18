@@ -45,5 +45,15 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Voxy Box a besoin d'accéder à votre galerie photo pour vous permettre de sélectionner des photos à ajouter à vos créations musicales et partitions. Les photos sont stockées localement dans l'application pour une organisation personnalisée.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Voxy Box a besoin d'accéder au microphone pour vous permettre d'enregistrer des vocalises et des répétitions musicales. Les enregistrements sont stockés localement dans l'application.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Voxy Box a besoin d'accéder à la caméra pour vous permettre de prendre des photos de partitions et de les ajouter à vos créations musicales. Les photos sont stockées localement dans l'application.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Voxy Box utilise votre localisation pour vous aider à trouver des chorales à proximité et améliorer votre expérience musicale.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Voxy Box utilise votre localisation pour vous aider à trouver des chorales à proximité et améliorer votre expérience musicale.</string>
 </dict>
 </plist>

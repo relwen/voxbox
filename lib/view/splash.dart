@@ -92,46 +92,54 @@ class _SplashScreenState extends State<SplashScreen>
 
   void checkisConnected() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
+    
+    // Vérifier d'abord si une mise à jour est requise (pour tous les utilisateurs, connectés ou non)
+    try {
+      print('🔍 Vérification de la version de l\'application...');
+      final versionResponse = await VersionService.checkForUpdate();
+
+      if (versionResponse.error == null && versionResponse.data != null) {
+        final versionInfo = versionResponse.data!;
+
+        // Si une mise à jour est disponible (version backend > version app)
+        if (versionInfo.updateAvailable || versionInfo.updateRequired) {
+          print('⚠️ Mise à jour détectée');
+          print('   - Version actuelle (app): ${versionInfo.currentVersion}');
+          print('   - Dernière version (backend): ${versionInfo.latestVersion}');
+          print('   - Mise à jour requise: ${versionInfo.updateRequired}');
+          print('   - Mise à jour disponible: ${versionInfo.updateAvailable}');
+          
+          // Si la version backend est supérieure à la version de l'app, afficher l'écran de mise à jour
+          // On affiche toujours l'écran si updateAvailable est true (version backend > version app)
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => UpdateRequiredScreen(
+                currentVersion: versionInfo.currentVersion,
+                latestVersion: versionInfo.latestVersion,
+                downloadUrl: versionInfo.downloadUrl,
+                message: versionInfo.message,
+                forceUpdate: versionInfo.forceUpdate || versionInfo.updateRequired,
+              ),
+            ),
+          );
+          return;
+        } else {
+          print('✅ Version de l\'application à jour');
+        }
+      } else {
+        print('⚠️ Impossible de vérifier la version: ${versionResponse.error}');
+        // Continuer même si la vérification échoue
+      }
+    } catch (e) {
+      print('💥 Erreur lors de la vérification de version: $e');
+      // Continuer même en cas d'erreur de vérification
+    }
+
+    // Maintenant vérifier si l'utilisateur est connecté
     bool isConnected = prefs.getBool('isConnected') ?? false;
 
     if (isConnected) {
-      // Vérifier d'abord si une mise à jour est requise
-      try {
-        print('🔍 Vérification de la version de l\'application...');
-        final versionResponse = await VersionService.checkForUpdate();
-
-        if (versionResponse.error == null && versionResponse.data != null) {
-          final versionInfo = versionResponse.data!;
-
-          if (versionInfo.updateRequired) {
-            // Mise à jour requise - rediriger vers l'écran de mise à jour
-            print('⚠️ Mise à jour requise détectée');
-            print('   - Version actuelle: ${versionInfo.currentVersion}');
-            print('   - Dernière version: ${versionInfo.latestVersion}');
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => UpdateRequiredScreen(
-                  currentVersion: versionInfo.currentVersion,
-                  latestVersion: versionInfo.latestVersion,
-                  downloadUrl: versionInfo.downloadUrl,
-                  message: versionInfo.message,
-                  forceUpdate: versionInfo.forceUpdate,
-                ),
-              ),
-            );
-            return;
-          } else {
-            print('✅ Version de l\'application à jour');
-          }
-        } else {
-          print('⚠️ Impossible de vérifier la version: ${versionResponse.error}');
-          // Continuer même si la vérification échoue
-        }
-      } catch (e) {
-        print('💥 Erreur lors de la vérification de version: $e');
-        // Continuer même en cas d'erreur de vérification
-      }
 
       // Toujours récupérer les données utilisateur depuis l'API au démarrage
       // pour avoir les données à jour (notamment le statut)

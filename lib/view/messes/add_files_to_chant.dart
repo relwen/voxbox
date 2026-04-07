@@ -312,7 +312,7 @@ class _AddFilesToChantScreenState extends State<AddFilesToChantScreen> {
         ToastService.success(
           context,
           '${files.length} fichier(s) audio ajouté(s)',
-          duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
@@ -335,7 +335,7 @@ class _AddFilesToChantScreenState extends State<AddFilesToChantScreen> {
         ToastService.success(
           context,
           '${files.length} fichier(s) PDF ajouté(s)',
-          duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
@@ -358,7 +358,7 @@ class _AddFilesToChantScreenState extends State<AddFilesToChantScreen> {
         ToastService.success(
           context,
           '${files.length} image(s) ajoutée(s)',
-          duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {

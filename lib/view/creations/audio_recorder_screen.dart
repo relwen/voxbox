@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart' show openAppSettings;
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/functions/styles.dart';
 import 'package:voxbox/services/audio_recorder_service.dart';
@@ -115,8 +116,44 @@ class _AudioRecorderScreenState extends State<AudioRecorderScreen>
       }
     } catch (e) {
       print('Erreur dans _startRecording: $e');
-      _showErrorSnackBar('Erreur: ${e.toString()}');
+      final errorMessage = e.toString();
+      
+      // Si la permission est refusée de manière permanente, proposer d'ouvrir les paramètres
+      if (errorMessage.contains('permanente') || errorMessage.contains('paramètres')) {
+        _showPermissionErrorDialog();
+      } else {
+        _showErrorSnackBar('Erreur: $errorMessage');
+      }
     }
+  }
+  
+  void _showPermissionErrorDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Permission microphone requise'),
+          content: const Text(
+            'L\'accès au microphone est nécessaire pour enregistrer de l\'audio. '
+            'Veuillez activer la permission dans les paramètres de l\'application.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Annuler'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                // Ouvrir les paramètres de l'application
+                await openAppSettings();
+              },
+              child: const Text('Ouvrir les paramètres'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _pauseRecording() async {

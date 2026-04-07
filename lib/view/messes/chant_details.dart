@@ -158,28 +158,28 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
       // Récupérer les chants de la section et trouver celui qui correspond
       if (widget.chant.sectionId > 0) {
         final response = await ChantService.getSectionChants(widget.chant.sectionId);
-        if (response.error == null && response.data != null) {
+      if (response.error == null && response.data != null) {
           final chants = response.data as List<ChantDeMesse>;
           final chant = chants.firstWhere(
             (c) => c.id == widget.chant.id,
             orElse: () => widget.chant,
           );
-          print('✅ Chant synchronisé depuis le serveur');
-          print('   - PDF: ${chant.pdfFiles?.length ?? 0} fichiers');
-          print('   - Images: ${chant.imageFiles?.length ?? 0} fichiers');
-          print('   - Audio: ${chant.audioFiles?.length ?? 0} fichiers');
-          print('   - Soprano: ${chant.sopranoFiles?.length ?? 0} fichiers');
-          print('   - Alto: ${chant.altoFiles?.length ?? 0} fichiers');
-          print('   - Ténor: ${chant.tenorFiles?.length ?? 0} fichiers');
-          print('   - Basse: ${chant.basseFiles?.length ?? 0} fichiers');
-          print('   - Tutti: ${chant.tuttiFiles?.length ?? 0} fichiers');
-          setState(() {
-            _currentChant = chant;
-          });
-          // Vérifier les statuts des fichiers après le chargement
-          _checkFilesStatus();
-        } else {
-          print('❌ Erreur lors de la synchronisation: ${response.error}');
+        print('✅ Chant synchronisé depuis le serveur');
+        print('   - PDF: ${chant.pdfFiles?.length ?? 0} fichiers');
+        print('   - Images: ${chant.imageFiles?.length ?? 0} fichiers');
+        print('   - Audio: ${chant.audioFiles?.length ?? 0} fichiers');
+        print('   - Soprano: ${chant.sopranoFiles?.length ?? 0} fichiers');
+        print('   - Alto: ${chant.altoFiles?.length ?? 0} fichiers');
+        print('   - Ténor: ${chant.tenorFiles?.length ?? 0} fichiers');
+        print('   - Basse: ${chant.basseFiles?.length ?? 0} fichiers');
+        print('   - Tutti: ${chant.tuttiFiles?.length ?? 0} fichiers');
+        setState(() {
+          _currentChant = chant;
+        });
+        // Vérifier les statuts des fichiers après le chargement
+        _checkFilesStatus();
+      } else {
+        print('❌ Erreur lors de la synchronisation: ${response.error}');
         }
       } else {
         print('⚠️ Section ID non disponible, impossible de synchroniser');
@@ -303,52 +303,52 @@ class _ChantDetailsScreenState extends State<ChantDetailsScreen> with SingleTick
           
           // TabBar pour les pupitres (dynamique)
           if (_tabController != null)
-            TabBar(
-              controller: _tabController!,
-              isScrollable: true,
-              labelColor: AppConstance.primary,
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: AppConstance.primary,
-              tabs: [
-                const Tab(text: 'Général', icon: Icon(Icons.folder, size: 16)),
-                ..._pupitres.map((pupitre) {
-                  print('📌 Création du tab pour pupitre: ${pupitre.nom} (ID: ${pupitre.id})');
-                  return Tab(
-                    text: pupitre.nom,
-                    icon: Icon(
-                      pupitre.icon != null ? _getIconFromString(pupitre.icon!) : Icons.person,
-                      size: 16,
-                    ),
-                  );
-                }),
-              ],
-            ),
+          TabBar(
+            controller: _tabController!,
+            isScrollable: true,
+            labelColor: AppConstance.primary,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: AppConstance.primary,
+            tabs: [
+              const Tab(text: 'Général', icon: Icon(Icons.folder, size: 16)),
+              ..._pupitres.map((pupitre) {
+                print('📌 Création du tab pour pupitre: ${pupitre.nom} (ID: ${pupitre.id})');
+                return Tab(
+                  text: pupitre.nom,
+                  icon: Icon(
+                    pupitre.icon != null ? _getIconFromString(pupitre.icon!) : Icons.person,
+                    size: 16,
+                  ),
+                );
+              }),
+            ],
+          ),
           
           // Contenu des onglets
           if (_tabController != null)
-            Expanded(
-              child: TabBarView(
-                controller: _tabController!,
-                children: [
-                  _buildGeneralTab(),
-                  ..._pupitres.map((pupitre) {
-                    // Récupérer les fichiers audio pour ce pupitre
-                    List<String> pupitreFiles = _getFilesForPupitre(pupitre.id);
-                    Color pupitreColor = pupitre.color != null 
-                        ? Color(int.parse(pupitre.color!.replaceAll('#', '0xFF')))
-                        : Colors.blue;
-                    print('🎵 Fichiers pour pupitre ${pupitre.nom}: ${pupitreFiles.length} fichiers');
-                    return _buildPupitreTab(pupitre.nom, pupitreFiles, pupitreColor, pupitre.id);
-                  }),
-                ],
-              ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController!,
+              children: [
+                _buildGeneralTab(),
+                ..._pupitres.map((pupitre) {
+                  // Récupérer les fichiers audio pour ce pupitre
+                  List<String> pupitreFiles = _getFilesForPupitre(pupitre.id);
+                  Color pupitreColor = pupitre.color != null 
+                      ? Color(int.parse(pupitre.color!.replaceAll('#', '0xFF')))
+                      : Colors.blue;
+                  print('🎵 Fichiers pour pupitre ${pupitre.nom}: ${pupitreFiles.length} fichiers');
+                  return _buildPupitreTab(pupitre.nom, pupitreFiles, pupitreColor, pupitre.id);
+                }),
+              ],
+            ),
             )
           else
             const Expanded(
               child: Center(
                 child: CircularProgressIndicator(),
               ),
-            ),
+          ),
         ],
       ),
     );

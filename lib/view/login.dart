@@ -5,6 +5,7 @@ import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/services/auth_service.dart';
 import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/view/otp_screen.dart';
+import 'package:voxbox/view/home.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -119,22 +120,7 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
       });
 
       if (response.error == null && response.data != null) {
-        // OTP envoyé avec succès
-        print('✅ OTP envoyé avec succès');
-        
-        // Vérifier si l'OTP est retourné en mode debug
-        final responseData = response.data as Map<String, dynamic>?;
-        if (responseData != null && responseData.containsKey('otp')) {
-          print('🔑 Code OTP (DEBUG): ${responseData['otp']}');
-          // Afficher un message informatif pour les numéros de test
-          if (mounted) {
-            ToastService.info(
-              context,
-              'Mode test: OTP = ${responseData['otp']}',
-              duration: const Duration(seconds: 5),
-            );
-          }
-        }
+
 
         if (!mounted) return;
 
@@ -382,6 +368,27 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
 
             // Loading indicator
             if (loading) _buildLoadingIndicator(),
+
+            const SizedBox(height: 20),
+
+            // Skip Login Button (Apple Compliance)
+            TextButton(
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomePage()),
+                );
+              },
+              child: Text(
+                'Continuer sans compte',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
           ],
         ),
       ),

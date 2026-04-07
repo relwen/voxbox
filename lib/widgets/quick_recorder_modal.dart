@@ -241,7 +241,7 @@ class _QuickRecorderModalState extends State<QuickRecorderModal>
         context,
         message,
         duration: const Duration(seconds: 2),
-      );
+    );
     }
   }
 

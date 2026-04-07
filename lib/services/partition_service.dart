@@ -381,7 +381,7 @@ class PartitionService {
         case 201:
         case 200:
           try {
-            var responseData = jsonDecode(response.body);
+          var responseData = jsonDecode(response.body);
             print('📦 Données parsées: $responseData');
             if (responseData['success'] == true && responseData['data'] != null) {
               try {
@@ -396,7 +396,7 @@ class PartitionService {
                 print('   - files: ${partitionData['files']}');
                 
                 apiResponse.data = Partition.fromJson(partitionData);
-                apiResponse.error = null;
+            apiResponse.error = null;
                 print('✅ Partition créée avec succès: ${apiResponse.data?.id}');
                 
                 // Vérifier si les fichiers ont été sauvegardés
@@ -415,8 +415,8 @@ class PartitionService {
                 print('📋 Données reçues: ${responseData['data']}');
                 apiResponse.error = 'Erreur de conversion: $e';
               }
-            } else {
-              apiResponse.error = responseData['message'] ?? 'Erreur lors de la création';
+          } else {
+            apiResponse.error = responseData['message'] ?? 'Erreur lors de la création';
               print('⚠️ Réponse sans succès: ${responseData['message']}');
             }
           } catch (e, stackTrace) {

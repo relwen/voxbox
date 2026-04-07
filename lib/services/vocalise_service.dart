@@ -194,9 +194,8 @@ class VocaliseService {
 
       print('🔄 Chargement des vocalises de la section $sectionId...');
 
-      // Utiliser la route spécifique pour récupérer les vocalises
       final response = await http.get(
-        Uri.parse('${AppConstance.vocalisesURL}/$sectionId/vocalises'),
+        Uri.parse('${AppConstance.vocalisesURL}/$sectionId'),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -204,64 +203,26 @@ class VocaliseService {
         },
       );
 
-      print('📡 Status HTTP: ${response.statusCode}');
-      print('📄 Response body: ${response.body}');
-
       switch (response.statusCode) {
         case 200:
-          try {
-            final responseData = jsonDecode(response.body);
-            print('📦 Success: ${responseData['success']}, Data présent: ${responseData['data'] != null}');
+          final responseData = jsonDecode(response.body);
 
-            if (responseData['success'] == true && responseData['data'] != null) {
-              final vocalisesData = responseData['data'];
-              print('📋 Type data: ${vocalisesData.runtimeType}');
+          if (responseData['success'] == true && responseData['data'] != null) {
+            var sectionData = responseData['data'];
 
-              List<Vocalise> vocalises = [];
-
-              // La route /vocalises retourne directement les vocalises ou les parties avec vocalises
-              if (vocalisesData is List) {
-                print('📋 ${vocalisesData.length} élément(s) dans data');
-
-                // Vérifier si c'est un tableau de parties ou directement de vocalises
-                for (var item in vocalisesData) {
-                  if (item is Map) {
-                    // Si l'item a un champ 'vocalises', c'est une partie
-                    if (item['vocalises'] != null && item['vocalises'] is List) {
-                      print('📦 Partie "${item['name']}" avec ${(item['vocalises'] as List).length} vocalise(s)');
-                      for (var vocaliseData in item['vocalises']) {
-                        try {
-                          vocalises.add(BackendAdapter.backendDataToVocalise(Map<String, dynamic>.from(vocaliseData)));
-                        } catch (e) {
-                          print('❌ Erreur conversion vocalise: $e');
-                        }
-                      }
-                    }
-                    // Sinon c'est directement une vocalise
-                    else if (item['titre'] != null || item['title'] != null) {
-                      try {
-                        vocalises.add(BackendAdapter.backendDataToVocalise(Map<String, dynamic>.from(item)));
-                      } catch (e) {
-                        print('❌ Erreur conversion vocalise directe: $e');
-                      }
-                    }
-                  }
-                }
-
-                print('✅ ${vocalises.length} vocalise(s) convertie(s) au total');
-              }
-
-              apiResponse.data = vocalises;
-              apiResponse.error = null;
-            } else {
-              print('⚠️ Réponse sans succès ou data null');
-              apiResponse.data = [];
-              apiResponse.error = null;
+            // Convertir les vocalises de cette section
+            List<Vocalise> vocalises = [];
+            if (sectionData['vocalises'] != null && sectionData['vocalises'] is List) {
+              vocalises = BackendAdapter.backendDataListToVocalises([sectionData]);
             }
-          } catch (e, stackTrace) {
-            print('❌ Erreur parsing JSON: $e');
-            print('📚 Stack: $stackTrace');
-            apiResponse.error = 'Erreur de parsing: $e';
+
+            print('✅ ${vocalises.length} vocalise(s) récupérée(s) pour la section $sectionId');
+
+            apiResponse.data = vocalises;
+            apiResponse.error = null;
+          } else {
+            apiResponse.data = [];
+            apiResponse.error = null;
           }
           break;
         case 401:

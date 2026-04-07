@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:voxbox/functions/styles.dart';
+import 'package:voxbox/services/audio_recorder_service.dart';
 
 class VoiceRecorderWidget extends StatefulWidget {
   final Function(File audioFile)? onRecordingComplete;
@@ -18,160 +19,99 @@ class VoiceRecorderWidget extends StatefulWidget {
 }
 
 class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
+  final AudioRecorderService _recorderService = AudioRecorderService();
+  StreamSubscription<Duration>? _durationSubscription;
+  StreamSubscription<RecordingState>? _stateSubscription;
+
   bool _isRecording = false;
   bool _isPaused = false;
   bool _hasPermission = false;
-  String? _recordingPath;
-  List<String> _recordingSegments = [];
-  int _currentSegmentIndex = -1;
   Duration _recordingDuration = Duration.zero;
 
   @override
   void initState() {
     super.initState();
-    _checkPermission();
-    if (widget.initialAudioPath != null) {
-      _recordingPath = widget.initialAudioPath;
-    }
+    _initRecorder();
   }
 
-  Future<void> _checkPermission() async {
-    final permission = await Permission.microphone.request();
-    setState(() {
-      _hasPermission = permission.isGranted;
+  Future<void> _initRecorder() async {
+    _hasPermission = await _recorderService.hasPermissions();
+    if (!_hasPermission) {
+      _hasPermission = await _recorderService.requestPermissions();
+    }
+
+    _durationSubscription = _recorderService.durationStream.listen((duration) {
+      if (mounted) {
+        setState(() {
+          _recordingDuration = duration;
+        });
+      }
     });
+
+    _stateSubscription = _recorderService.stateStream.listen((state) {
+      if (mounted) {
+        setState(() {
+          _isRecording = state == RecordingState.recording || state == RecordingState.paused;
+          _isPaused = state == RecordingState.paused;
+        });
+      }
+    });
+
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _durationSubscription?.cancel();
+    _stateSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _startRecording() async {
-    if (!_hasPermission) {
-      await _checkPermission();
-      return;
-    }
-
     try {
-      // Version simplifiée - simulation d'enregistrement
-      String fileName = 'audio_segment_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      
-      setState(() {
-        _isRecording = true;
-        _isPaused = false;
-        _recordingPath = fileName;
-        _currentSegmentIndex = _recordingSegments.length;
-        _recordingSegments.add(fileName);
-      });
-
-      // Démarrer le timer pour la durée
-      _startTimer();
-      
-      // Simuler un enregistrement de 3 secondes pour le test
-      Future.delayed(Duration(seconds: 3), () {
-        if (_isRecording) {
-          _stopRecording();
-        }
-      });
-      
+      final success = await _recorderService.startRecording();
+      if (!success) {
+        throw Exception('Impossible de démarrer l\'enregistrement');
+      }
     } catch (e) {
-      print('Erreur lors du démarrage de l\'enregistrement: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur lors du démarrage de l\'enregistrement'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      debugPrint('Erreur lors du démarrage de l\'enregistrement: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _pauseRecording() async {
-    if (!_isRecording) return;
-
-    try {
-      setState(() {
-        _isPaused = true;
-      });
-    } catch (e) {
-      print('Erreur lors de la pause: $e');
-    }
+    await _recorderService.pauseRecording();
   }
 
   Future<void> _resumeRecording() async {
-    if (!_isPaused) return;
-
-    try {
-      setState(() {
-        _isPaused = false;
-      });
-    } catch (e) {
-      print('Erreur lors de la reprise: $e');
-    }
+    await _recorderService.resumeRecording();
   }
 
   Future<void> _stopRecording() async {
-    if (!_isRecording) return;
-
     try {
-      setState(() {
-        _isRecording = false;
-        _isPaused = false;
-        _recordingDuration = Duration.zero;
-      });
-
-      if (_recordingPath != null && widget.onRecordingComplete != null) {
-        // Créer un fichier temporaire pour la simulation
-        final tempFile = File('/tmp/${_recordingPath}');
-        await tempFile.writeAsString('Simulation audio file');
-        widget.onRecordingComplete!(tempFile);
+      final path = await _recorderService.stopRecording();
+      if (path != null && widget.onRecordingComplete != null) {
+        widget.onRecordingComplete!(File(path));
       }
     } catch (e) {
-      print('Erreur lors de l\'arrêt: $e');
+      debugPrint('Erreur lors de l\'arrêt: $e');
     }
   }
 
-  Future<void> _replaceCurrentSegment() async {
-    if (_currentSegmentIndex < 0 || _currentSegmentIndex >= _recordingSegments.length) return;
-
-    // Arrêter l'enregistrement actuel
-    if (_isRecording) {
-      await _stopRecording();
+  Future<void> _cancelRecording() async {
+    await _recorderService.cancelRecording();
+    if (mounted) {
+      setState(() {
+        _recordingDuration = Duration.zero;
+      });
     }
-
-    // Supprimer le segment actuel
-    setState(() {
-      _recordingSegments.removeAt(_currentSegmentIndex);
-      _isRecording = false;
-      _isPaused = false;
-      _recordingDuration = Duration.zero;
-    });
-
-    // Démarrer un nouvel enregistrement
-    await _startRecording();
-  }
-
-  Future<void> _deleteCurrentSegment() async {
-    if (_currentSegmentIndex < 0 || _currentSegmentIndex >= _recordingSegments.length) return;
-
-    // Arrêter l'enregistrement actuel
-    if (_isRecording) {
-      await _stopRecording();
-    }
-
-    setState(() {
-      _recordingSegments.removeAt(_currentSegmentIndex);
-      _isRecording = false;
-      _isPaused = false;
-      _recordingDuration = Duration.zero;
-      _currentSegmentIndex = -1;
-    });
-  }
-
-  void _startTimer() {
-    Future.delayed(Duration(seconds: 1), () {
-      if (_isRecording && !_isPaused) {
-        setState(() {
-          _recordingDuration += Duration(seconds: 1);
-        });
-        _startTimer();
-      }
-    });
   }
 
   String _formatDuration(Duration duration) {
@@ -186,129 +126,90 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
     return Column(
       children: [
         // Affichage de la durée
-        if (_isRecording || _recordingSegments.isNotEmpty)
+        if (_isRecording || _recordingDuration > Duration.zero)
           Container(
-            padding: EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             child: Text(
               _formatDuration(_recordingDuration),
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 32,
                 fontWeight: FontWeight.bold,
                 color: theme,
               ),
             ),
           ),
 
-        // Liste des segments
-        if (_recordingSegments.isNotEmpty)
-          Container(
-            height: 100,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _recordingSegments.length,
-              itemBuilder: (context, index) {
-                bool isCurrentSegment = index == _currentSegmentIndex;
-                return Container(
-                  margin: EdgeInsets.symmetric(horizontal: 8),
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isCurrentSegment ? theme : Colors.grey[200],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isCurrentSegment ? theme : Colors.grey,
-                      width: 2,
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Segment ${index + 1}',
-                        style: TextStyle(
-                          color: isCurrentSegment ? Colors.white : Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      if (isCurrentSegment && _isRecording)
-                        Icon(
-                          Icons.mic,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-
-        SizedBox(height: 16),
+        const SizedBox(height: 24),
 
         // Contrôles d'enregistrement
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
+            // Bouton Annuler
+            if (_isRecording)
+              IconButton(
+                onPressed: _cancelRecording,
+                icon: const Icon(
+                  Icons.close_rounded,
+                  size: 32,
+                  color: Colors.grey,
+                ),
+                tooltip: 'Annuler',
+              ),
+
+            // Bouton Record/Stop
+            GestureDetector(
+              onTap: _isRecording && !_isPaused ? _stopRecording : _startRecording,
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _isRecording && !_isPaused ? Colors.red : theme,
+                  boxShadow: [
+                    BoxShadow(
+                      color: (_isRecording && !_isPaused ? Colors.red : theme).withOpacity(0.3),
+                      blurRadius: 15,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  _isRecording && !_isPaused ? Icons.stop_rounded : Icons.mic_rounded,
+                  size: 40,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+
             // Bouton Play/Pause
             if (_isRecording)
               IconButton(
                 onPressed: _isPaused ? _resumeRecording : _pauseRecording,
                 icon: Icon(
-                  _isPaused ? Icons.play_arrow : Icons.pause,
+                  _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
                   size: 32,
                   color: theme,
                 ),
-              ),
-
-            // Bouton Record/Stop
-            IconButton(
-              onPressed: _isRecording ? _stopRecording : _startRecording,
-              icon: Icon(
-                _isRecording ? Icons.stop : Icons.mic,
-                size: 32,
-                color: _isRecording ? Colors.red : theme,
-              ),
-            ),
-
-            // Bouton Replace (remplacer le segment actuel)
-            if (_currentSegmentIndex >= 0)
-              IconButton(
-                onPressed: _replaceCurrentSegment,
-                icon: Icon(
-                  Icons.refresh,
-                  size: 32,
-                  color: Colors.orange,
-                ),
-                tooltip: 'Remplacer ce segment',
-              ),
-
-            // Bouton Delete (supprimer le segment actuel)
-            if (_currentSegmentIndex >= 0)
-              IconButton(
-                onPressed: _deleteCurrentSegment,
-                icon: Icon(
-                  Icons.delete,
-                  size: 32,
-                  color: Colors.red,
-                ),
-                tooltip: 'Supprimer ce segment',
+                tooltip: _isPaused ? 'Reprendre' : 'Pause',
               ),
           ],
         ),
 
-        SizedBox(height: 16),
+        const SizedBox(height: 24),
 
         // Instructions
         Container(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           child: Text(
             _isRecording 
-                ? 'Enregistrement en cours... (Version de démonstration)'
-                : 'Appuyez sur le bouton micro pour commencer l\'enregistrement (Démo)',
+                ? (_isPaused ? 'Enregistrement en pause' : 'Enregistrement en cours...')
+                : 'Appuyez sur le micro pour enregistrer',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.grey[600],
-              fontSize: 14,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ),
@@ -316,13 +217,27 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
         // Statut des permissions
         if (!_hasPermission)
           Container(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'Permission microphone requise pour l\'enregistrement',
-              style: TextStyle(
-                color: Colors.red,
-                fontSize: 12,
-              ),
+            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.symmetric(horizontal: 32),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.red),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Permission microphone requise pour l\'enregistrement',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
       ],

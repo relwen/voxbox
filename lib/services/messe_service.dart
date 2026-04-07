@@ -227,7 +227,7 @@ class MesseService {
               print('📊 ${partitionsList.length} partition(s) reçue(s) (pas de filtrage par sectionName)');
             }
             
-            // Utiliser l'adaptateur pour convertir les partitions en chants
+          // Utiliser l'adaptateur pour convertir les partitions en chants
             // IMPORTANT: Passer sectionId pour que les chants soient correctement associés à leur section
             // Le sectionId est l'ID de la référence générée, pas le messeId (rubrique_section_id)
             List<ChantDeMesse> chants = BackendAdapter.partitionsToChantsDeMesse(filteredPartitions, sectionId: sectionId);
@@ -240,14 +240,14 @@ class MesseService {
                 chants[i] = chants[i].copyWith(sectionId: sectionId);
               }
             }
-            
+          
             // Sauvegarder les chants dans le cache unifié (en mettant à jour les existants)
             // Utiliser updateChant pour chaque chant pour éviter d'écraser les autres sections
             for (var chant in chants) {
               await UnifiedCacheService.updateChant(chant);
             }
-            
-            return ApiResponse<List<ChantDeMesse>>(data: chants);
+          
+          return ApiResponse<List<ChantDeMesse>>(data: chants);
           } else {
             print('⚠️ Aucune partition dans la réponse (data est null ou vide)');
             return ApiResponse<List<ChantDeMesse>>(data: []);

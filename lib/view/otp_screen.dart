@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/models/user.dart';
 import 'package:voxbox/services/auth_service.dart';
+import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/view/complete_profile_screen.dart';
 import 'package:voxbox/view/home.dart';
 import 'package:voxbox/view/pending_approval_screen.dart';
@@ -126,10 +127,11 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
     String otp = _otpControllers.map((controller) => controller.text).join();
 
     if (otp.length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Veuillez saisir le code OTP complet (6 chiffres)'),
-        backgroundColor: Colors.orange
-      ));
+      ToastService.warning(
+        context,
+        'Veuillez saisir le code OTP complet (6 chiffres)',
+        title: 'Code incomplet'
+      );
       return;
     }
 
@@ -230,30 +232,27 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
         if (response.error?.contains('Code OTP incorrect') == true ||
             response.error?.contains('expiré') == true) {
           // Code incorrect ou expiré
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(response.error ?? 'Code OTP incorrect'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ));
+          ToastService.error(
+            context,
+            response.error ?? 'Code OTP incorrect ou expiré',
+            title: 'Code invalide'
+          );
         } else if (response.error?.contains('Trop de tentatives') == true) {
           // Trop de tentatives
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(response.error!),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 4),
-            action: SnackBarAction(
-              label: 'Renvoyer',
-              textColor: Colors.white,
-              onPressed: () => _resendOTP(),
-            ),
-          ));
+          ToastService.warning(
+            context,
+            response.error!,
+            title: 'Limite atteinte'
+          );
+          // Relancer le countdown automatiquement
+          _startCountdown();
         } else {
           // Autre erreur
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(response.error ?? 'Erreur de vérification'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ));
+          ToastService.error(
+            context,
+            response.error ?? 'Erreur de vérification',
+            title: 'Erreur'
+          );
         }
       }
 
@@ -266,10 +265,11 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Erreur: $e'),
-        backgroundColor: Colors.red
-      ));
+      ToastService.error(
+        context,
+        'Erreur inattendue: $e',
+        title: 'Erreur système'
+      );
     }
   }
 
@@ -297,10 +297,11 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
 
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Code OTP renvoyé !'),
-          backgroundColor: Colors.green
-        ));
+        ToastService.success(
+          context,
+          'Un nouveau code OTP a été envoyé',
+          title: 'Code renvoyé'
+        );
 
         _startCountdown();
       } else {
@@ -314,11 +315,11 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
 
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(response.error ?? 'Erreur lors du renvoi du code'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ));
+        ToastService.error(
+          context,
+          response.error ?? 'Erreur lors du renvoi du code',
+          title: 'Échec du renvoi'
+        );
       }
 
     } catch (e) {
@@ -332,10 +333,11 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Erreur: $e'),
-        backgroundColor: Colors.red
-      ));
+      ToastService.error(
+        context,
+        'Erreur lors du renvoi: $e',
+        title: 'Erreur système'
+      );
     }
   }
 
@@ -604,6 +606,18 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
             
             // Loading indicator
             if (loading) _buildLoadingIndicator(),
+
+            // Bouton pour fermer tous les toasts
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () => ToastService.dismissAll(),
+              icon: const Icon(Icons.clear_all, size: 18),
+              label: const Text('Fermer les notifications'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.grey[600],
+                textStyle: const TextStyle(fontSize: 14),
+              ),
+            ),
           ],
         ),
       ),

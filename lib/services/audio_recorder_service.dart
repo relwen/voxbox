@@ -34,39 +34,93 @@ class AudioRecorderService {
   /// Demande les permissions nécessaires
   Future<bool> requestPermissions() async {
     try {
-      // Demander la permission microphone (obligatoire)
+      // Vérifier d'abord le statut actuel de la permission
+      final currentStatus = await Permission.microphone.status;
+      debugPrint('Permissions - Statut actuel du microphone: $currentStatus');
+      
+      // Si la permission est déjà accordée, retourner true
+      if (currentStatus.isGranted) {
+        debugPrint('✅ Permission microphone déjà accordée');
+        return true;
+      }
+      
+      // Si la permission est refusée de manière permanente, on ne peut pas la demander à nouveau
+      if (currentStatus.isPermanentlyDenied) {
+        debugPrint('❌ Permission microphone refusée de manière permanente');
+        throw Exception('Permission microphone refusée de manière permanente. Veuillez l\'activer dans les paramètres de l\'application.');
+      }
+      
+      // Demander la permission microphone
       final microphoneStatus = await Permission.microphone.request();
       
-      debugPrint('Permissions - Microphone: $microphoneStatus');
+      debugPrint('Permissions - Microphone après demande: $microphoneStatus');
       
       // Pour l'enregistrement audio, seule la permission microphone est nécessaire
       // Le stockage interne de l'application ne nécessite pas de permission
-      return microphoneStatus.isGranted;
+      if (microphoneStatus.isGranted) {
+        debugPrint('✅ Permission microphone accordée');
+        return true;
+      } else if (microphoneStatus.isPermanentlyDenied) {
+        debugPrint('❌ Permission microphone refusée de manière permanente');
+        throw Exception('Permission microphone refusée. Veuillez l\'activer dans les paramètres de l\'application.');
+      } else {
+        debugPrint('⚠️ Permission microphone refusée');
+        return false;
+      }
     } catch (e) {
       debugPrint('Erreur lors de la demande de permissions: $e');
-      return false;
+      rethrow;
     }
   }
 
   /// Vérifie si les permissions sont accordées
   Future<bool> hasPermissions() async {
     try {
-      final microphonePermission = await Permission.microphone.isGranted;
+      final microphoneStatus = await Permission.microphone.status;
       
-      debugPrint('Permissions actuelles - Microphone: $microphonePermission');
+      debugPrint('Permissions actuelles - Microphone: $microphoneStatus');
       
       // Pour l'enregistrement audio, seule la permission microphone est nécessaire
       // Le stockage interne de l'application ne nécessite pas de permission
-      return microphonePermission;
+      return microphoneStatus.isGranted;
     } catch (e) {
       debugPrint('Erreur lors de la vérification des permissions: $e');
       return false;
     }
   }
-
+  
+  /// Vérifie si la permission est refusée de manière permanente
+  Future<bool> isPermissionPermanentlyDenied() async {
+    try {
+      final microphoneStatus = await Permission.microphone.status;
+      return microphoneStatus.isPermanentlyDenied;
+    } catch (e) {
+      debugPrint('Erreur lors de la vérification du statut permanent: $e');
+      return false;
+    }
+  }
+  
   /// Initialise l'enregistreur
   Future<void> _initializeRecorder() async {
-    await _audioRecorder.openRecorder();
+    try {
+      debugPrint('🔧 Ouverture de l\'enregistreur...');
+      await _audioRecorder.openRecorder();
+      debugPrint('✅ Enregistreur ouvert avec succès');
+    } catch (e) {
+      debugPrint('❌ Erreur lors de l\'ouverture de l\'enregistreur: $e');
+      // Sur iOS, il peut y avoir des problèmes si l'enregistreur est déjà ouvert
+      // Essayer de fermer puis rouvrir
+      try {
+        debugPrint('🔄 Tentative de fermeture puis réouverture...');
+        await _audioRecorder.closeRecorder();
+        await Future.delayed(const Duration(milliseconds: 100));
+        await _audioRecorder.openRecorder();
+        debugPrint('✅ Enregistreur réouvert avec succès');
+      } catch (e2) {
+        debugPrint('❌ Erreur lors de la réouverture: $e2');
+        rethrow;
+      }
+    }
   }
 
   /// Réinitialise l'état de l'enregistrement (force l'arrêt si nécessaire)
@@ -108,9 +162,26 @@ class AudioRecorderService {
       debugPrint('🔐 Vérification des permissions...');
       if (!await hasPermissions()) {
         debugPrint('⚠️ Permissions non accordées, demande en cours...');
-        if (!await requestPermissions()) {
-          debugPrint('❌ Permission microphone refusée par l\'utilisateur');
-          throw Exception('Permission microphone requise. Veuillez autoriser l\'accès au microphone dans les paramètres de l\'application.');
+        try {
+          final granted = await requestPermissions();
+          if (!granted) {
+            // Vérifier si la permission est refusée de manière permanente
+            if (await isPermissionPermanentlyDenied()) {
+              debugPrint('❌ Permission microphone refusée de manière permanente');
+              throw Exception('Permission microphone refusée de manière permanente. Veuillez l\'activer dans les paramètres de l\'application (Réglages > Voxbox > Microphone).');
+            } else {
+              debugPrint('❌ Permission microphone refusée par l\'utilisateur');
+              throw Exception('Permission microphone requise. Veuillez autoriser l\'accès au microphone pour utiliser cette fonctionnalité.');
+            }
+          }
+        } catch (e) {
+          // Si c'est déjà une Exception avec un message, la relancer
+          if (e is Exception) {
+            rethrow;
+          }
+          // Sinon, créer une nouvelle exception
+          debugPrint('❌ Erreur lors de la demande de permission: $e');
+          throw Exception('Impossible d\'accéder au microphone. Veuillez vérifier les permissions dans les paramètres de l\'application.');
         }
       }
       debugPrint('✅ Permissions accordées');

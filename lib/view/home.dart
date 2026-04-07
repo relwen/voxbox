@@ -44,8 +44,8 @@ class _MyHomePageState extends State<HomePage> {
         user = User.fromJson(userMap);
       });
       
-      // Vérifier si le profil est incomplet
-      if (user.isProfileIncomplete()) {
+      // Vérifier si le profil est incomplet (uniquement pour les utilisateurs connectés)
+      if (user.id != null && user.isProfileIncomplete()) {
         // Rediriger vers la complétion du profil
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.pushReplacement(
@@ -57,33 +57,8 @@ class _MyHomePageState extends State<HomePage> {
         });
       }
     } else {
-      // Si l'utilisateur n'est pas en cache, récupérer depuis l'API
-      try {
-        final response = await getUserInfo();
-        if (response.error == null && response.data != null) {
-          User fetchedUser = response.data as User;
-          await prefs.setString('user', jsonEncode(fetchedUser.toJson()));
-          
-          setState(() {
-            user = fetchedUser;
-          });
-          
-          // Vérifier si le profil est incomplet
-          if (fetchedUser.isProfileIncomplete()) {
-            // Rediriger vers la complétion du profil
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CompleteProfileScreen(user: fetchedUser),
-                ),
-              );
-            });
-          }
-        }
-      } catch (e) {
-        print('Erreur lors de la récupération de l\'utilisateur: $e');
-      }
+      // Mode Invité : l'utilisateur n'est pas en cache
+      print('ℹ️ Mode Invité activé');
     }
   }
 
@@ -269,6 +244,47 @@ class _MyHomePageState extends State<HomePage> {
   }
 
 
+  void _showLoginRequiredDialog(String action) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.lock_outline, color: AppConstance.primary),
+            const SizedBox(width: 10),
+            const Text('Connexion requise'),
+          ],
+        ),
+        content: Text(
+          'Veuillez vous connecter pour pouvoir $action. Souhaitez-vous vous connecter maintenant ?',
+          style: const TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Plus tard', style: TextStyle(color: Colors.grey[600])),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const Login()),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConstance.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Se connecter', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -367,7 +383,7 @@ class _MyHomePageState extends State<HomePage> {
                 // ),
                 // const SizedBox(height: 2),
                 Text(
-                  user.name ?? "Utilisateur",
+                  user.id == null ? "Invité" : (user.name ?? "Utilisateur"),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
@@ -382,7 +398,7 @@ class _MyHomePageState extends State<HomePage> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    user.voicePart ?? "Pupitre non défini",
+                    user.id == null ? "Accès limité" : (user.voicePart ?? "Pupitre non défini"),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -422,6 +438,10 @@ class _MyHomePageState extends State<HomePage> {
                 ),
                 child: IconButton(
                   onPressed: () {
+                    if (user.id == null) {
+                      _showLoginRequiredDialog('consulter votre profil');
+                      return;
+                    }
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const ProfileScreen()),
@@ -613,16 +633,17 @@ class _MyHomePageState extends State<HomePage> {
           // Deuxième ligne
           Row(
             children: [
-              _buildModernCard(
-                icon: Icons.multitrack_audio_rounded,
-                title: 'Chants',
-                subtitle: 'Répertoire',
-                gradient: true,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ChantsScreen()),
+              if (user.id != null)
+                _buildModernCard(
+                  icon: Icons.multitrack_audio_rounded,
+                  title: 'Chants',
+                  subtitle: 'Répertoire',
+                  gradient: true,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ChantsScreen()),
+                  ),
                 ),
-              ),
               _buildModernCard(
                 icon: Icons.create_rounded,
                 title: 'Créations',
@@ -633,6 +654,7 @@ class _MyHomePageState extends State<HomePage> {
                   MaterialPageRoute(builder: (_) => const RecordingsListScreen()),
                 ),
               ),
+              if (user.id == null) const Spacer(),
             ],
           ),
           

@@ -537,7 +537,7 @@ Future<ApiResponse> logout() async {
     // Récupérer le token depuis SharedPreferences
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('token');
-    
+
     if (token == null) {
       apiResponse.error = 'Token non disponible';
       return apiResponse;
@@ -561,6 +561,78 @@ Future<ApiResponse> logout() async {
     }
   } catch (e) {
     apiResponse.error = "Erreur de connexion";
+  }
+
+  return apiResponse;
+}
+
+// Service pour supprimer le compte utilisateur
+Future<ApiResponse> deleteAccount() async {
+  ApiResponse apiResponse = ApiResponse();
+
+  try {
+    // Récupérer le token depuis SharedPreferences
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('token');
+
+    if (token == null) {
+      apiResponse.error = 'Token non disponible';
+      return apiResponse;
+    }
+
+    print('🔄 Suppression du compte utilisateur...');
+    print('🌐 URL: ${AppConstance.baseURL}/api/delete-account');
+
+    final response = await http.delete(
+      Uri.parse('${AppConstance.baseURL}/api/delete-account'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('📡 Status Code: ${response.statusCode}');
+    print('📄 Response Body: ${response.body}');
+
+    switch (response.statusCode) {
+      case 200:
+        final responseData = jsonDecode(response.body);
+        print('✅ Réponse 200 reçue');
+        if (responseData['success'] == true) {
+          // Supprimer le token et les données utilisateur
+          AppConstance.token = null;
+          await prefs.remove('token');
+          await prefs.remove('user');
+          await prefs.remove('chorale_id');
+          await prefs.remove('chorale_name');
+          await prefs.setBool('isConnected', false);
+
+          apiResponse.data = responseData['message'] ?? 'Compte supprimé avec succès';
+          print('🎉 Compte supprimé avec succès!');
+        } else {
+          apiResponse.error = responseData['message'];
+          print('❌ Erreur: ${responseData['message']}');
+        }
+        break;
+      case 401:
+        apiResponse.error = 'Non autorisé - Token invalide';
+        print('❌ Erreur 401: Token invalide');
+        break;
+      case 403:
+        apiResponse.error = 'Accès refusé';
+        print('❌ Erreur 403: Accès refusé');
+        break;
+      case 404:
+        apiResponse.error = 'Utilisateur non trouvé';
+        print('❌ Erreur 404: Utilisateur non trouvé');
+        break;
+      default:
+        apiResponse.error = "Erreur serveur (${response.statusCode})";
+        print('❌ Erreur ${response.statusCode}: ${response.body}');
+    }
+  } catch (e) {
+    apiResponse.error = "Erreur de connexion: $e";
+    print('💥 Exception: $e');
   }
 
   return apiResponse;

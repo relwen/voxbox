@@ -220,9 +220,9 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
         print('❌ Erreur lors du chargement: ${response.error}');
         // Si erreur mais qu'on a des chants en cache, les garder
         if (cachedChants.isEmpty) {
-          setState(() {
-            loading = false;
-          });
+        setState(() {
+          loading = false;
+        });
           ToastService.error(
             context,
             'Erreur: ${response.error}',
@@ -273,8 +273,8 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
       context,
       MaterialPageRoute(
         builder: (context) => AddFilesToMesseSectionScreen(section: widget.section),
-      ),
-    );
+        ),
+      );
 
     // Si des fichiers ont été ajoutés, recharger les chants
     if (result == true) {
@@ -376,11 +376,11 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
       print('⚠️ Aucun fichier spécifique trouvé pour pupitre $pupitreNom, utilisation des fichiers généraux');
       for (var chant in chants) {
         if (chant.audioFiles != null && chant.audioFiles!.isNotEmpty) {
-          files.addAll(chant.audioUrls);
+        files.addAll(chant.audioUrls);
         } else if (chant.audioPath != null && chant.audioUrl != null) {
-          files.add(chant.audioUrl!);
-        }
+        files.add(chant.audioUrl!);
       }
+    }
     } else if (files.isNotEmpty) {
       print('✅ ${files.length} fichier(s) spécifique(s) trouvé(s) pour pupitre $pupitreNom');
     } else {
@@ -431,7 +431,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
             icon: const Icon(Icons.add, color: Colors.white),
             onPressed: () => _openAddFilesScreen(),
             tooltip: 'Ajouter des fichiers',
-          ),
+            ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: syncing ? null : _syncChants,
@@ -584,7 +584,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
             ),
           
           if (pdfFiles.isNotEmpty && (imageFiles.isNotEmpty || textFiles.isNotEmpty))
-            const SizedBox(height: 16),
+          const SizedBox(height: 16),
           
           // Fichiers Images
           if (imageFiles.isNotEmpty)
@@ -837,30 +837,30 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
           setState(() {
             _downloadingFiles[file] = true;
           });
-          
+
           localPath = await LocalFileService.downloadFile(fileUrl);
-          
+
           setState(() {
             _downloadingFiles[file] = false;
           });
-          
+
           if (localPath == null) {
             throw Exception('Impossible de télécharger le fichier');
           }
-          
+
           // Mettre à jour le statut
           final newStatus = await LocalFileService.getFileStatus(fileUrl);
           setState(() {
             _fileStatuses[file] = newStatus;
           });
         }
-        
+
         // Vérifier que le fichier existe
         final localFile = File(localPath);
         if (!await localFile.exists()) {
           throw Exception('Le fichier n\'existe pas: ${localPath.split('/').last}');
         }
-        
+
         // Ouvrir le fichier selon son type avec le chemin local (comme dans recordings_history)
         if (isAudio) {
           _playAudioLocal(localPath);
@@ -880,7 +880,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
           ToastService.error(
             context,
             'Erreur: ${e.toString()}',
-            duration: const Duration(seconds: 5),
+              duration: const Duration(seconds: 5),
           );
         }
       }
@@ -933,11 +933,11 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
                 },
               )
             else
-              Icon(
-                isAudio ? Icons.audiotrack : (isPdf ? Icons.picture_as_pdf : Icons.image),
-                color: color,
-                size: 24,
-              ),
+            Icon(
+              isAudio ? Icons.audiotrack : (isPdf ? Icons.picture_as_pdf : Icons.image),
+              color: color,
+              size: 24,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -1079,7 +1079,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
       
       // Ouvrir le PDF avec PdfService
       if (mounted) {
-        await PdfService.showPdfOptions(localPath, context);
+          await PdfService.showPdfOptions(localPath, context);
       }
     } catch (e) {
       print('❌ Erreur lors de l\'ouverture du PDF: $e');
@@ -1115,7 +1115,7 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
             ),
           ),
         );
-      }
+        }
     } catch (e) {
       print('❌ Erreur lors de l\'ouverture de l\'image: $e');
       if (mounted) {
@@ -1164,9 +1164,9 @@ class ImageViewerScreen extends StatelessWidget {
       ),
       body: Center(
         child: _buildImageWidget(),
-      ),
-    );
-  }
+          ),
+        );
+      }
 
   Widget _buildImageWidget() {
     // Toujours utiliser Image.file car l'image est téléchargée localement avant d'être affichée

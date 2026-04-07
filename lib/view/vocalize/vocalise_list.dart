@@ -33,33 +33,19 @@ class _VocaliseListScreenState extends State<VocaliseListScreen> {
     });
 
     try {
-      print('🔄 Chargement des vocalises pour la section ${widget.section.id} (${widget.section.nom})');
       var response = await VocaliseService.getVocalisesBySection(widget.section.id);
-      
       if (response.error == null) {
-        if (response.data != null) {
-          final loadedVocalises = response.data as List<Vocalise>;
-          print('✅ ${loadedVocalises.length} vocalise(s) chargée(s)');
-          setState(() {
-            vocalises = loadedVocalises;
-            loading = false;
-          });
-        } else {
-          print('⚠️ Aucune vocalise retournée (data est null)');
-          setState(() {
-            vocalises = [];
-            loading = false;
-          });
-        }
+        setState(() {
+          vocalises = response.data as List<Vocalise>;
+          loading = false;
+        });
       } else {
-        print('❌ Erreur lors du chargement: ${response.error}');
         setState(() {
           loading = false;
         });
       }
-    } catch (e, stackTrace) {
-      print('❌ Exception lors du chargement des vocalises: $e');
-      print('📚 Stack: $stackTrace');
+    } catch (e) {
+      print('Erreur lors du chargement des vocalises: $e');
       setState(() {
         loading = false;
       });

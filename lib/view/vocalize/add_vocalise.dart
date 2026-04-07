@@ -129,85 +129,85 @@ class _AddVocaliseScreenState extends State<AddVocaliseScreen> {
       body: _loadingData
           ? Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: EdgeInsets.all(16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Informations de base
-                    _buildSectionTitle('Informations de base'),
-                    SizedBox(height: 16),
-                    
-                    // Titre
-                    TextFormField(
-                      controller: _titleController,
-                      decoration: InputDecoration(
-                        labelText: 'Titre de la vocalise',
-                        hintText: 'Ex: Échauffement Soprane - Do Ré Mi',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        prefixIcon: Icon(Icons.music_note),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Le titre est requis';
-                        }
-                        return null;
-                      },
-                    ),
-                    
-                    SizedBox(height: 16),
-                    
-                    // Description
-                    TextFormField(
-                      controller: _descriptionController,
-                      decoration: InputDecoration(
-                        labelText: 'Description (optionnel)',
-                        hintText: 'Description de l\'exercice...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        prefixIcon: Icon(Icons.description),
-                      ),
-                      maxLines: 3,
-                    ),
-                    
-                    SizedBox(height: 24),
-                    
-                    // Classification
-                    _buildSectionTitle('Classification'),
-                    SizedBox(height: 16),
-                    
+        padding: EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Informations de base
+              _buildSectionTitle('Informations de base'),
+              SizedBox(height: 16),
+              
+              // Titre
+              TextFormField(
+                controller: _titleController,
+                decoration: InputDecoration(
+                  labelText: 'Titre de la vocalise',
+                  hintText: 'Ex: Échauffement Soprane - Do Ré Mi',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  prefixIcon: Icon(Icons.music_note),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Le titre est requis';
+                  }
+                  return null;
+                },
+              ),
+              
+              SizedBox(height: 16),
+              
+              // Description
+              TextFormField(
+                controller: _descriptionController,
+                decoration: InputDecoration(
+                  labelText: 'Description (optionnel)',
+                  hintText: 'Description de l\'exercice...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  prefixIcon: Icon(Icons.description),
+                ),
+                maxLines: 3,
+              ),
+              
+              SizedBox(height: 24),
+              
+              // Classification
+              _buildSectionTitle('Classification'),
+              SizedBox(height: 16),
+              
                     // Pupitre
                     DropdownButtonFormField<int>(
                       value: _selectedPupitreId,
-                      decoration: InputDecoration(
+                decoration: InputDecoration(
                         labelText: 'Pupitre',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        prefixIcon: Icon(Icons.record_voice_over),
-                      ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  prefixIcon: Icon(Icons.record_voice_over),
+                ),
                       items: _pupitres.map((pupitre) {
                         return DropdownMenuItem<int>(
                           value: pupitre.id,
                           child: Text(pupitre.nom),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
                           _selectedPupitreId = value;
-                        });
-                      },
+                  });
+                },
                       validator: (value) {
                         if (value == null) {
                           return 'Veuillez sélectionner un pupitre';
                         }
                         return null;
-                      },
-                    ),
+                },
+              ),
               
               SizedBox(height: 24),
               

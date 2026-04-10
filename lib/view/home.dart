@@ -4,18 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/models/user.dart';
-import 'package:voxbox/view/actualites/actualites.dart';
+import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/view/chants/chants.dart';
+import 'package:voxbox/view/complete_profile_screen.dart';
 import 'package:voxbox/view/creations/quick_record_screen.dart';
 import 'package:voxbox/view/creations/recordings_list_screen.dart';
-import 'package:voxbox/view/exercises/exercises.dart';
+import 'package:voxbox/view/login.dart';
 import 'package:voxbox/view/messes/messes.dart';
 import 'package:voxbox/view/profile.dart';
-import 'package:voxbox/view/vocalize/vocalize.dart';
-import 'package:voxbox/view/complete_profile_screen.dart';
 import 'package:voxbox/view/search_results_screen.dart';
-import 'package:voxbox/services/auth_service.dart';
-import 'package:voxbox/services/toast_service.dart';
+import 'package:voxbox/view/vocalize/vocalize.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -43,7 +41,7 @@ class _MyHomePageState extends State<HomePage> {
       setState(() {
         user = User.fromJson(userMap);
       });
-      
+
       // Vérifier si le profil est incomplet (uniquement pour les utilisateurs connectés)
       if (user.id != null && user.isProfileIncomplete()) {
         // Rediriger vers la complétion du profil
@@ -186,14 +184,16 @@ class _MyHomePageState extends State<HomePage> {
                         return;
                       }
 
-                      debugPrint('✅ Fermeture du dialog et navigation vers les résultats');
+                      debugPrint(
+                          '✅ Fermeture du dialog et navigation vers les résultats');
                       Navigator.of(context).pop();
 
                       // Navigation vers les résultats
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => SearchResultsScreen(query: query),
+                          builder: (context) =>
+                              SearchResultsScreen(query: query),
                         ),
                       );
                     },
@@ -224,7 +224,6 @@ class _MyHomePageState extends State<HomePage> {
     );
   }
 
-
   void _performSearch(String query) {
     if (query.trim().isEmpty) {
       ToastService.warning(
@@ -242,7 +241,6 @@ class _MyHomePageState extends State<HomePage> {
       ),
     );
   }
-
 
   void _showLoginRequiredDialog(String action) {
     showDialog(
@@ -275,15 +273,16 @@ class _MyHomePageState extends State<HomePage> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppConstance.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Se connecter', style: TextStyle(color: Colors.white)),
+            child: const Text('Se connecter',
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -356,9 +355,13 @@ class _MyHomePageState extends State<HomePage> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
-                colors: [Colors.white.withOpacity(0.3), Colors.white.withOpacity(0.1)],
+                colors: [
+                  Colors.white.withOpacity(0.3),
+                  Colors.white.withOpacity(0.1)
+                ],
               ),
-              border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+              border:
+                  Border.all(color: Colors.white.withOpacity(0.3), width: 2),
             ),
             child: Icon(
               Icons.account_circle,
@@ -367,7 +370,7 @@ class _MyHomePageState extends State<HomePage> {
             ),
           ),
           const SizedBox(width: 15),
-          
+
           // Informations utilisateur
           Expanded(
             child: Column(
@@ -392,13 +395,16 @@ class _MyHomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 2),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    user.id == null ? "Accès limité" : (user.voicePart ?? "Pupitre non défini"),
+                    user.id == null
+                        ? "Accès limité"
+                        : (user.voicePart ?? "Pupitre non défini"),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -409,7 +415,7 @@ class _MyHomePageState extends State<HomePage> {
               ],
             ),
           ),
-          
+
           // Boutons d'action
           Row(
             children: [
@@ -429,7 +435,7 @@ class _MyHomePageState extends State<HomePage> {
                 ),
               ),
               const SizedBox(width: 8),
-              
+
               // Bouton de profil
               Container(
                 decoration: BoxDecoration(
@@ -444,7 +450,8 @@ class _MyHomePageState extends State<HomePage> {
                     }
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                      MaterialPageRoute(
+                          builder: (context) => const ProfileScreen()),
                     );
                   },
                   icon: const Icon(
@@ -461,18 +468,39 @@ class _MyHomePageState extends State<HomePage> {
     );
   }
 
-
-
-
   Widget _buildSelectionDuJour() {
     // Liste des partitions disponibles pour la sélection du jour
     final partitionsDuJour = [
-      {'titre': 'Kyrié Eleison', 'icon': Icons.church_rounded, 'color': Colors.blue},
-      {'titre': 'Gloria in Excelsis', 'icon': Icons.celebration_rounded, 'color': Colors.green},
-      {'titre': 'Ave Maria', 'icon': Icons.favorite_rounded, 'color': Colors.pink},
-      {'titre': 'Vocalise N°1', 'icon': Icons.music_note_rounded, 'color': Colors.orange},
-      {'titre': 'Sanctus', 'icon': Icons.cloud_queue_rounded, 'color': Colors.purple},
-      {'titre': 'Agnus Dei', 'icon': Icons.self_improvement_rounded, 'color': Colors.teal},
+      {
+        'titre': 'Kyrié Eleison',
+        'icon': Icons.church_rounded,
+        'color': Colors.blue
+      },
+      {
+        'titre': 'Gloria in Excelsis',
+        'icon': Icons.celebration_rounded,
+        'color': Colors.green
+      },
+      {
+        'titre': 'Ave Maria',
+        'icon': Icons.favorite_rounded,
+        'color': Colors.pink
+      },
+      {
+        'titre': 'Vocalise N°1',
+        'icon': Icons.music_note_rounded,
+        'color': Colors.orange
+      },
+      {
+        'titre': 'Sanctus',
+        'icon': Icons.cloud_queue_rounded,
+        'color': Colors.purple
+      },
+      {
+        'titre': 'Agnus Dei',
+        'icon': Icons.self_improvement_rounded,
+        'color': Colors.teal
+      },
     ];
 
     // Sélection aléatoire basée sur la date du jour
@@ -513,9 +541,9 @@ class _MyHomePageState extends State<HomePage> {
               size: 20,
             ),
           ),
-          
+
           const SizedBox(width: 12),
-          
+
           // Contenu
           Expanded(
             child: Column(
@@ -540,7 +568,7 @@ class _MyHomePageState extends State<HomePage> {
               ],
             ),
           ),
-          
+
           // Bouton play
           Container(
             decoration: BoxDecoration(
@@ -591,7 +619,7 @@ class _MyHomePageState extends State<HomePage> {
             // Sélection du jour
             // _buildSelectionDuJour(),
             // const SizedBox(height: 30),
-            
+
             const Text(
               'Menu Principal',
               style: TextStyle(
@@ -601,90 +629,108 @@ class _MyHomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(height: 20),
-          
-          // Première ligne
-          Row(
-            children: [
-              _buildModernCard(
-                icon: Icons.switch_access_shortcut_add_rounded,
-                title: 'Vocalises',
-                subtitle: 'Exercices vocaux',
-                gradient: true,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const VocaliseScreen()),
+
+            // Première ligne
+            Row(
+              children: [
+                _buildModernCard(
+                  icon: Icons.switch_access_shortcut_add_rounded,
+                  title: 'Vocalises',
+                  subtitle: 'Exercices vocaux',
+                  gradient: true,
+                  onTap: () {
+                    if (user.id == null) {
+                      _showLoginRequiredDialog('accéder aux vocalises');
+                      return;
+                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const VocaliseScreen()),
+                    );
+                  },
                 ),
-              ),
-              _buildModernCard(
-                icon: Icons.church_rounded,
-                title: 'Messes',
-                subtitle: 'Célébrations',
-                gradient: false,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const MessesScreen()),
+                _buildModernCard(
+                  icon: Icons.church_rounded,
+                  title: 'Messes',
+                  subtitle: 'Célébrations',
+                  gradient: false,
+                  onTap: () {
+                    if (user.id == null) {
+                      _showLoginRequiredDialog('accéder aux messes');
+                      return;
+                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MessesScreen()),
+                    );
+                  },
                 ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 12),
-          
-          // Deuxième ligne
-          Row(
-            children: [
-              if (user.id != null)
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Deuxième ligne
+            Row(
+              children: [
                 _buildModernCard(
                   icon: Icons.multitrack_audio_rounded,
                   title: 'Chants',
                   subtitle: 'Répertoire',
                   gradient: true,
+                  onTap: () {
+                    if (user.id == null) {
+                      _showLoginRequiredDialog(
+                          'accéder au répertoire de chants');
+                      return;
+                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ChantsScreen()),
+                    );
+                  },
+                ),
+                _buildModernCard(
+                  icon: Icons.create_rounded,
+                  title: 'Créations',
+                  subtitle: 'Compositions',
+                  gradient: false,
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const ChantsScreen()),
+                    MaterialPageRoute(
+                        builder: (_) => const RecordingsListScreen()),
                   ),
                 ),
-              _buildModernCard(
-                icon: Icons.create_rounded,
-                title: 'Créations',
-                subtitle: 'Compositions',
-                gradient: false,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const RecordingsListScreen()),
-                ),
-              ),
-              if (user.id == null) const Spacer(),
-            ],
-          ),
-          
-          const SizedBox(height: 12),
-          
-          // Troisième ligne
-          // Row(
-          //   children: [
-          //     _buildModernCard(
-          //       icon: Icons.fitness_center_rounded,
-          //       title: 'Exercices',
-          //       subtitle: 'Entraînement',
-          //       gradient: false,
-          //       onTap: () => Navigator.push(
-          //         context,
-          //         MaterialPageRoute(builder: (_) => const ExercisesScreen()),
-          //       ),
-          //     ),
-          //     _buildModernCard(
-          //       icon: Icons.newspaper_rounded,
-          //       title: 'Actualités',
-          //       subtitle: 'Dernières infos',
-          //       gradient: true,
-          //       onTap: () => Navigator.push(
-          //         context,
-          //         MaterialPageRoute(builder: (_) => const ActualitesScreen()),
-          //       ),
-          //     ),
-          //   ],
-          // ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Troisième ligne
+            // Row(
+            //   children: [
+            //     _buildModernCard(
+            //       icon: Icons.fitness_center_rounded,
+            //       title: 'Exercices',
+            //       subtitle: 'Entraînement',
+            //       gradient: false,
+            //       onTap: () => Navigator.push(
+            //         context,
+            //         MaterialPageRoute(builder: (_) => const ExercisesScreen()),
+            //       ),
+            //     ),
+            //     _buildModernCard(
+            //       icon: Icons.newspaper_rounded,
+            //       title: 'Actualités',
+            //       subtitle: 'Dernières infos',
+            //       gradient: true,
+            //       onTap: () => Navigator.push(
+            //         context,
+            //         MaterialPageRoute(builder: (_) => const ActualitesScreen()),
+            //       ),
+            //     ),
+            //   ],
+            // ),
           ],
         ),
       ),
@@ -700,11 +746,11 @@ class _MyHomePageState extends State<HomePage> {
   }) {
     // Couleurs d'accent pour chaque type de card
     Color accentColor = gradient ? AppConstance.primary : Colors.grey.shade600;
-    
+
     // Tailles dynamiques basées sur MediaQuery
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    
+
     // Calculer les tailles en fonction de l'écran
     final cardHeight = screenWidth * 0.34; // 18% de la hauteur d'écran
     final iconSize = screenWidth * 0.10; // 12% de la largeur d'écran
@@ -714,7 +760,7 @@ class _MyHomePageState extends State<HomePage> {
     final padding = screenWidth * 0.02; // 4% de la largeur d'écran
     final margin = screenWidth * 0.01; // 1% de la largeur d'écran
     final borderRadius = screenWidth * 0.05; // 5% de la largeur d'écran
-    
+
     return Expanded(
       child: Container(
         height: cardHeight,
@@ -723,12 +769,14 @@ class _MyHomePageState extends State<HomePage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(borderRadius),
           border: Border.all(
-            color: gradient ? AppConstance.primary.withOpacity(0.2) : Colors.grey.shade100,
+            color: gradient
+                ? AppConstance.primary.withOpacity(0.2)
+                : Colors.grey.shade100,
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: gradient 
+              color: gradient
                   ? AppConstance.primary.withOpacity(0.1)
                   : Colors.black.withOpacity(0.05),
               blurRadius: 15,
@@ -775,8 +823,10 @@ class _MyHomePageState extends State<HomePage> {
                       size: iconSize,
                     ),
                   ),
-                  SizedBox(height: screenHeight * 0.012), // 1.2% de la hauteur d'écran
-                  
+                  SizedBox(
+                      height:
+                          screenHeight * 0.012), // 1.2% de la hauteur d'écran
+
                   // Titre
                   Text(
                     title,
@@ -790,8 +840,10 @@ class _MyHomePageState extends State<HomePage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  SizedBox(height: screenHeight * 0.005), // 0.5% de la hauteur d'écran
-                  
+                  SizedBox(
+                      height:
+                          screenHeight * 0.005), // 0.5% de la hauteur d'écran
+
                   // Sous-titre
                   Text(
                     subtitle,
@@ -805,10 +857,12 @@ class _MyHomePageState extends State<HomePage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  
+
                   // Indicateur de gradient (petit point)
                   if (gradient) ...[
-                    SizedBox(height: screenHeight * 0.007), // 0.7% de la hauteur d'écran
+                    SizedBox(
+                        height:
+                            screenHeight * 0.007), // 0.7% de la hauteur d'écran
                     Container(
                       width: screenWidth * 0.015, // 1.5% de la largeur d'écran
                       height: screenWidth * 0.015, // 1.5% de la largeur d'écran
@@ -826,7 +880,6 @@ class _MyHomePageState extends State<HomePage> {
       ),
     );
   }
-
 }
 
 Offset calculatePosition(BuildContext context, String text, double iconSize) {

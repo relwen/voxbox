@@ -8,7 +8,8 @@ import 'package:path/path.dart' as path;
 import 'package:voxbox/services/audio_visualizer_service.dart';
 
 class AudioRecorderService {
-  static final AudioRecorderService _instance = AudioRecorderService._internal();
+  static final AudioRecorderService _instance =
+      AudioRecorderService._internal();
   factory AudioRecorderService() => _instance;
   AudioRecorderService._internal();
 
@@ -19,8 +20,10 @@ class AudioRecorderService {
   String? _currentRecordingPath;
   Timer? _recordingTimer;
   Duration _recordingDuration = Duration.zero;
-  StreamController<Duration> _durationController = StreamController<Duration>.broadcast();
-  StreamController<RecordingState> _stateController = StreamController<RecordingState>.broadcast();
+  StreamController<Duration> _durationController =
+      StreamController<Duration>.broadcast();
+  StreamController<RecordingState> _stateController =
+      StreamController<RecordingState>.broadcast();
 
   // Getters
   bool get isRecording => _isRecording;
@@ -37,24 +40,25 @@ class AudioRecorderService {
       // Vérifier d'abord le statut actuel de la permission
       final currentStatus = await Permission.microphone.status;
       debugPrint('Permissions - Statut actuel du microphone: $currentStatus');
-      
+
       // Si la permission est déjà accordée, retourner true
       if (currentStatus.isGranted) {
         debugPrint('✅ Permission microphone déjà accordée');
         return true;
       }
-      
+
       // Si la permission est refusée de manière permanente, on ne peut pas la demander à nouveau
       if (currentStatus.isPermanentlyDenied) {
         debugPrint('❌ Permission microphone refusée de manière permanente');
-        throw Exception('Permission microphone refusée de manière permanente. Veuillez l\'activer dans les paramètres de l\'application.');
+        throw Exception(
+            'Permission microphone refusée de manière permanente. Veuillez l\'activer dans les paramètres de l\'application.');
       }
-      
+
       // Demander la permission microphone
       final microphoneStatus = await Permission.microphone.request();
-      
+
       debugPrint('Permissions - Microphone après demande: $microphoneStatus');
-      
+
       // Pour l'enregistrement audio, seule la permission microphone est nécessaire
       // Le stockage interne de l'application ne nécessite pas de permission
       if (microphoneStatus.isGranted) {
@@ -62,7 +66,8 @@ class AudioRecorderService {
         return true;
       } else if (microphoneStatus.isPermanentlyDenied) {
         debugPrint('❌ Permission microphone refusée de manière permanente');
-        throw Exception('Permission microphone refusée. Veuillez l\'activer dans les paramètres de l\'application.');
+        throw Exception(
+            'Permission microphone refusée. Veuillez l\'activer dans les paramètres de l\'application.');
       } else {
         debugPrint('⚠️ Permission microphone refusée');
         return false;
@@ -77,9 +82,9 @@ class AudioRecorderService {
   Future<bool> hasPermissions() async {
     try {
       final microphoneStatus = await Permission.microphone.status;
-      
+
       debugPrint('Permissions actuelles - Microphone: $microphoneStatus');
-      
+
       // Pour l'enregistrement audio, seule la permission microphone est nécessaire
       // Le stockage interne de l'application ne nécessite pas de permission
       return microphoneStatus.isGranted;
@@ -88,7 +93,7 @@ class AudioRecorderService {
       return false;
     }
   }
-  
+
   /// Vérifie si la permission est refusée de manière permanente
   Future<bool> isPermissionPermanentlyDenied() async {
     try {
@@ -99,7 +104,7 @@ class AudioRecorderService {
       return false;
     }
   }
-  
+
   /// Initialise l'enregistreur
   Future<void> _initializeRecorder() async {
     try {
@@ -127,7 +132,8 @@ class AudioRecorderService {
   Future<void> resetRecordingState() async {
     try {
       if (_isRecording) {
-        debugPrint('🔄 Réinitialisation: arrêt de l\'enregistrement en cours...');
+        debugPrint(
+            '🔄 Réinitialisation: arrêt de l\'enregistrement en cours...');
         try {
           await _audioRecorder.stopRecorder();
         } catch (e) {
@@ -151,7 +157,7 @@ class AudioRecorderService {
   Future<bool> startRecording({String? fileName}) async {
     try {
       debugPrint('🎙️ Démarrage de l\'enregistrement...');
-      
+
       // Réinitialiser l'état si un enregistrement est en cours
       if (_isRecording) {
         debugPrint('⚠️ Enregistrement déjà en cours, réinitialisation...');
@@ -167,11 +173,14 @@ class AudioRecorderService {
           if (!granted) {
             // Vérifier si la permission est refusée de manière permanente
             if (await isPermissionPermanentlyDenied()) {
-              debugPrint('❌ Permission microphone refusée de manière permanente');
-              throw Exception('Permission microphone refusée de manière permanente. Veuillez l\'activer dans les paramètres de l\'application (Réglages > Voxbox > Microphone).');
+              debugPrint(
+                  '❌ Permission microphone refusée de manière permanente');
+              throw Exception(
+                  'Permission microphone refusée de manière permanente. Veuillez l\'activer dans les paramètres de l\'application (Réglages > Voxbox > Microphone).');
             } else {
               debugPrint('❌ Permission microphone refusée par l\'utilisateur');
-              throw Exception('Permission microphone requise. Veuillez autoriser l\'accès au microphone pour utiliser cette fonctionnalité.');
+              throw Exception(
+                  'Permission microphone requise. Veuillez autoriser l\'accès au microphone pour utiliser cette fonctionnalité.');
             }
           }
         } catch (e) {
@@ -181,7 +190,8 @@ class AudioRecorderService {
           }
           // Sinon, créer une nouvelle exception
           debugPrint('❌ Erreur lors de la demande de permission: $e');
-          throw Exception('Impossible d\'accéder au microphone. Veuillez vérifier les permissions dans les paramètres de l\'application.');
+          throw Exception(
+              'Impossible d\'accéder au microphone. Veuillez vérifier les permissions dans les paramètres de l\'application.');
         }
       }
       debugPrint('✅ Permissions accordées');
@@ -204,7 +214,7 @@ class AudioRecorderService {
 
       // Générer le nom de fichier
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final finalFileName = fileName ?? 'recording_$timestamp.aac';
+      final finalFileName = fileName ?? 'recording_$timestamp.m4a';
       _currentRecordingPath = path.join(recordingsDir.path, finalFileName);
       debugPrint('📄 Fichier d\'enregistrement: $_currentRecordingPath');
 
@@ -212,23 +222,24 @@ class AudioRecorderService {
       debugPrint('🎵 Démarrage de l\'enregistrement audio...');
       await _audioRecorder.startRecorder(
         toFile: _currentRecordingPath!,
-        codec: Codec.aacADTS,
+        codec: Codec.aacMP4,
         bitRate: 128000,
         sampleRate: 44100,
       );
 
-          _isRecording = true;
-          _isPaused = false;
-          _recordingDuration = Duration.zero;
-          _startDurationTimer();
-          _visualizerService.startVisualization();
-          _stateController.add(RecordingState.recording);
+      _isRecording = true;
+      _isPaused = false;
+      _recordingDuration = Duration.zero;
+      _startDurationTimer();
+      _visualizerService.startVisualization();
+      _stateController.add(RecordingState.recording);
 
-          debugPrint('✅ Enregistrement démarré avec succès');
-          return true;
+      debugPrint('✅ Enregistrement démarré avec succès');
+      return true;
     } catch (e) {
       debugPrint('❌ Erreur lors du démarrage de l\'enregistrement: $e');
-      return false;
+      if (e is Exception) rethrow;
+      throw Exception('Impossible de démarrer l\'enregistrement: $e');
     }
   }
 
@@ -237,13 +248,13 @@ class AudioRecorderService {
     try {
       if (!_isRecording || _isPaused) return false;
 
-          await _audioRecorder.pauseRecorder();
-          _isPaused = true;
-          _recordingTimer?.cancel();
-          _visualizerService.stopVisualization();
-          _stateController.add(RecordingState.paused);
+      await _audioRecorder.pauseRecorder();
+      _isPaused = true;
+      _recordingTimer?.cancel();
+      _visualizerService.stopVisualization();
+      _stateController.add(RecordingState.paused);
 
-          return true;
+      return true;
     } catch (e) {
       debugPrint('Erreur lors de la pause: $e');
       return false;
@@ -255,13 +266,13 @@ class AudioRecorderService {
     try {
       if (!_isRecording || !_isPaused) return false;
 
-          await _audioRecorder.resumeRecorder();
-          _isPaused = false;
-          _startDurationTimer();
-          _visualizerService.startVisualization();
-          _stateController.add(RecordingState.recording);
+      await _audioRecorder.resumeRecorder();
+      _isPaused = false;
+      _startDurationTimer();
+      _visualizerService.startVisualization();
+      _stateController.add(RecordingState.recording);
 
-          return true;
+      return true;
     } catch (e) {
       debugPrint('Erreur lors de la reprise: $e');
       return false;
@@ -273,14 +284,14 @@ class AudioRecorderService {
     try {
       if (!_isRecording) return null;
 
-          await _audioRecorder.stopRecorder();
-          _isRecording = false;
-          _isPaused = false;
-          _recordingTimer?.cancel();
-          _visualizerService.stopVisualization();
-          _stateController.add(RecordingState.stopped);
+      await _audioRecorder.stopRecorder();
+      _isRecording = false;
+      _isPaused = false;
+      _recordingTimer?.cancel();
+      _visualizerService.stopVisualization();
+      _stateController.add(RecordingState.stopped);
 
-          return _currentRecordingPath;
+      return _currentRecordingPath;
     } catch (e) {
       debugPrint('Erreur lors de l\'arrêt: $e');
       return null;
@@ -296,7 +307,7 @@ class AudioRecorderService {
       _isRecording = false;
       _isPaused = false;
       _recordingTimer?.cancel();
-      
+
       // Supprimer le fichier s'il existe
       if (_currentRecordingPath != null) {
         final file = File(_currentRecordingPath!);
@@ -304,13 +315,13 @@ class AudioRecorderService {
           await file.delete();
         }
       }
-      
-          _currentRecordingPath = null;
-          _recordingDuration = Duration.zero;
-          _visualizerService.stopVisualization();
-          _stateController.add(RecordingState.stopped);
 
-          return true;
+      _currentRecordingPath = null;
+      _recordingDuration = Duration.zero;
+      _visualizerService.stopVisualization();
+      _stateController.add(RecordingState.stopped);
+
+      return true;
     } catch (e) {
       debugPrint('Erreur lors de l\'annulation: $e');
       return false;
@@ -355,7 +366,8 @@ class AudioRecorderService {
   /// Démarre le timer de durée
   void _startDurationTimer() {
     _recordingTimer?.cancel();
-    _recordingTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+    _recordingTimer =
+        Timer.periodic(const Duration(milliseconds: 100), (timer) {
       if (_isRecording && !_isPaused) {
         _recordingDuration = Duration(
           milliseconds: _recordingDuration.inMilliseconds + 100,
@@ -370,7 +382,7 @@ class AudioRecorderService {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final recordingsDir = Directory(path.join(directory.path, 'recordings'));
-      
+
       if (!await recordingsDir.exists()) {
         return [];
       }
@@ -379,7 +391,8 @@ class AudioRecorderService {
       final recordings = <AudioRecording>[];
 
       for (final file in files) {
-        if (file is File && (file.path.endsWith('.aac') || file.path.endsWith('.m4a'))) {
+        if (file is File &&
+            (file.path.endsWith('.aac') || file.path.endsWith('.m4a'))) {
           final stat = await file.stat();
           recordings.add(AudioRecording(
             name: path.basename(file.path),
@@ -421,12 +434,12 @@ class AudioRecorderService {
       final oldFile = File(oldPath);
       if (!await oldFile.exists()) return false;
 
-          final directory = path.dirname(oldPath);
-          final extension = path.extension(oldPath);
-          final newPath = path.join(directory, '$newName$extension');
+      final directory = path.dirname(oldPath);
+      final extension = path.extension(oldPath);
+      final newPath = path.join(directory, '$newName$extension');
 
-          await oldFile.rename(newPath);
-          return true;
+      await oldFile.rename(newPath);
+      return true;
     } catch (e) {
       debugPrint('Erreur lors du renommage: $e');
       return false;

@@ -487,11 +487,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = MANCG9K23M;
 				ENABLE_BITCODE = NO;
-				FLUTTER_BUILD_NAME = 1.2.0;
-				FLUTTER_BUILD_NUMBER = 2;
+				FLUTTER_BUILD_NAME = 1.3.0;
+				FLUTTER_BUILD_NUMBER = 3;
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Voxy;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
@@ -499,7 +499,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2;
+				MARKETING_VERSION = 4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kuilingatech.voxbox.voxbox;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -675,11 +675,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = MANCG9K23M;
 				ENABLE_BITCODE = NO;
-				FLUTTER_BUILD_NAME = 1.2.0;
-				FLUTTER_BUILD_NUMBER = 2;
+				FLUTTER_BUILD_NAME = 1.3.0;
+				FLUTTER_BUILD_NUMBER = 3;
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Voxy;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
@@ -687,7 +687,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2;
+				MARKETING_VERSION = 4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kuilingatech.voxbox.voxbox;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -703,11 +703,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = MANCG9K23M;
 				ENABLE_BITCODE = NO;
-				FLUTTER_BUILD_NAME = 1.2.0;
-				FLUTTER_BUILD_NUMBER = 2;
+				FLUTTER_BUILD_NAME = 1.3.0;
+				FLUTTER_BUILD_NUMBER = 3;
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Voxy;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
@@ -715,7 +715,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2;
+				MARKETING_VERSION = 4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kuilingatech.voxbox.voxbox;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";

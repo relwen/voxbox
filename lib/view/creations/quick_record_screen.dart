@@ -110,7 +110,7 @@ class _QuickRecordScreenState extends State<QuickRecordScreen>
       } else {
         await _audioPlayer.startPlayer(
           fromURI: path,
-          codec: Codec.aacADTS,
+          codec: Codec.aacMP4,
           whenFinished: () {
             if (mounted) {
               setState(() {

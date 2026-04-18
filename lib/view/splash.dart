@@ -189,7 +189,7 @@ class _SplashScreenState extends State<SplashScreen>
         // Pas d'utilisateur - rediriger vers la connexion
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => Login()),
+          MaterialPageRoute(builder: (context) => const HomePage()),
         );
         return;
       }
@@ -248,7 +248,7 @@ class _SplashScreenState extends State<SplashScreen>
     } else {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => Login()),
+        MaterialPageRoute(builder: (context) => const HomePage()),
       );
     }
   }

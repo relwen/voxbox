@@ -176,7 +176,7 @@ class AudioRecorderService {
               debugPrint(
                   '❌ Permission microphone refusée de manière permanente');
               throw Exception(
-                  'Permission microphone refusée de manière permanente. Veuillez l\'activer dans les paramètres de l\'application (Réglages > Voxbox > Microphone).');
+                  'Permission microphone refusée de manière permanente. Veuillez l\'activer dans les paramètres de l\'application (Réglages > VoXY > Microphone).');
             } else {
               debugPrint('❌ Permission microphone refusée par l\'utilisateur');
               throw Exception(

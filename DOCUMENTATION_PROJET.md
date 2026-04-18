@@ -1,8 +1,8 @@
-# Voxy Box - Documentation du Projet
+# VoXY - Documentation du Projet
 
-## 📱 Qu'est-ce que Voxy Box ?
+## 📱 Qu'est-ce que VoXY ?
 
-**Voxy Box** est une application mobile conçue spécialement pour les chorales et leurs membres. Elle permet de centraliser, organiser et partager tous les éléments nécessaires à la pratique du chant choral : partitions musicales, enregistrements audio, vocalises d'échauffement, et bien plus encore.
+**VoXY** est une application mobile conçue spécialement pour les chorales et leurs membres. Elle permet de centraliser, organiser et partager tous les éléments nécessaires à la pratique du chant choral : partitions musicales, enregistrements audio, vocalises d'échauffement, et bien plus encore.
 
 L'application facilite la vie des choristes en leur donnant accès à tous leurs documents musicaux au bout des doigts, que ce soit pour répéter à la maison, apprendre de nouveaux morceaux, ou se préparer aux répétitions.
 
@@ -12,7 +12,7 @@ L'application facilite la vie des choristes en leur donnant accès à tous leurs
 
 ### Problème résolu
 
-Avant Voxy Box, les choristes devaient :
+Avant VoXY, les choristes devaient :
 - Gérer des piles de partitions papier
 - Partager des fichiers audio par email ou messagerie
 - Se coordonner manuellement pour distribuer les partitions
@@ -21,7 +21,7 @@ Avant Voxy Box, les choristes devaient :
 
 ### Solution apportée
 
-Voxy Box centralise tout dans une seule application :
+VoXY centralise tout dans une seule application :
 - **Accès instantané** à toutes les partitions de la chorale
 - **Organisation par pupitres** : chaque choriste voit uniquement ce qui le concerne
 - **Enregistrements audio** pour apprendre sa partie
@@ -279,7 +279,7 @@ L'application fonctionne avec un système de synchronisation intelligent :
 
 ## 🚀 Vision Future
 
-Voxy Box continue d'évoluer pour répondre aux besoins des chorales :
+VoXY continue d'évoluer pour répondre aux besoins des chorales :
 
 - **Amélioration continue** des fonctionnalités existantes
 - **Nouvelles fonctionnalités** basées sur les retours des utilisateurs
@@ -291,9 +291,9 @@ Voxy Box continue d'évoluer pour répondre aux besoins des chorales :
 
 ## 📞 Conclusion
 
-Voxy Box est bien plus qu'une simple application de gestion de partitions. C'est un outil complet qui transforme la façon dont les chorales travaillent, s'organisent et progressent. En centralisant tous les éléments nécessaires à la pratique du chant choral, l'application permet aux choristes de se concentrer sur l'essentiel : la musique et le plaisir de chanter ensemble.
+VoXY est bien plus qu'une simple application de gestion de partitions. C'est un outil complet qui transforme la façon dont les chorales travaillent, s'organisent et progressent. En centralisant tous les éléments nécessaires à la pratique du chant choral, l'application permet aux choristes de se concentrer sur l'essentiel : la musique et le plaisir de chanter ensemble.
 
-Que vous soyez un choriste cherchant à mieux apprendre vos partitions, un directeur de chorale souhaitant mieux organiser votre groupe, ou une chorale entière cherchant à moderniser ses pratiques, Voxy Box est là pour vous accompagner dans votre passion du chant choral.
+Que vous soyez un choriste cherchant à mieux apprendre vos partitions, un directeur de chorale souhaitant mieux organiser votre groupe, ou une chorale entière cherchant à moderniser ses pratiques, VoXY est là pour vous accompagner dans votre passion du chant choral.
 
 ---
 

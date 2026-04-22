@@ -413,6 +413,25 @@ class _PartitionsScreenState extends State<PartitionsScreen> {
                 ],
               ),
             ],
+
+            // Auteur
+            if (partition.userName != null) ...[
+              SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.edit_note, size: 16, color: Colors.grey[500]),
+                  SizedBox(width: 4),
+                  Text(
+                    'Ajouté par ${partition.userName}',
+                    style: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            ],
             
             SizedBox(height: 16),
             
@@ -441,6 +460,7 @@ class _PartitionsScreenState extends State<PartitionsScreen> {
         if (partition.hasAudio())
           _buildFileItem(
             'Audio',
+            partition.userName ?? 'Inconnu',
             Icons.audio_file,
             partition.localAudioPath != null,
             () => partition.localAudioPath != null 
@@ -452,6 +472,7 @@ class _PartitionsScreenState extends State<PartitionsScreen> {
         if (partition.hasPdf())
           _buildFileItem(
             'PDF',
+            partition.userName ?? 'Inconnu',
             Icons.picture_as_pdf,
             partition.localPdfPath != null,
             () => partition.localPdfPath != null 
@@ -463,6 +484,7 @@ class _PartitionsScreenState extends State<PartitionsScreen> {
         if (partition.hasImage())
           _buildFileItem(
             'Image',
+            partition.userName ?? 'Inconnu',
             Icons.image,
             partition.localImagePath != null,
             () => partition.localImagePath != null 
@@ -473,7 +495,7 @@ class _PartitionsScreenState extends State<PartitionsScreen> {
     );
   }
 
-  Widget _buildFileItem(String label, IconData icon, bool isDownloaded, VoidCallback onPressed) {
+  Widget _buildFileItem(String label, String subtitle, IconData icon, bool isDownloaded, VoidCallback onPressed) {
     return Container(
       margin: EdgeInsets.only(bottom: 8),
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -493,12 +515,25 @@ class _PartitionsScreenState extends State<PartitionsScreen> {
           ),
           SizedBox(width: 8),
           Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: isDownloaded ? Colors.green[800] : Colors.grey[700],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                    color: isDownloaded ? Colors.green[800] : Colors.grey[700],
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDownloaded ? Colors.green[700] : Colors.grey[500],
+                  ),
+                ),
+              ],
             ),
           ),
           IconButton(

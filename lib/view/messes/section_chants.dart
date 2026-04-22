@@ -950,11 +950,10 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
                       fontSize: 14,
                     ),
                   ),
-                  const SizedBox(height: 4),
                   Row(
                     children: [
                       Text(
-                        isAudio ? 'Fichier audio' : (isPdf ? 'Document PDF' : 'Image'),
+                        _getFileTypeLabel(file),
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.grey,
@@ -977,6 +976,8 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
                       ),
                     ],
                   ),
+                  const SizedBox(height: 2),
+                  _buildAuthorRow(file),
                 ],
               ),
             ),
@@ -1126,6 +1127,63 @@ class _SectionChantsScreenState extends State<SectionChantsScreen> with SingleTi
         );
       }
     }
+  }
+
+  String _getFileTypeLabel(String file) {
+    if (_isAudioFile(file)) return 'Fichier audio';
+    if (_isPdfFile(file)) return 'Document PDF';
+    if (_isImageFile(file)) return 'Image';
+    return 'Fichier';
+  }
+
+  Widget _buildAuthorRow(String file) {
+    // Trouver le chant auquel ce fichier appartient
+    final parentChant = chants.firstWhere(
+      (c) {
+        final urls = [
+          if (c.pdfPath != null) c.pdfUrl,
+          if (c.imagePath != null) c.imageUrl,
+          if (c.audioPath != null) c.audioUrl,
+          ...?c.pdfUrls,
+          ...?c.imageUrls,
+          ...?c.audioUrls,
+          ...?c.sopranoUrls,
+          ...?c.altoUrls,
+          ...?c.tenorUrls,
+          ...?c.basseUrls,
+          ...?c.tuttiUrls,
+        ];
+        return (urls.contains(file));
+      },
+      orElse: () => chants.isEmpty 
+          ? ChantDeMesse(
+              id: 0, 
+              titre: '', 
+              sectionId: 0, 
+              ordre: 0, 
+              active: true, 
+              createdAt: DateTime.now(), 
+              updatedAt: DateTime.now()
+            ) 
+          : chants.first,
+    );
+
+    final author = parentChant.userName ?? 'Maestro';
+
+    return Row(
+      children: [
+        Icon(Icons.person, size: 10, color: Colors.grey[600]),
+        const SizedBox(width: 4),
+        Text(
+          'Par $author',
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.grey[600],
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
+    );
   }
 }
 

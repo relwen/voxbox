@@ -25,7 +25,8 @@ class ChantSectionsScreen extends StatefulWidget {
   State<ChantSectionsScreen> createState() => _ChantSectionsScreenState();
 }
 
-class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTickerProviderStateMixin {
+class _ChantSectionsScreenState extends State<ChantSectionsScreen>
+    with SingleTickerProviderStateMixin {
   List<ChantDeMesse> chants = [];
   bool loading = false;
   bool syncing = false;
@@ -34,7 +35,8 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
   int? _choraleId;
   Map<String, FileDownloadStatus> _fileStatuses = {};
   Map<String, bool> _downloadingFiles = {};
-  final GlobalAudioPlayerService _audioPlayerService = GlobalAudioPlayerService();
+  final GlobalAudioPlayerService _audioPlayerService =
+      GlobalAudioPlayerService();
 
   @override
   void initState() {
@@ -81,7 +83,8 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
             setState(() {
               _pupitres = response.data as List<ChoralePupitre>;
               _tabController?.dispose();
-              _tabController = TabController(length: _pupitres.length + 1, vsync: this);
+              _tabController =
+                  TabController(length: _pupitres.length + 1, vsync: this);
             });
           }
         }
@@ -172,12 +175,11 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
 
     // Vérifier si au moins un chant a des fichiers organisés par pupitre
     bool hasPupitreSpecificFiles = chants.any((chant) =>
-      (chant.sopranoFiles != null && chant.sopranoFiles!.isNotEmpty) ||
-      (chant.altoFiles != null && chant.altoFiles!.isNotEmpty) ||
-      (chant.tenorFiles != null && chant.tenorFiles!.isNotEmpty) ||
-      (chant.basseFiles != null && chant.basseFiles!.isNotEmpty) ||
-      (chant.tuttiFiles != null && chant.tuttiFiles!.isNotEmpty)
-    );
+        (chant.sopranoFiles != null && chant.sopranoFiles!.isNotEmpty) ||
+        (chant.altoFiles != null && chant.altoFiles!.isNotEmpty) ||
+        (chant.tenorFiles != null && chant.tenorFiles!.isNotEmpty) ||
+        (chant.basseFiles != null && chant.basseFiles!.isNotEmpty) ||
+        (chant.tuttiFiles != null && chant.tuttiFiles!.isNotEmpty));
 
     // D'abord, chercher les fichiers spécifiques au pupitre pour TOUS les chants
     for (var chant in chants) {
@@ -196,7 +198,8 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
         if (chant.tenorFiles != null && chant.tenorFiles!.isNotEmpty) {
           chantFilesForPupitre = chant.tenorUrls;
         }
-      } else if (pupitreNom.contains('basse') || pupitreNom.contains('bariton')) {
+      } else if (pupitreNom.contains('basse') ||
+          pupitreNom.contains('bariton')) {
         if (chant.basseFiles != null && chant.basseFiles!.isNotEmpty) {
           chantFilesForPupitre = chant.basseUrls;
         }
@@ -216,7 +219,8 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
     // qu'aucun chant n'a de fichiers organisés par pupitre,
     // utiliser les fichiers audio généraux (fallback)
     if (files.isEmpty && !hasPupitreSpecificFiles) {
-      print('⚠️ Aucun fichier spécifique trouvé pour pupitre $pupitreNom, utilisation des fichiers généraux');
+      print(
+          '⚠️ Aucun fichier spécifique trouvé pour pupitre $pupitreNom, utilisation des fichiers généraux');
       for (var chant in chants) {
         if (chant.audioFiles != null && chant.audioFiles!.isNotEmpty) {
           files.addAll(chant.audioUrls);
@@ -225,9 +229,11 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
         }
       }
     } else if (files.isNotEmpty) {
-      print('✅ ${files.length} fichier(s) spécifique(s) trouvé(s) pour pupitre $pupitreNom');
+      print(
+          '✅ ${files.length} fichier(s) spécifique(s) trouvé(s) pour pupitre $pupitreNom');
     } else {
-      print('ℹ️ Aucun fichier pour pupitre $pupitreNom (les chants sont organisés par pupitre mais ce pupitre n\'a pas de fichiers)');
+      print(
+          'ℹ️ Aucun fichier pour pupitre $pupitreNom (les chants sont organisés par pupitre mais ce pupitre n\'a pas de fichiers)');
     }
 
     return files;
@@ -244,7 +250,8 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
             size: 20,
             fontweight: FontWeight.bold,
           ),
-          backgroundColor: Color(int.parse(widget.section.couleur.replaceAll('#', '0xFF'))),
+          backgroundColor:
+              Color(int.parse(widget.section.couleur.replaceAll('#', '0xFF'))),
         ),
         body: const Center(
           child: CircularProgressIndicator(),
@@ -260,7 +267,8 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
           size: 20,
           fontweight: FontWeight.bold,
         ),
-        backgroundColor: Color(int.parse(widget.section.couleur.replaceAll('#', '0xFF'))),
+        backgroundColor:
+            Color(int.parse(widget.section.couleur.replaceAll('#', '0xFF'))),
         actions: [
           if (_audioPlayerService.isPlaying)
             IconButton(
@@ -312,14 +320,18 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
                       unselectedLabelColor: Colors.grey,
                       indicatorColor: AppConstance.primary,
                       tabs: [
-                        const Tab(text: 'Général', icon: Icon(Icons.folder, size: 16)),
+                        const Tab(
+                            text: 'Général',
+                            icon: Icon(Icons.folder, size: 16)),
                         ..._pupitres.map((pupitre) => Tab(
-                          text: pupitre.nom,
-                          icon: Icon(
-                            pupitre.icon != null ? _getIconFromString(pupitre.icon!) : Icons.person,
-                            size: 16,
-                          ),
-                        )),
+                              text: pupitre.nom,
+                              icon: Icon(
+                                pupitre.icon != null
+                                    ? _getIconFromString(pupitre.icon!)
+                                    : Icons.person,
+                                size: 16,
+                              ),
+                            )),
                       ],
                     ),
                     // Contenu des onglets
@@ -329,11 +341,14 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
                         children: [
                           _buildGeneralTab(),
                           ..._pupitres.map((pupitre) {
-                            List<String> pupitreFiles = _getFilesForPupitre(pupitre.id);
+                            List<String> pupitreFiles =
+                                _getFilesForPupitre(pupitre.id);
                             Color pupitreColor = pupitre.color != null
-                                ? Color(int.parse(pupitre.color!.replaceAll('#', '0xFF')))
+                                ? Color(int.parse(
+                                    pupitre.color!.replaceAll('#', '0xFF')))
                                 : Colors.blue;
-                            return _buildPupitreTab(pupitre.nom, pupitreFiles, pupitreColor);
+                            return _buildPupitreTab(
+                                pupitre.nom, pupitreFiles, pupitreColor);
                           }),
                         ],
                       ),
@@ -389,7 +404,8 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
       }
     }
 
-    print('📁 Onglet Général - PDF: ${pdfFiles.length}, Images: ${imageFiles.length}, Texte: ${textFiles.length}');
+    print(
+        '📁 Onglet Général - PDF: ${pdfFiles.length}, Images: ${imageFiles.length}, Texte: ${textFiles.length}');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -405,7 +421,8 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
               files: pdfFiles,
             ),
 
-          if (pdfFiles.isNotEmpty && (imageFiles.isNotEmpty || textFiles.isNotEmpty))
+          if (pdfFiles.isNotEmpty &&
+              (imageFiles.isNotEmpty || textFiles.isNotEmpty))
             const SizedBox(height: 16),
 
           // Fichiers Images
@@ -477,7 +494,8 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -552,9 +570,7 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
               ),
             ),
           ),
-
           const SizedBox(height: 16),
-
           if (files.isEmpty)
             _buildEmptyState(pupitreName, color)
           else
@@ -607,8 +623,10 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
 
     // Obtenir le chemin local si le fichier est téléchargé (pour les images)
     Future<String?> getLocalPath() async {
-      if (fileStatus == FileDownloadStatus.downloaded || fileStatus == FileDownloadStatus.outdated) {
-        final isRemoteUrl = file.startsWith('http://') || file.startsWith('https://');
+      if (fileStatus == FileDownloadStatus.downloaded ||
+          fileStatus == FileDownloadStatus.outdated) {
+        final isRemoteUrl =
+            file.startsWith('http://') || file.startsWith('https://');
         String fileUrl = file;
         if (!isRemoteUrl && !file.startsWith('/')) {
           fileUrl = '${AppConstance.baseURL}/storage/$file';
@@ -631,7 +649,8 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
 
       try {
         // Construire l'URL complète si nécessaire
-        final isRemoteUrl = file.startsWith('http://') || file.startsWith('https://');
+        final isRemoteUrl =
+            file.startsWith('http://') || file.startsWith('https://');
         String fileUrl = file;
 
         if (!isRemoteUrl && !file.startsWith('/')) {
@@ -680,7 +699,8 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
         // Vérifier que le fichier existe
         final localFile = File(localPath);
         if (!await localFile.exists()) {
-          throw Exception('Le fichier n\'existe pas: ${localPath.split('/').last}');
+          throw Exception(
+              'Le fichier n\'existe pas: ${localPath.split('/').last}');
         }
 
         // Ouvrir le fichier selon son type avec le chemin local
@@ -691,7 +711,6 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
         } else if (isImage) {
           _viewImageLocal(localPath);
         }
-
       } catch (e) {
         print('❌ Erreur lors de l\'ouverture du fichier: $e');
         setState(() {
@@ -721,7 +740,9 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
         child: Row(
           children: [
             // Pour les images téléchargées, afficher une miniature
-            if (isImage && (fileStatus == FileDownloadStatus.downloaded || fileStatus == FileDownloadStatus.outdated))
+            if (isImage &&
+                (fileStatus == FileDownloadStatus.downloaded ||
+                    fileStatus == FileDownloadStatus.outdated))
               FutureBuilder<String?>(
                 future: getLocalPath(),
                 builder: (context, snapshot) {
@@ -756,7 +777,9 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
               )
             else
               Icon(
-                isAudio ? Icons.audiotrack : (isPdf ? Icons.picture_as_pdf : Icons.image),
+                isAudio
+                    ? Icons.audiotrack
+                    : (isPdf ? Icons.picture_as_pdf : Icons.image),
                 color: color,
                 size: 24,
               ),
@@ -772,11 +795,10 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
                       fontSize: 14,
                     ),
                   ),
-                  const SizedBox(height: 4),
                   Row(
                     children: [
                       Text(
-                        isAudio ? 'Fichier audio' : (isPdf ? 'Document PDF' : 'Image'),
+                        _getFileTypeLabel(file),
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.grey,
@@ -799,6 +821,8 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
                       ),
                     ],
                   ),
+                  const SizedBox(height: 2),
+                  _buildAuthorRow(file),
                 ],
               ),
             ),
@@ -851,7 +875,16 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
   }
 
   bool _isAudioFile(String file) {
-    final audioExtensions = ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.opus', '.flac', '.mp4'];
+    final audioExtensions = [
+      '.mp3',
+      '.wav',
+      '.m4a',
+      '.aac',
+      '.ogg',
+      '.opus',
+      '.flac',
+      '.mp4'
+    ];
     return audioExtensions.any((ext) => file.toLowerCase().endsWith(ext));
   }
 
@@ -870,7 +903,8 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
       // Vérifier que le fichier existe
       final file = File(localPath);
       if (!await file.exists()) {
-        throw Exception('Le fichier audio n\'existe pas: ${localPath.split('/').last}');
+        throw Exception(
+            'Le fichier audio n\'existe pas: ${localPath.split('/').last}');
       }
 
       // Utiliser GlobalAudioPlayerService directement avec le chemin local
@@ -896,7 +930,8 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
       // Vérifier que le fichier existe
       final file = File(localPath);
       if (!await file.exists()) {
-        throw Exception('Le fichier PDF n\'existe pas: ${localPath.split('/').last}');
+        throw Exception(
+            'Le fichier PDF n\'existe pas: ${localPath.split('/').last}');
       }
 
       // Ouvrir le PDF avec PdfService
@@ -921,7 +956,8 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
       // Vérifier que le fichier existe
       final file = File(localPath);
       if (!await file.exists()) {
-        throw Exception('Le fichier image n\'existe pas: ${localPath.split('/').last}');
+        throw Exception(
+            'Le fichier image n\'existe pas: ${localPath.split('/').last}');
       }
 
       final imageName = localPath.split('/').last;
@@ -948,6 +984,62 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen> with SingleTi
         );
       }
     }
+  }
+
+  String _getFileTypeLabel(String file) {
+    if (_isAudioFile(file)) return 'Fichier audio';
+    if (_isPdfFile(file)) return 'Document PDF';
+    if (_isImageFile(file)) return 'Image';
+    return 'Fichier';
+  }
+
+  Widget _buildAuthorRow(String file) {
+    // Trouver le chant auquel ce fichier appartient
+    final parentChant = chants.firstWhere(
+      (c) {
+        final urls = [
+          if (c.pdfPath != null) c.pdfUrl,
+          if (c.imagePath != null) c.imageUrl,
+          if (c.audioPath != null) c.audioUrl,
+          ...?c.pdfUrls,
+          ...?c.imageUrls,
+          ...?c.audioUrls,
+          ...?c.sopranoUrls,
+          ...?c.altoUrls,
+          ...?c.tenorUrls,
+          ...?c.basseUrls,
+          ...?c.tuttiUrls,
+        ];
+        return urls.contains(file);
+      },
+      orElse: () => chants.isEmpty
+          ? ChantDeMesse(
+              id: 0,
+              titre: '',
+              sectionId: 0,
+              ordre: 0,
+              active: true,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now())
+          : chants.first,
+    );
+
+    final author = parentChant.userName ?? 'Maestro';
+
+    return Row(
+      children: [
+        Icon(Icons.person, size: 10, color: Colors.grey[600]),
+        const SizedBox(width: 4),
+        Text(
+          'Par $author',
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.grey[600],
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
+    );
   }
 }
 

@@ -353,6 +353,8 @@ class _VocaliseDetailsScreenState extends State<VocaliseDetailsScreen> with Sing
                   _buildInfoRow('Partie vocale', widget.vocalise.voicePart),
                   if (widget.vocalise.choraleName != null)
                     _buildInfoRow('Chorale', widget.vocalise.choraleName!),
+                  if (widget.vocalise.userName != null)
+                    _buildInfoRow('Enregistré par', widget.vocalise.userName!),
                   _buildInfoRow('Créé le', _formatDate(widget.vocalise.createdAt)),
                   _buildInfoRow('Modifié le', _formatDate(widget.vocalise.updatedAt)),
                 ],
@@ -659,6 +661,14 @@ class _VocaliseDetailsScreenState extends State<VocaliseDetailsScreen> with Sing
                     style: const TextStyle(
                       fontWeight: FontWeight.w500,
                       fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    widget.vocalise.userName ?? 'Inconnu',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppConstance.primary.withOpacity(0.7),
+                      fontStyle: FontStyle.italic,
                     ),
                   ),
                   const SizedBox(height: 4),

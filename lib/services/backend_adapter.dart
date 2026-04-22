@@ -8,16 +8,20 @@ import 'package:voxbox/functions/appconstants.dart';
 class BackendAdapter {
   /// Convertit les données du backend (Reference) vers MesseSection
   /// messeId: ID réel de la RubriqueSection (messe) - doit être passé depuis le contexte
-  static MesseSection referenceToMesseSection(Map<String, dynamic> referenceData, {int? messeId}) {
+  static MesseSection referenceToMesseSection(
+      Map<String, dynamic> referenceData,
+      {int? messeId}) {
     final sectionId = int.tryParse(referenceData['id']?.toString() ?? '0') ?? 0;
     final sectionName = referenceData['name']?.toString() ?? 'Section sans nom';
-    
+
     // Convertir les partitions en chants si disponibles
     List<ChantDeMesse>? chants;
-    if (referenceData['partitions'] != null && referenceData['partitions'] is List) {
+    if (referenceData['partitions'] != null &&
+        referenceData['partitions'] is List) {
       final partitionsList = referenceData['partitions'] as List;
-      print('📋 Section "$sectionName" (ID: $sectionId) - ${partitionsList.length} partition(s) trouvée(s) dans les références');
-      
+      print(
+          '📋 Section "$sectionName" (ID: $sectionId) - ${partitionsList.length} partition(s) trouvée(s) dans les références');
+
       if (partitionsList.isNotEmpty) {
         // Filtrer les partitions par messe_part pour éviter le mélange entre différentes messes
         // Si plusieurs messes ont des sections avec le même rubrique_section_id,
@@ -27,39 +31,46 @@ class BackendAdapter {
             // Si pas de messe_part, on garde la partition (pour compatibilité)
             return true;
           }
-          
+
           // Parser messe_part (peut être une string JSON ou un objet)
           dynamic messePart = partition['messe_part'];
           Map<String, dynamic>? messePartMap;
-          
+
           if (messePart is String) {
             try {
               messePartMap = json.decode(messePart) as Map<String, dynamic>?;
             } catch (e) {
-              print('⚠️ Erreur parsing messe_part dans referenceToMesseSection: $e');
+              print(
+                  '⚠️ Erreur parsing messe_part dans referenceToMesseSection: $e');
               return true; // Garder la partition si erreur de parsing
             }
           } else if (messePart is Map) {
             messePartMap = messePart as Map<String, dynamic>;
           }
-          
+
           if (messePartMap != null) {
             final part = messePartMap['part']?.toString() ?? '';
             // Comparer le nom de la partie avec le nom de la section (insensible à la casse)
-            final normalizedPart = part.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
-            final normalizedSectionName = sectionName.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
+            final normalizedPart =
+                part.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
+            final normalizedSectionName = sectionName
+                .toLowerCase()
+                .trim()
+                .replaceAll(RegExp(r'\s+'), ' ');
             final matches = normalizedPart == normalizedSectionName;
             if (!matches) {
-              print('🔍 Partition ${partition['id']} filtrée dans referenceToMesseSection: messe_part["part"]="$part" != sectionName="$sectionName"');
+              print(
+                  '🔍 Partition ${partition['id']} filtrée dans referenceToMesseSection: messe_part["part"]="$part" != sectionName="$sectionName"');
             }
             return matches;
           }
-          
+
           return true; // Garder si pas de messe_part valide
         }).toList();
-        
-        print('📊 ${partitionsList.length} partition(s) dans les références -> ${filteredPartitions.length} après filtrage par section "$sectionName"');
-        
+
+        print(
+            '📊 ${partitionsList.length} partition(s) dans les références -> ${filteredPartitions.length} après filtrage par section "$sectionName"');
+
         chants = filteredPartitions
             .map((partition) {
               try {
@@ -72,22 +83,28 @@ class BackendAdapter {
             .where((chant) => chant != null)
             .cast<ChantDeMesse>()
             .toList();
-        
-        print('✅ ${chants.length} chant(s) converti(s) pour la section "$sectionName"');
+
+        print(
+            '✅ ${chants.length} chant(s) converti(s) pour la section "$sectionName"');
       } else {
-        print('⚠️ Aucune partition dans la liste pour la section "$sectionName"');
+        print(
+            '⚠️ Aucune partition dans la liste pour la section "$sectionName"');
       }
     } else {
-      print('⚠️ Pas de partitions dans les données de référence pour la section "$sectionName"');
+      print(
+          '⚠️ Pas de partitions dans les données de référence pour la section "$sectionName"');
     }
-    
+
     return MesseSection(
       id: sectionId,
       // Utiliser messeId passé en paramètre si disponible, sinon utiliser messe_id de la référence
-      messeId: messeId ?? int.tryParse(referenceData['messe_id']?.toString() ?? '0') ?? 0,
+      messeId: messeId ??
+          int.tryParse(referenceData['messe_id']?.toString() ?? '0') ??
+          0,
       nom: sectionName,
       description: referenceData['description']?.toString(),
-      ordre: int.tryParse(referenceData['order_position']?.toString() ?? '0') ?? 0,
+      ordre:
+          int.tryParse(referenceData['order_position']?.toString() ?? '0') ?? 0,
       active: true, // Par défaut actif
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
@@ -96,36 +113,43 @@ class BackendAdapter {
   }
 
   /// Convertit les données du backend (Partition) vers ChantDeMesse
-  static ChantDeMesse partitionToChantDeMesse(Map<String, dynamic> partitionData) {
-    print('🔄 Conversion partition: ${partitionData['id']} - ${partitionData['title']}');
-    
+  static ChantDeMesse partitionToChantDeMesse(
+      Map<String, dynamic> partitionData) {
+    print(
+        '🔄 Conversion partition: ${partitionData['id']} - ${partitionData['title']}');
+
     // Extraire les fichiers du champ unifié 'files' ou utiliser les anciens champs
     List<String> audioFiles = [];
     List<String> pdfFiles = [];
     List<String> imageFiles = [];
-    
+
     // PRIORITÉ 1: Utiliser files_with_metadata qui contient les URLs complètes
-    if (partitionData['files_with_metadata'] != null && partitionData['files_with_metadata'] is List) {
+    if (partitionData['files_with_metadata'] != null &&
+        partitionData['files_with_metadata'] is List) {
       final filesWithMetadata = partitionData['files_with_metadata'] as List;
       print('📁 ${filesWithMetadata.length} fichier(s) avec métadonnées');
-      
+
       for (var file in filesWithMetadata) {
         if (file is Map) {
           // Format avec métadonnées : {'path': '...', 'url': '...', 'name': '...', 'type': '...'}
           final url = file['url']?.toString() ?? '';
           final path = file['path']?.toString() ?? '';
           final type = file['type']?.toString() ?? '';
-          
+
           // Utiliser l'URL si disponible, sinon le chemin
           final filePath = url.isNotEmpty ? url : path;
-          
+
           print('   📄 Fichier: path=$path, url=$url, type=$type');
-          
+
           // Détecter le type de fichier
-          bool isAudio = type == 'audio' || _isAudioFile(path) || _isAudioFile(url);
-          bool isPdf = type == 'pdf' || path.toLowerCase().endsWith('.pdf') || url.toLowerCase().endsWith('.pdf');
-          bool isImage = type == 'image' || _isImageFile(path) || _isImageFile(url);
-          
+          bool isAudio =
+              type == 'audio' || _isAudioFile(path) || _isAudioFile(url);
+          bool isPdf = type == 'pdf' ||
+              path.toLowerCase().endsWith('.pdf') ||
+              url.toLowerCase().endsWith('.pdf');
+          bool isImage =
+              type == 'image' || _isImageFile(path) || _isImageFile(url);
+
           if (isAudio) {
             audioFiles.add(filePath);
             print('      ✅ Ajouté comme audio: $filePath');
@@ -141,52 +165,58 @@ class BackendAdapter {
         }
       }
     }
-    
+
     // PRIORITÉ 2: Utiliser le champ 'files' unifié si files_with_metadata n'est pas disponible
     if (audioFiles.isEmpty && pdfFiles.isEmpty && imageFiles.isEmpty) {
-    if (partitionData['files'] != null && partitionData['files'] is List) {
-      final files = partitionData['files'] as List;
-      print('📁 ${files.length} fichier(s) dans le champ unifié');
-      
-      for (var file in files) {
-        if (file is Map) {
-          // Format avec métadonnées : {'path': '...', 'name': '...', 'type': '...'}
-          final path = file['path']?.toString() ?? '';
-          final type = file['type']?.toString() ?? '';
-          
-          if (type == 'audio' || _isAudioFile(path)) {
-            audioFiles.add(path);
-          } else if (type == 'pdf' || path.toLowerCase().endsWith('.pdf')) {
-            pdfFiles.add(path);
-          } else if (type == 'image' || _isImageFile(path)) {
-            imageFiles.add(path);
-          }
-        } else if (file is String) {
-          // Format simple : juste le chemin
-          final path = file;
-          if (_isAudioFile(path)) {
-            audioFiles.add(path);
-          } else if (path.toLowerCase().endsWith('.pdf')) {
-            pdfFiles.add(path);
-          } else if (_isImageFile(path)) {
-            imageFiles.add(path);
+      if (partitionData['files'] != null && partitionData['files'] is List) {
+        final files = partitionData['files'] as List;
+        print('📁 ${files.length} fichier(s) dans le champ unifié');
+
+        for (var file in files) {
+          if (file is Map) {
+            // Format avec métadonnées : {'path': '...', 'name': '...', 'type': '...'}
+            final path = file['path']?.toString() ?? '';
+            final type = file['type']?.toString() ?? '';
+
+            if (type == 'audio' || _isAudioFile(path)) {
+              audioFiles.add(path);
+            } else if (type == 'pdf' || path.toLowerCase().endsWith('.pdf')) {
+              pdfFiles.add(path);
+            } else if (type == 'image' || _isImageFile(path)) {
+              imageFiles.add(path);
+            }
+          } else if (file is String) {
+            // Format simple : juste le chemin
+            final path = file;
+            if (_isAudioFile(path)) {
+              audioFiles.add(path);
+            } else if (path.toLowerCase().endsWith('.pdf')) {
+              pdfFiles.add(path);
+            } else if (_isImageFile(path)) {
+              imageFiles.add(path);
             }
           }
         }
       }
     }
-    
+
     // Ancien système : champs séparés (pour rétrocompatibilité)
-    if (partitionData['audio_files'] != null && partitionData['audio_files'] is List) {
-      audioFiles.addAll((partitionData['audio_files'] as List).map((e) => e.toString()));
+    if (partitionData['audio_files'] != null &&
+        partitionData['audio_files'] is List) {
+      audioFiles.addAll(
+          (partitionData['audio_files'] as List).map((e) => e.toString()));
     }
-    if (partitionData['pdf_files'] != null && partitionData['pdf_files'] is List) {
-      pdfFiles.addAll((partitionData['pdf_files'] as List).map((e) => e.toString()));
+    if (partitionData['pdf_files'] != null &&
+        partitionData['pdf_files'] is List) {
+      pdfFiles.addAll(
+          (partitionData['pdf_files'] as List).map((e) => e.toString()));
     }
-    if (partitionData['image_files'] != null && partitionData['image_files'] is List) {
-      imageFiles.addAll((partitionData['image_files'] as List).map((e) => e.toString()));
+    if (partitionData['image_files'] != null &&
+        partitionData['image_files'] is List) {
+      imageFiles.addAll(
+          (partitionData['image_files'] as List).map((e) => e.toString()));
     }
-    
+
     // Fichiers uniques (ancien système)
     if (partitionData['audio_path'] != null && audioFiles.isEmpty) {
       audioFiles.add(partitionData['audio_path'].toString());
@@ -197,7 +227,7 @@ class BackendAdapter {
     if (partitionData['image_path'] != null && imageFiles.isEmpty) {
       imageFiles.add(partitionData['image_path'].toString());
     }
-    
+
     // Organiser les fichiers par pupitre si disponible
     Map<String, List<String>> pupitreFiles = {
       'soprano': [],
@@ -206,31 +236,37 @@ class BackendAdapter {
       'basse': [],
       'tutti': [],
     };
-    
+
     if (partitionData['pupitre'] != null && partitionData['pupitre'] is Map) {
       final pupitreData = partitionData['pupitre'] as Map;
       final pupitreNom = (pupitreData['nom'] as String?)?.toLowerCase() ?? '';
-      
-      print('🎭 Pupitre détecté: $pupitreNom (original: ${pupitreData['nom']})');
-      
+
+      print(
+          '🎭 Pupitre détecté: $pupitreNom (original: ${pupitreData['nom']})');
+
       // Mapper les fichiers audio par pupitre
       if (audioFiles.isNotEmpty) {
         String? pupitreKey;
         if (pupitreNom.contains('soprano') || pupitreNom.contains('soprane')) {
           pupitreKey = 'soprano';
-        } else if (pupitreNom.contains('alto') || pupitreNom.contains('mezzo')) {
+        } else if (pupitreNom.contains('alto') ||
+            pupitreNom.contains('mezzo')) {
           pupitreKey = 'alto';
-        } else if (pupitreNom.contains('ténor') || pupitreNom.contains('tenor')) {
+        } else if (pupitreNom.contains('ténor') ||
+            pupitreNom.contains('tenor')) {
           pupitreKey = 'tenor';
-        } else if (pupitreNom.contains('basse') || pupitreNom.contains('bariton') || pupitreNom == 'basses') {
+        } else if (pupitreNom.contains('basse') ||
+            pupitreNom.contains('bariton') ||
+            pupitreNom == 'basses') {
           pupitreKey = 'basse';
         } else if (pupitreNom.contains('tutti')) {
           pupitreKey = 'tutti';
         }
-        
+
         if (pupitreKey != null && pupitreFiles.containsKey(pupitreKey)) {
           pupitreFiles[pupitreKey] = List.from(audioFiles);
-          print('✅ ${audioFiles.length} fichier(s) audio assigné(s) au pupitre $pupitreKey');
+          print(
+              '✅ ${audioFiles.length} fichier(s) audio assigné(s) au pupitre $pupitreKey');
           for (var file in audioFiles) {
             print('   📄 $file');
           }
@@ -243,42 +279,75 @@ class BackendAdapter {
     } else {
       print('⚠️ Pas de pupitre dans les données de partition');
     }
-    
-    print('✅ Fichiers extraits - Audio: ${audioFiles.length}, PDF: ${pdfFiles.length}, Images: ${imageFiles.length}');
-    print('🎭 Fichiers par pupitre - Soprano: ${pupitreFiles['soprano']!.length}, Alto: ${pupitreFiles['alto']!.length}, Ténor: ${pupitreFiles['tenor']!.length}, Basse: ${pupitreFiles['basse']!.length}, Tutti: ${pupitreFiles['tutti']!.length}');
-    
+
+    print(
+        '✅ Fichiers extraits - Audio: ${audioFiles.length}, PDF: ${pdfFiles.length}, Images: ${imageFiles.length}');
+    print(
+        '🎭 Fichiers par pupitre - Soprano: ${pupitreFiles['soprano']!.length}, Alto: ${pupitreFiles['alto']!.length}, Ténor: ${pupitreFiles['tenor']!.length}, Basse: ${pupitreFiles['basse']!.length}, Tutti: ${pupitreFiles['tutti']!.length}');
+
     return ChantDeMesse(
       id: int.tryParse(partitionData['id']?.toString() ?? '0') ?? 0,
-      sectionId: int.tryParse(partitionData['reference_id']?.toString() ?? partitionData['rubrique_section_id']?.toString() ?? '0') ?? 0,
+      sectionId: int.tryParse(partitionData['reference_id']?.toString() ??
+              partitionData['rubrique_section_id']?.toString() ??
+              '0') ??
+          0,
       titre: partitionData['title']?.toString() ?? 'Chant sans titre',
       description: partitionData['description']?.toString(),
-      audioPath: audioFiles.isNotEmpty ? audioFiles.first : partitionData['audio_path']?.toString(),
-      pdfPath: pdfFiles.isNotEmpty ? pdfFiles.first : partitionData['pdf_path']?.toString(),
-      imagePath: imageFiles.isNotEmpty ? imageFiles.first : partitionData['image_path']?.toString(),
+      audioPath: audioFiles.isNotEmpty
+          ? audioFiles.first
+          : partitionData['audio_path']?.toString(),
+      pdfPath: pdfFiles.isNotEmpty
+          ? pdfFiles.first
+          : partitionData['pdf_path']?.toString(),
+      imagePath: imageFiles.isNotEmpty
+          ? imageFiles.first
+          : partitionData['image_path']?.toString(),
       audioFiles: audioFiles.isNotEmpty ? audioFiles : null,
       pdfFiles: pdfFiles.isNotEmpty ? pdfFiles : null,
       imageFiles: imageFiles.isNotEmpty ? imageFiles : null,
-      sopranoFiles: pupitreFiles['soprano']!.isNotEmpty ? pupitreFiles['soprano'] : null,
+      sopranoFiles:
+          pupitreFiles['soprano']!.isNotEmpty ? pupitreFiles['soprano'] : null,
       altoFiles: pupitreFiles['alto']!.isNotEmpty ? pupitreFiles['alto'] : null,
-      tenorFiles: pupitreFiles['tenor']!.isNotEmpty ? pupitreFiles['tenor'] : null,
-      basseFiles: pupitreFiles['basse']!.isNotEmpty ? pupitreFiles['basse'] : null,
-      tuttiFiles: pupitreFiles['tutti']!.isNotEmpty ? pupitreFiles['tutti'] : null,
+      tenorFiles:
+          pupitreFiles['tenor']!.isNotEmpty ? pupitreFiles['tenor'] : null,
+      basseFiles:
+          pupitreFiles['basse']!.isNotEmpty ? pupitreFiles['basse'] : null,
+      tuttiFiles:
+          pupitreFiles['tutti']!.isNotEmpty ? pupitreFiles['tutti'] : null,
+      userName: partitionData['user_name']?.toString() ??
+          partitionData['userName']?.toString() ??
+          (partitionData['user'] is Map
+              ? partitionData['user']['name']?.toString()
+              : null),
       ordre: int.tryParse(partitionData['ordre']?.toString() ?? '0') ?? 0,
-      active: partitionData['active'] == true || partitionData['active'] == 'true' || partitionData['active'] == null,
-      createdAt: partitionData['created_at'] != null 
-          ? DateTime.tryParse(partitionData['created_at'].toString()) ?? DateTime.now()
+      active: partitionData['active'] == true ||
+          partitionData['active'] == 'true' ||
+          partitionData['active'] == null,
+      createdAt: partitionData['created_at'] != null
+          ? DateTime.tryParse(partitionData['created_at'].toString()) ??
+              DateTime.now()
           : DateTime.now(),
-      updatedAt: partitionData['updated_at'] != null 
-          ? DateTime.tryParse(partitionData['updated_at'].toString()) ?? DateTime.now()
+      updatedAt: partitionData['updated_at'] != null
+          ? DateTime.tryParse(partitionData['updated_at'].toString()) ??
+              DateTime.now()
           : DateTime.now(),
     );
   }
-  
+
   static bool _isAudioFile(String path) {
-    final audioExtensions = ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.opus', '.flac', '.mp4'];
+    final audioExtensions = [
+      '.mp3',
+      '.wav',
+      '.m4a',
+      '.aac',
+      '.ogg',
+      '.opus',
+      '.flac',
+      '.mp4'
+    ];
     return audioExtensions.any((ext) => path.toLowerCase().endsWith(ext));
   }
-  
+
   static bool _isImageFile(String path) {
     final imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp'];
     return imageExtensions.any((ext) => path.toLowerCase().endsWith(ext));
@@ -287,13 +356,14 @@ class BackendAdapter {
   /// Convertit les données du backend vers Messe avec sections
   static Messe backendDataToMesse(Map<String, dynamic> messeData) {
     List<MesseSection>? sections;
-    
+
     // Récupérer l'ID réel de la RubriqueSection (messe)
     final messeId = int.tryParse(messeData['id']?.toString() ?? '0') ?? 0;
-    
+
     if (messeData['references'] != null) {
       sections = (messeData['references'] as List)
-          .map((reference) => referenceToMesseSection(reference, messeId: messeId))
+          .map((reference) =>
+              referenceToMesseSection(reference, messeId: messeId))
           .toList();
     }
 
@@ -319,34 +389,39 @@ class BackendAdapter {
 
   /// Convertit une liste de références backend vers une liste de MesseSection
   /// messeId: ID réel de la RubriqueSection (messe) - doit être passé depuis le contexte
-  static List<MesseSection> referencesToMesseSections(List<dynamic> referencesData, {int? messeId}) {
+  static List<MesseSection> referencesToMesseSections(
+      List<dynamic> referencesData,
+      {int? messeId}) {
     return referencesData
-        .map((referenceData) => referenceToMesseSection(referenceData, messeId: messeId))
+        .map((referenceData) =>
+            referenceToMesseSection(referenceData, messeId: messeId))
         .toList();
   }
 
   /// Convertit une liste de partitions backend vers une liste de ChantDeMesse
   /// Convertit une liste de partitions en chants de messe
   /// sectionId: ID de la section (référence générée) - utilisé pour associer correctement les chants à leur section
-  static List<ChantDeMesse> partitionsToChantsDeMesse(List<dynamic> partitionsData, {int? sectionId}) {
-    return partitionsData
-        .map((partitionData) {
-          final chant = partitionToChantDeMesse(partitionData);
-          // Si un sectionId est fourni, l'utiliser pour s'assurer que le chant est associé à la bonne section
-          if (sectionId != null && chant.sectionId != sectionId) {
-            print('🔄 Correction sectionId pour chant ${chant.id}: ${chant.sectionId} -> $sectionId');
-            return chant.copyWith(sectionId: sectionId);
-          }
-          return chant;
-        })
-        .toList();
+  static List<ChantDeMesse> partitionsToChantsDeMesse(
+      List<dynamic> partitionsData,
+      {int? sectionId}) {
+    return partitionsData.map((partitionData) {
+      final chant = partitionToChantDeMesse(partitionData);
+      // Si un sectionId est fourni, l'utiliser pour s'assurer que le chant est associé à la bonne section
+      if (sectionId != null && chant.sectionId != sectionId) {
+        print(
+            '🔄 Correction sectionId pour chant ${chant.id}: ${chant.sectionId} -> $sectionId');
+        return chant.copyWith(sectionId: sectionId);
+      }
+      return chant;
+    }).toList();
   }
 
   /// Convertit les données du backend (Partition) vers Vocalise
   /// Le backend retourne maintenant des partitions converties en format vocalise
   static Vocalise backendDataToVocalise(Map<String, dynamic> vocaliseData) {
     final id = vocaliseData['id'] ?? 0;
-    final title = vocaliseData['titre'] ?? vocaliseData['title'] ?? 'Vocalise sans titre';
+    final title =
+        vocaliseData['titre'] ?? vocaliseData['title'] ?? 'Vocalise sans titre';
     print('🔄 Conversion vocalise: $id - $title');
 
     // Extraire les fichiers du champ unifié 'files' ou utiliser les anciens champs
@@ -401,31 +476,47 @@ class BackendAdapter {
     }
 
     // Ancien système : champs séparés (pour rétrocompatibilité)
-    if (vocaliseData['audio_files'] != null && vocaliseData['audio_files'] is List) {
-      audioFiles.addAll((vocaliseData['audio_files'] as List).map((e) => e.toString()));
+    if (vocaliseData['audio_files'] != null &&
+        vocaliseData['audio_files'] is List) {
+      audioFiles.addAll(
+          (vocaliseData['audio_files'] as List).map((e) => e.toString()));
     }
-    if (vocaliseData['pdf_files'] != null && vocaliseData['pdf_files'] is List) {
-      pdfFiles.addAll((vocaliseData['pdf_files'] as List).map((e) => e.toString()));
+    if (vocaliseData['pdf_files'] != null &&
+        vocaliseData['pdf_files'] is List) {
+      pdfFiles
+          .addAll((vocaliseData['pdf_files'] as List).map((e) => e.toString()));
     }
-    if (vocaliseData['image_files'] != null && vocaliseData['image_files'] is List) {
-      imageFiles.addAll((vocaliseData['image_files'] as List).map((e) => e.toString()));
+    if (vocaliseData['image_files'] != null &&
+        vocaliseData['image_files'] is List) {
+      imageFiles.addAll(
+          (vocaliseData['image_files'] as List).map((e) => e.toString()));
     }
 
     // Fichiers par pupitre (depuis le backend)
-    if (vocaliseData['soprano_files'] != null && vocaliseData['soprano_files'] is List) {
-      pupitreAudioFiles['soprano']!.addAll((vocaliseData['soprano_files'] as List).map((e) => e.toString()));
+    if (vocaliseData['soprano_files'] != null &&
+        vocaliseData['soprano_files'] is List) {
+      pupitreAudioFiles['soprano']!.addAll(
+          (vocaliseData['soprano_files'] as List).map((e) => e.toString()));
     }
-    if (vocaliseData['alto_files'] != null && vocaliseData['alto_files'] is List) {
-      pupitreAudioFiles['alto']!.addAll((vocaliseData['alto_files'] as List).map((e) => e.toString()));
+    if (vocaliseData['alto_files'] != null &&
+        vocaliseData['alto_files'] is List) {
+      pupitreAudioFiles['alto']!.addAll(
+          (vocaliseData['alto_files'] as List).map((e) => e.toString()));
     }
-    if (vocaliseData['tenor_files'] != null && vocaliseData['tenor_files'] is List) {
-      pupitreAudioFiles['tenor']!.addAll((vocaliseData['tenor_files'] as List).map((e) => e.toString()));
+    if (vocaliseData['tenor_files'] != null &&
+        vocaliseData['tenor_files'] is List) {
+      pupitreAudioFiles['tenor']!.addAll(
+          (vocaliseData['tenor_files'] as List).map((e) => e.toString()));
     }
-    if (vocaliseData['basse_files'] != null && vocaliseData['basse_files'] is List) {
-      pupitreAudioFiles['basse']!.addAll((vocaliseData['basse_files'] as List).map((e) => e.toString()));
+    if (vocaliseData['basse_files'] != null &&
+        vocaliseData['basse_files'] is List) {
+      pupitreAudioFiles['basse']!.addAll(
+          (vocaliseData['basse_files'] as List).map((e) => e.toString()));
     }
-    if (vocaliseData['tutti_files'] != null && vocaliseData['tutti_files'] is List) {
-      pupitreAudioFiles['tutti']!.addAll((vocaliseData['tutti_files'] as List).map((e) => e.toString()));
+    if (vocaliseData['tutti_files'] != null &&
+        vocaliseData['tutti_files'] is List) {
+      pupitreAudioFiles['tutti']!.addAll(
+          (vocaliseData['tutti_files'] as List).map((e) => e.toString()));
     }
 
     // Fichiers uniques (ancien système)
@@ -433,41 +524,69 @@ class BackendAdapter {
       audioFiles.add(vocaliseData['audio_path'].toString());
     }
 
-    print('✅ Fichiers extraits - Audio: ${audioFiles.length}, PDF: ${pdfFiles.length}, Images: ${imageFiles.length}');
-    print('   Pupitres - Soprano: ${pupitreAudioFiles['soprano']!.length}, Alto: ${pupitreAudioFiles['alto']!.length}, Ténor: ${pupitreAudioFiles['tenor']!.length}, Basse: ${pupitreAudioFiles['basse']!.length}, Tutti: ${pupitreAudioFiles['tutti']!.length}');
+    print(
+        '✅ Fichiers extraits - Audio: ${audioFiles.length}, PDF: ${pdfFiles.length}, Images: ${imageFiles.length}');
+    print(
+        '   Pupitres - Soprano: ${pupitreAudioFiles['soprano']!.length}, Alto: ${pupitreAudioFiles['alto']!.length}, Ténor: ${pupitreAudioFiles['tenor']!.length}, Basse: ${pupitreAudioFiles['basse']!.length}, Tutti: ${pupitreAudioFiles['tutti']!.length}');
 
     // Déterminer audioPath et audioUrl
-    final audioPathValue = audioFiles.isNotEmpty ? audioFiles.first : vocaliseData['audio_path']?.toString();
-    final audioUrlValue = vocaliseData['audio_url']?.toString() ?? 
-                         (audioPathValue != null ? '${AppConstance.baseURL}/storage/$audioPathValue' : null);
+    final audioPathValue = audioFiles.isNotEmpty
+        ? audioFiles.first
+        : vocaliseData['audio_path']?.toString();
+    final audioUrlValue = vocaliseData['audio_url']?.toString() ??
+        (audioPathValue != null
+            ? '${AppConstance.baseURL}/storage/$audioPathValue'
+            : null);
 
     return Vocalise(
       id: int.tryParse(vocaliseData['id']?.toString() ?? '0') ?? 0,
-      title: vocaliseData['titre']?.toString() ?? vocaliseData['title']?.toString() ?? 'Vocalise sans titre',
+      title: vocaliseData['titre']?.toString() ??
+          vocaliseData['title']?.toString() ??
+          'Vocalise sans titre',
       description: vocaliseData['description']?.toString(),
-      voicePart: vocaliseData['voice_part']?.toString() ?? 
-                 (vocaliseData['pupitre'] is Map ? vocaliseData['pupitre']['nom']?.toString() : 
-                  vocaliseData['pupitre']?.toString()) ?? 'Tous',
+      voicePart: vocaliseData['voice_part']?.toString() ??
+          (vocaliseData['pupitre'] is Map
+              ? vocaliseData['pupitre']['nom']?.toString()
+              : vocaliseData['pupitre']?.toString()) ??
+          'Tous',
       audioPath: audioPathValue,
       audioUrl: audioUrlValue,
-      choraleId: int.tryParse(vocaliseData['chorale_id']?.toString() ?? '0') ?? 0,
+      choraleId:
+          int.tryParse(vocaliseData['chorale_id']?.toString() ?? '0') ?? 0,
       choraleName: vocaliseData['chorale']?['name']?.toString(),
       createdAt: vocaliseData['created_at'] != null
-          ? DateTime.tryParse(vocaliseData['created_at'].toString()) ?? DateTime.now()
+          ? DateTime.tryParse(vocaliseData['created_at'].toString()) ??
+              DateTime.now()
           : DateTime.now(),
       updatedAt: vocaliseData['updated_at'] != null
-          ? DateTime.tryParse(vocaliseData['updated_at'].toString()) ?? DateTime.now()
+          ? DateTime.tryParse(vocaliseData['updated_at'].toString()) ??
+              DateTime.now()
           : DateTime.now(),
+      userName: vocaliseData['user_name']?.toString() ??
+          vocaliseData['userName']?.toString() ??
+          (vocaliseData['user'] is Map
+              ? vocaliseData['user']['name']?.toString()
+              : null),
       isDownloaded: vocaliseData['is_downloaded'] ?? false,
       localAudioPath: vocaliseData['local_audio_path']?.toString(),
       audioFiles: audioFiles.isNotEmpty ? audioFiles : null,
       pdfFiles: pdfFiles.isNotEmpty ? pdfFiles : null,
       imageFiles: imageFiles.isNotEmpty ? imageFiles : null,
-      sopranoFiles: pupitreAudioFiles['soprano']!.isNotEmpty ? pupitreAudioFiles['soprano'] : null,
-      altoFiles: pupitreAudioFiles['alto']!.isNotEmpty ? pupitreAudioFiles['alto'] : null,
-      tenorFiles: pupitreAudioFiles['tenor']!.isNotEmpty ? pupitreAudioFiles['tenor'] : null,
-      basseFiles: pupitreAudioFiles['basse']!.isNotEmpty ? pupitreAudioFiles['basse'] : null,
-      tuttiFiles: pupitreAudioFiles['tutti']!.isNotEmpty ? pupitreAudioFiles['tutti'] : null,
+      sopranoFiles: pupitreAudioFiles['soprano']!.isNotEmpty
+          ? pupitreAudioFiles['soprano']
+          : null,
+      altoFiles: pupitreAudioFiles['alto']!.isNotEmpty
+          ? pupitreAudioFiles['alto']
+          : null,
+      tenorFiles: pupitreAudioFiles['tenor']!.isNotEmpty
+          ? pupitreAudioFiles['tenor']
+          : null,
+      basseFiles: pupitreAudioFiles['basse']!.isNotEmpty
+          ? pupitreAudioFiles['basse']
+          : null,
+      tuttiFiles: pupitreAudioFiles['tutti']!.isNotEmpty
+          ? pupitreAudioFiles['tutti']
+          : null,
     );
   }
 
@@ -476,29 +595,34 @@ class BackendAdapter {
   /// Le backend retourne maintenant des sections avec des vocalises (partitions) à l'intérieur
   static List<Vocalise> backendDataListToVocalises(List<dynamic> sectionsData) {
     List<Vocalise> allVocalises = [];
-    
+
     print('🔄 Conversion de ${sectionsData.length} section(s) en vocalises');
-    
+
     for (var sectionData in sectionsData) {
       if (sectionData is Map) {
-        print('📁 Traitement section: ${sectionData['nom'] ?? sectionData['id']}');
-        
+        print(
+            '📁 Traitement section: ${sectionData['nom'] ?? sectionData['id']}');
+
         // Extraire les vocalises de la section principale
-        if (sectionData['vocalises'] != null && sectionData['vocalises'] is List) {
+        if (sectionData['vocalises'] != null &&
+            sectionData['vocalises'] is List) {
           final vocalisesList = sectionData['vocalises'] as List;
           print('   📦 ${vocalisesList.length} élément(s) dans vocalises');
-          
+
           // Les vocalises peuvent être organisées par parties
           for (var vocaliseItem in vocalisesList) {
             if (vocaliseItem is Map) {
               // Si c'est une partie avec des vocalises à l'intérieur
-              if (vocaliseItem['vocalises'] != null && vocaliseItem['vocalises'] is List) {
+              if (vocaliseItem['vocalises'] != null &&
+                  vocaliseItem['vocalises'] is List) {
                 final partVocalises = vocaliseItem['vocalises'] as List;
-                print('   🎵 Partie "${vocaliseItem['name'] ?? 'sans nom'}": ${partVocalises.length} vocalise(s)');
+                print(
+                    '   🎵 Partie "${vocaliseItem['name'] ?? 'sans nom'}": ${partVocalises.length} vocalise(s)');
                 for (var vocaliseData in partVocalises) {
                   if (vocaliseData is Map) {
                     try {
-                      allVocalises.add(backendDataToVocalise(Map<String, dynamic>.from(vocaliseData)));
+                      allVocalises.add(backendDataToVocalise(
+                          Map<String, dynamic>.from(vocaliseData)));
                     } catch (e, stackTrace) {
                       print('❌ Erreur conversion vocalise dans partie: $e');
                       print('📚 Stack: $stackTrace');
@@ -508,7 +632,8 @@ class BackendAdapter {
               } else {
                 // C'est directement une vocalise
                 try {
-                  allVocalises.add(backendDataToVocalise(Map<String, dynamic>.from(vocaliseItem)));
+                  allVocalises.add(backendDataToVocalise(
+                      Map<String, dynamic>.from(vocaliseItem)));
                 } catch (e, stackTrace) {
                   print('❌ Erreur conversion vocalise: $e');
                   print('📚 Stack: $stackTrace');
@@ -520,33 +645,41 @@ class BackendAdapter {
         } else {
           print('   ⚠️ Pas de vocalises dans cette section');
         }
-        
+
         // Extraire les vocalises des sous-sections
-        if (sectionData['sections'] != null && sectionData['sections'] is List) {
+        if (sectionData['sections'] != null &&
+            sectionData['sections'] is List) {
           final subSections = sectionData['sections'] as List;
           print('   📂 ${subSections.length} sous-section(s)');
           for (var subSection in subSections) {
-            if (subSection is Map && subSection['vocalises'] != null && subSection['vocalises'] is List) {
+            if (subSection is Map &&
+                subSection['vocalises'] != null &&
+                subSection['vocalises'] is List) {
               final subVocalisesList = subSection['vocalises'] as List;
-              print('   📦 Sous-section "${subSection['nom']}": ${subVocalisesList.length} élément(s)');
-              
+              print(
+                  '   📦 Sous-section "${subSection['nom']}": ${subVocalisesList.length} élément(s)');
+
               for (var vocaliseItem in subVocalisesList) {
                 if (vocaliseItem is Map) {
-                  if (vocaliseItem['vocalises'] != null && vocaliseItem['vocalises'] is List) {
+                  if (vocaliseItem['vocalises'] != null &&
+                      vocaliseItem['vocalises'] is List) {
                     final partVocalises = vocaliseItem['vocalises'] as List;
                     for (var vocaliseData in partVocalises) {
                       if (vocaliseData is Map) {
                         try {
-                          allVocalises.add(backendDataToVocalise(Map<String, dynamic>.from(vocaliseData)));
+                          allVocalises.add(backendDataToVocalise(
+                              Map<String, dynamic>.from(vocaliseData)));
                         } catch (e, stackTrace) {
-                          print('❌ Erreur conversion vocalise dans sous-section: $e');
+                          print(
+                              '❌ Erreur conversion vocalise dans sous-section: $e');
                           print('📚 Stack: $stackTrace');
                         }
                       }
                     }
                   } else {
                     try {
-                      allVocalises.add(backendDataToVocalise(Map<String, dynamic>.from(vocaliseItem)));
+                      allVocalises.add(backendDataToVocalise(
+                          Map<String, dynamic>.from(vocaliseItem)));
                     } catch (e, stackTrace) {
                       print('❌ Erreur conversion vocalise sous-section: $e');
                       print('📚 Stack: $stackTrace');
@@ -561,7 +694,7 @@ class BackendAdapter {
         print('⚠️ Section non-Map: ${sectionData.runtimeType}');
       }
     }
-    
+
     print('✅ ${allVocalises.length} vocalise(s) extraite(s) des sections');
     return allVocalises;
   }

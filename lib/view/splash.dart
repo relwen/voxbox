@@ -1,19 +1,20 @@
 import 'dart:convert';
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:voxbox/functions/appconstants.dart';
-import 'package:voxbox/view/home.dart';
-import 'package:voxbox/view/login.dart';
+import 'package:voxbox/models/user.dart';
+import 'package:voxbox/services/auth_service.dart';
+import 'package:voxbox/services/auto_sync_service.dart';
+import 'package:voxbox/services/version_service.dart';
+import 'package:voxbox/services/vocalise_service.dart';
 import 'package:voxbox/view/complete_profile_screen.dart';
+import 'package:voxbox/view/home.dart';
 import 'package:voxbox/view/pending_approval_screen.dart';
 import 'package:voxbox/view/update_required_screen.dart';
-import 'package:voxbox/models/user.dart';
-import 'package:voxbox/services/vocalise_service.dart';
-import 'package:voxbox/services/auto_sync_service.dart';
-import 'package:voxbox/services/auth_service.dart';
-import 'package:voxbox/services/version_service.dart';
 
 class SplashScreen extends StatefulWidget {
   @override
@@ -23,6 +24,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   bool loading = false;
+  String _version = "";
   late AnimationController _logoController;
   late AnimationController _gradientController;
   late AnimationController _waveController;
@@ -73,6 +75,9 @@ class _SplashScreenState extends State<SplashScreen>
     // Démarrer les animations
     _logoController.forward();
 
+    // Récupérer la version
+    _initPackageInfo();
+
     // Vérifier la connexion après un délai
     Future.delayed(
       const Duration(seconds: 1),
@@ -90,9 +95,18 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
+  Future<void> _initPackageInfo() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() {
+        _version = info.version;
+      });
+    }
+  }
+
   void checkisConnected() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    
+
     // Vérifier d'abord si une mise à jour est requise (pour tous les utilisateurs, connectés ou non)
     try {
       print('🔍 Vérification de la version de l\'application...');
@@ -105,10 +119,11 @@ class _SplashScreenState extends State<SplashScreen>
         if (versionInfo.updateAvailable || versionInfo.updateRequired) {
           print('⚠️ Mise à jour détectée');
           print('   - Version actuelle (app): ${versionInfo.currentVersion}');
-          print('   - Dernière version (backend): ${versionInfo.latestVersion}');
+          print(
+              '   - Dernière version (backend): ${versionInfo.latestVersion}');
           print('   - Mise à jour requise: ${versionInfo.updateRequired}');
           print('   - Mise à jour disponible: ${versionInfo.updateAvailable}');
-          
+
           // Si la version backend est supérieure à la version de l'app, afficher l'écran de mise à jour
           // On affiche toujours l'écran si updateAvailable est true (version backend > version app)
           Navigator.pushReplacement(
@@ -119,7 +134,8 @@ class _SplashScreenState extends State<SplashScreen>
                 latestVersion: versionInfo.latestVersion,
                 downloadUrl: versionInfo.downloadUrl,
                 message: versionInfo.message,
-                forceUpdate: versionInfo.forceUpdate || versionInfo.updateRequired,
+                forceUpdate:
+                    versionInfo.forceUpdate || versionInfo.updateRequired,
               ),
             ),
           );
@@ -140,11 +156,10 @@ class _SplashScreenState extends State<SplashScreen>
     bool isConnected = prefs.getBool('isConnected') ?? false;
 
     if (isConnected) {
-
       // Toujours récupérer les données utilisateur depuis l'API au démarrage
       // pour avoir les données à jour (notamment le statut)
       User? user;
-      
+
       try {
         print('🔄 Récupération des données utilisateur depuis l\'API...');
         final response = await getUserInfo();
@@ -157,7 +172,8 @@ class _SplashScreenState extends State<SplashScreen>
           print('   - Nom: ${user.name ?? "VIDE"}');
           print('   - Chorale ID: ${user.choraleId ?? "VIDE"}');
         } else {
-          print('⚠️ Erreur lors de la récupération depuis l\'API: ${response.error}');
+          print(
+              '⚠️ Erreur lors de la récupération depuis l\'API: ${response.error}');
           // En cas d'erreur API, utiliser le cache comme fallback
           String? userString = prefs.getString('user');
           if (userString != null) {
@@ -178,13 +194,14 @@ class _SplashScreenState extends State<SplashScreen>
           try {
             Map<String, dynamic> userMap = jsonDecode(userString);
             user = User.fromJson(userMap);
-            print('📦 Utilisation des données en cache (fallback après exception)');
+            print(
+                '📦 Utilisation des données en cache (fallback après exception)');
           } catch (parseError) {
             print('Erreur de parsing utilisateur depuis le cache: $parseError');
           }
         }
       }
-      
+
       if (user == null) {
         // Pas d'utilisateur - rediriger vers la connexion
         Navigator.pushReplacement(
@@ -199,16 +216,20 @@ class _SplashScreenState extends State<SplashScreen>
 
       // Vérifier explicitement que tous les champs requis sont remplis
       // Nom, Chorale et Pupitre doivent être présents avant de vérifier le statut
-      bool isNameEmpty = currentUser.name == null || currentUser.name!.trim().isEmpty;
-      bool isVoicePartEmpty = currentUser.voicePart == null || currentUser.voicePart!.trim().isEmpty;
+      bool isNameEmpty =
+          currentUser.name == null || currentUser.name!.trim().isEmpty;
+      bool isVoicePartEmpty = currentUser.voicePart == null ||
+          currentUser.voicePart!.trim().isEmpty;
       bool isChoraleIdEmpty = currentUser.choraleId == null;
-      
-      bool needsProfileCompletion = isNameEmpty || isVoicePartEmpty || isChoraleIdEmpty;
-      
+
+      bool needsProfileCompletion =
+          isNameEmpty || isVoicePartEmpty || isChoraleIdEmpty;
+
       if (needsProfileCompletion) {
         // Profil incomplet - rediriger vers la complétion
         // L'utilisateur doit compléter son profil (nom, chorale, pupitre) avant de vérifier le statut
-        print('📋 Profil incomplet détecté au démarrage - Redirection vers complétion');
+        print(
+            '📋 Profil incomplet détecté au démarrage - Redirection vers complétion');
         print('   - Nom: ${currentUser.name ?? "VIDE"}');
         print('   - Voice Part: ${currentUser.voicePart ?? "VIDE"}');
         print('   - Chorale ID: ${currentUser.choraleId ?? "VIDE"}');
@@ -224,7 +245,8 @@ class _SplashScreenState extends State<SplashScreen>
       // Le profil est complètement rempli (nom, chorale, pupitre), maintenant vérifier le statut
       if (currentUser.status == 'pending') {
         // Statut pending - afficher l'écran d'attente
-        print('⏳ Profil complet mais statut pending au démarrage - Affichage de l\'écran d\'attente');
+        print(
+            '⏳ Profil complet mais statut pending au démarrage - Affichage de l\'écran d\'attente');
         print('   - Status: ${currentUser.status}');
         Navigator.pushReplacement(
           context,
@@ -234,10 +256,11 @@ class _SplashScreenState extends State<SplashScreen>
         );
       } else {
         // Profil complet et approuvé - synchroniser et rediriger vers l'accueil
-        print('👤 Profil complet et approuvé au démarrage - Redirection vers HomePage');
+        print(
+            '👤 Profil complet et approuvé au démarrage - Redirection vers HomePage');
         print('   - Status: ${currentUser.status}');
         _syncVocalisesInBackground();
-        
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -257,7 +280,7 @@ class _SplashScreenState extends State<SplashScreen>
     try {
       // Initialiser le service de synchronisation automatique
       AutoSyncService().initialize();
-      
+
       // Synchronisation silencieuse des vocalises
       await VocaliseService.syncVocalises();
     } catch (e) {
@@ -314,7 +337,8 @@ class _SplashScreenState extends State<SplashScreen>
                     child: CustomPaint(
                       size: Size(size.width, 200),
                       painter: WavePainter(
-                        animationValue: (_waveController.value + (index * 0.3)) % 1.0,
+                        animationValue:
+                            (_waveController.value + (index * 0.3)) % 1.0,
                         color: Colors.white.withOpacity(0.1 - (index * 0.03)),
                       ),
                     ),
@@ -326,6 +350,7 @@ class _SplashScreenState extends State<SplashScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      const Spacer(flex: 3),
                       // Logo avec animations
                       FadeTransition(
                         opacity: _logoFadeAnimation,
@@ -359,54 +384,63 @@ class _SplashScreenState extends State<SplashScreen>
                         opacity: _logoFadeAnimation,
                         child: Text(
                           AppConstance.appName,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                             letterSpacing: 2,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black.withOpacity(0.3),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
                           ),
                         ),
                       ),
 
-                      const SizedBox(height: 60),
+                      const Spacer(flex: 2),
 
                       // Indicateur de chargement moderne
                       FadeTransition(
                         opacity: _logoFadeAnimation,
-                        child: Container(
-                          width: 60,
-                          height: 60,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // Cercle de progression animé
-                              SizedBox(
-                                width: 60,
-                                height: 60,
-                                child: CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white.withOpacity(0.8),
-                                  ),
-                                  strokeWidth: 3,
-                                  backgroundColor: Colors.white.withOpacity(0.2),
-                                ),
-                              ),
-                              // Spinner au centre
-                              SpinKitPulse(
-                                color: Colors.white,
-                                size: 30.0,
-                              ),
-                            ],
+                        child: SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: SpinKitPulse(
+                            color: Colors.white,
+                            size: 40.0,
                           ),
                         ),
                       ),
+
+                      const Spacer(flex: 2),
+
+                      // Footer: Version + Branding
+                      FadeTransition(
+                        opacity: _logoFadeAnimation,
+                        child: Column(
+                          children: [
+                            if (_version.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: Text(
+                                  "v$_version",
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.4),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: 1.5,
+                                  ),
+                                ),
+                              ),
+                            Text(
+                              "BY KUILINGA TECHNOLOGIES",
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.6),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 3.0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
@@ -414,12 +448,15 @@ class _SplashScreenState extends State<SplashScreen>
                 // Particules flottantes
                 ...List.generate(8, (index) {
                   final delay = index * 0.2;
-                  final animationValue = (_gradientController.value + delay) % 1.0;
+                  final animationValue =
+                      (_gradientController.value + delay) % 1.0;
                   return Positioned(
                     left: (size.width / 8) * index,
                     top: size.height * (0.2 + (animationValue * 0.6)),
                     child: Opacity(
-                      opacity: (math.sin(animationValue * math.pi * 2) * 0.5 + 0.5) * 0.6,
+                      opacity:
+                          (math.sin(animationValue * math.pi * 2) * 0.5 + 0.5) *
+                              0.6,
                       child: Container(
                         width: 4,
                         height: 4,
@@ -472,7 +509,9 @@ class WavePainter extends CustomPainter {
     for (double x = 0; x <= size.width; x++) {
       final y = size.height / 2 +
           waveHeight *
-              math.sin((x / waveLength + animationValue * 2 * math.pi) * 2 * math.pi);
+              math.sin((x / waveLength + animationValue * 2 * math.pi) *
+                  2 *
+                  math.pi);
       path.lineTo(x, y);
     }
 

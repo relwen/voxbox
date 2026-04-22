@@ -16,6 +16,7 @@ class ChantDeMesse {
   final List<String>? tenorFiles;
   final List<String>? basseFiles;
   final List<String>? tuttiFiles;
+  final String? userName;
   final int ordre;
   final bool active;
   final DateTime createdAt;
@@ -64,6 +65,7 @@ class ChantDeMesse {
     this.tenorFiles,
     this.basseFiles,
     this.tuttiFiles,
+    this.userName,
     required this.ordre,
     required this.active,
     required this.createdAt,
@@ -87,6 +89,7 @@ class ChantDeMesse {
       tenorFiles: json['tenor_files'] != null ? List<String>.from(json['tenor_files']) : null,
       basseFiles: json['basse_files'] != null ? List<String>.from(json['basse_files']) : null,
       tuttiFiles: json['tutti_files'] != null ? List<String>.from(json['tutti_files']) : null,
+      userName: json['user_name'],
       ordre: json['ordre'] ?? 0,
       active: json['active'] ?? true,
       createdAt: json['created_at'] != null 
@@ -115,6 +118,7 @@ class ChantDeMesse {
       'tenor_files': tenorFiles,
       'basse_files': basseFiles,
       'tutti_files': tuttiFiles,
+      'user_name': userName,
       'ordre': ordre,
       'active': active,
       'created_at': createdAt.toIso8601String(),
@@ -138,6 +142,7 @@ class ChantDeMesse {
     List<String>? tenorFiles,
     List<String>? basseFiles,
     List<String>? tuttiFiles,
+    String? userName,
     int? ordre,
     bool? active,
     DateTime? createdAt,
@@ -159,6 +164,7 @@ class ChantDeMesse {
       tenorFiles: tenorFiles ?? this.tenorFiles,
       basseFiles: basseFiles ?? this.basseFiles,
       tuttiFiles: tuttiFiles ?? this.tuttiFiles,
+      userName: userName ?? this.userName,
       ordre: ordre ?? this.ordre,
       active: active ?? this.active,
       createdAt: createdAt ?? this.createdAt,

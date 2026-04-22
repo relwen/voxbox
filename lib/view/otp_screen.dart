@@ -9,6 +9,7 @@ import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/view/complete_profile_screen.dart';
 import 'package:voxbox/view/home.dart';
 import 'package:voxbox/view/pending_approval_screen.dart';
+import 'package:voxbox/services/notification_service.dart';
 
 class OTPScreen extends StatefulWidget {
   final String phoneNumber;
@@ -215,6 +216,10 @@ class _OTPScreenState extends State<OTPScreen> with TickerProviderStateMixin {
           // Profil complet et approuvé - rediriger vers l'accueil
           print('👤 Profil complet et approuvé - Redirection vers HomePage');
           print('   - Status: ${currentUser.status}');
+          
+          // Mettre à jour le token FCM sur le serveur dès que l'utilisateur est connecté et approuvé
+          NotificationService().updateTokenOnServer();
+
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(

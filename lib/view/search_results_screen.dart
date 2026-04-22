@@ -292,7 +292,8 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           if (partitionResults.isNotEmpty) ...[
             _buildSectionTitle('Partitions', partitionResults.length),
             const SizedBox(height: 12),
-            ...partitionResults.map((partition) => _buildPartitionCard(partition)),
+            ...partitionResults
+                .map((partition) => _buildPartitionCard(partition)),
             const SizedBox(height: 24),
           ],
 
@@ -389,14 +390,29 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             fontSize: 16,
           ),
         ),
-        subtitle: Text(
-          partition.description ?? 'Aucune description',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 12,
-          ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              partition.description ?? 'Aucune description',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 12,
+              ),
+            ),
+            if (partition.userName != null)
+              Text(
+                'Par ${partition.userName}',
+                style: TextStyle(
+                  color: AppConstance.primary.withOpacity(0.8),
+                  fontSize: 11,
+                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+          ],
         ),
         trailing: Icon(
           Icons.chevron_right,
@@ -448,14 +464,29 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             fontSize: 16,
           ),
         ),
-        subtitle: Text(
-          '${vocalise.voicePart} • ${vocalise.description ?? 'Aucune description'}',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 12,
-          ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${vocalise.voicePart} • ${vocalise.description ?? 'Aucune description'}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 12,
+              ),
+            ),
+            if (vocalise.userName != null)
+              Text(
+                'Par ${vocalise.userName}',
+                style: TextStyle(
+                  color: Colors.orange.shade700,
+                  fontSize: 11,
+                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+          ],
         ),
         trailing: Icon(
           Icons.chevron_right,

@@ -15,7 +15,8 @@ class SectionPartitionsScreen extends StatefulWidget {
   });
 
   @override
-  State<SectionPartitionsScreen> createState() => _SectionPartitionsScreenState();
+  State<SectionPartitionsScreen> createState() =>
+      _SectionPartitionsScreenState();
 }
 
 class _SectionPartitionsScreenState extends State<SectionPartitionsScreen> {
@@ -37,9 +38,12 @@ class _SectionPartitionsScreenState extends State<SectionPartitionsScreen> {
     try {
       var partitionResponse = await PartitionService.getPartitions();
       if (partitionResponse.error == null) {
-        List<Partition> allPartitions = partitionResponse.data as List<Partition>;
+        List<Partition> allPartitions =
+            partitionResponse.data as List<Partition>;
         setState(() {
-          sectionPartitions = allPartitions.where((p) => p.categoryId == widget.section.id).toList();
+          sectionPartitions = allPartitions
+              .where((p) => p.categoryId == widget.section.id)
+              .toList();
           loading = false;
         });
       } else {
@@ -64,7 +68,9 @@ class _SectionPartitionsScreenState extends State<SectionPartitionsScreen> {
       if (response.error == null) {
         List<Partition> allPartitions = response.data as List<Partition>;
         setState(() {
-          sectionPartitions = allPartitions.where((p) => p.categoryId == widget.section.id).toList();
+          sectionPartitions = allPartitions
+              .where((p) => p.categoryId == widget.section.id)
+              .toList();
           syncing = false;
         });
         ToastService.success(
@@ -131,7 +137,7 @@ class _SectionPartitionsScreenState extends State<SectionPartitionsScreen> {
   @override
   Widget build(BuildContext context) {
     String sectionName = _getSectionName(widget.section.name);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Text(sectionName),
@@ -194,12 +200,15 @@ class _SectionPartitionsScreenState extends State<SectionPartitionsScreen> {
                   itemCount: sectionPartitions.length,
                   itemBuilder: (context, index) {
                     Partition partition = sectionPartitions[index];
-                    
+
                     return Card(
                       margin: EdgeInsets.only(bottom: 16.0),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: Color(int.parse(partition.categoryColor?.replaceAll('#', '0xFF') ?? '0xFF2196F3')),
+                          backgroundColor: Color(int.parse(partition
+                                  .categoryColor
+                                  ?.replaceAll('#', '0xFF') ??
+                              '0xFF2196F3')),
                           child: Icon(
                             Icons.music_note,
                             color: Colors.white,
@@ -214,7 +223,7 @@ class _SectionPartitionsScreenState extends State<SectionPartitionsScreen> {
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (partition.description != null) 
+                            if (partition.description != null)
                               Text(partition.description!),
                             SizedBox(height: 4),
                             Row(
@@ -228,46 +237,70 @@ class _SectionPartitionsScreenState extends State<SectionPartitionsScreen> {
                                 Text(partition.choraleName ?? 'Chorale'),
                               ],
                             ),
+                            // if (partition.userName != null) ...[
+                            SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(Icons.person,
+                                    size: 16, color: Colors.grey[500]),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Par ${partition.userName}',
+                                  style: TextStyle(
+                                    color: Colors.grey[500],
+                                    fontSize: 12,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            // ],
                             SizedBox(height: 4),
                             Row(
                               children: [
                                 if (partition.audioPath != null)
                                   Container(
                                     margin: EdgeInsets.only(right: 8),
-                                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
                                       color: Colors.green,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
                                       'Audio',
-                                      style: TextStyle(color: Colors.white, fontSize: 10),
+                                      style: TextStyle(
+                                          color: Colors.white, fontSize: 10),
                                     ),
                                   ),
                                 if (partition.pdfPath != null)
                                   Container(
                                     margin: EdgeInsets.only(right: 8),
-                                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
                                       color: Colors.red,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
                                       'PDF',
-                                      style: TextStyle(color: Colors.white, fontSize: 10),
+                                      style: TextStyle(
+                                          color: Colors.white, fontSize: 10),
                                     ),
                                   ),
                                 if (partition.imagePath != null)
                                   Container(
                                     margin: EdgeInsets.only(right: 8),
-                                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
                                       color: Colors.blue,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
                                       'Image',
-                                      style: TextStyle(color: Colors.white, fontSize: 10),
+                                      style: TextStyle(
+                                          color: Colors.white, fontSize: 10),
                                     ),
                                   ),
                               ],
@@ -285,13 +318,15 @@ class _SectionPartitionsScreenState extends State<SectionPartitionsScreen> {
                               ),
                             if (partition.pdfPath != null)
                               IconButton(
-                                onPressed: () => _downloadFile(partition, 'PDF'),
+                                onPressed: () =>
+                                    _downloadFile(partition, 'PDF'),
                                 icon: Icon(Icons.picture_as_pdf),
                                 tooltip: 'Télécharger PDF',
                               ),
                             if (partition.imagePath != null)
                               IconButton(
-                                onPressed: () => _downloadFile(partition, 'Image'),
+                                onPressed: () =>
+                                    _downloadFile(partition, 'Image'),
                                 icon: Icon(Icons.image),
                                 tooltip: 'Télécharger Image',
                               ),

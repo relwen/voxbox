@@ -122,6 +122,24 @@ class _VocaliseListScreenState extends State<VocaliseListScreen> {
                   ),
               ],
             ),
+            if (vocalise.userName != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_note, size: 14, color: Colors.grey[500]),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Par ${vocalise.userName}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
         trailing: const Icon(Icons.arrow_forward_ios),

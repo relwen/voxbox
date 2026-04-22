@@ -9,6 +9,7 @@ class Vocalise {
   final String? audioUrl;
   final int choraleId;
   final String? choraleName;
+  final String? userName;
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isDownloaded; // Pour savoir si le fichier audio est téléchargé localement
@@ -45,6 +46,7 @@ class Vocalise {
     this.audioUrl,
     required this.choraleId,
     this.choraleName,
+    this.userName,
     required this.createdAt,
     required this.updatedAt,
     this.isDownloaded = false,
@@ -68,7 +70,8 @@ class Vocalise {
       audioPath: json['audio_path'],
       audioUrl: json['audio_path'] != null ? '${AppConstance.baseURL}/storage/${json['audio_path']}' : null,
       choraleId: json['chorale_id'],
-      choraleName: json['chorale']?['name'],
+      choraleName: json['chorale']?['name'] ?? json['chorale_name'],
+      userName: json['user']?['name'] ?? json['user_name'],
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
       isDownloaded: json['is_downloaded'] ?? false,
@@ -94,6 +97,7 @@ class Vocalise {
       'audio_url': audioUrl,
       'chorale_id': choraleId,
       'chorale_name': choraleName,
+      'user_name': userName,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'is_downloaded': isDownloaded,
@@ -118,6 +122,7 @@ class Vocalise {
     String? audioUrl,
     int? choraleId,
     String? choraleName,
+    String? userName,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isDownloaded,
@@ -140,6 +145,7 @@ class Vocalise {
       audioUrl: audioUrl ?? this.audioUrl,
       choraleId: choraleId ?? this.choraleId,
       choraleName: choraleName ?? this.choraleName,
+      userName: userName ?? this.userName,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isDownloaded: isDownloaded ?? this.isDownloaded,

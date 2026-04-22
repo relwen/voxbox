@@ -16,6 +16,7 @@ class Partition {
   final String? categoryIcon;
   final int choraleId;
   final String? choraleName;
+  final String? userName;
   final int? rubriqueSectionId; // ID de la section de messe (null si pas liée à une messe)
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -40,6 +41,7 @@ class Partition {
     this.categoryIcon,
     required this.choraleId,
     this.choraleName,
+    this.userName,
     this.rubriqueSectionId,
     required this.createdAt,
     required this.updatedAt,
@@ -74,6 +76,7 @@ class Partition {
       categoryIcon: json['category']?['icon']?.toString() ?? json['category_icon']?.toString(),
       choraleId: _toInt(json['chorale_id']),
       choraleName: json['chorale']?['name']?.toString() ?? json['chorale_name']?.toString(),
+      userName: json['user']?['name']?.toString() ?? json['user_name']?.toString(),
       rubriqueSectionId: json['rubrique_section_id'] != null ? _toInt(json['rubrique_section_id']) : null,
       createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now() : DateTime.now(),
       updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString()) ?? DateTime.now() : DateTime.now(),
@@ -101,6 +104,7 @@ class Partition {
       'category_icon': categoryIcon,
       'chorale_id': choraleId,
       'chorale_name': choraleName,
+      'user_name': userName,
       'rubrique_section_id': rubriqueSectionId,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -127,6 +131,7 @@ class Partition {
     String? categoryIcon,
     int? choraleId,
     String? choraleName,
+    String? userName,
     int? rubriqueSectionId,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -151,6 +156,7 @@ class Partition {
       categoryIcon: categoryIcon ?? this.categoryIcon,
       choraleId: choraleId ?? this.choraleId,
       choraleName: choraleName ?? this.choraleName,
+      userName: userName ?? this.userName,
       rubriqueSectionId: rubriqueSectionId ?? this.rubriqueSectionId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

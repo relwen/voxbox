@@ -14,6 +14,7 @@ import 'package:voxbox/view/messes/messes.dart';
 import 'package:voxbox/view/profile.dart';
 import 'package:voxbox/view/search_results_screen.dart';
 import 'package:voxbox/view/vocalize/vocalize.dart';
+import 'package:voxbox/view/admin/admin_dashboard.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -706,31 +707,26 @@ class _MyHomePageState extends State<HomePage> {
 
             const SizedBox(height: 12),
 
-            // Troisième ligne
-            // Row(
-            //   children: [
-            //     _buildModernCard(
-            //       icon: Icons.fitness_center_rounded,
-            //       title: 'Exercices',
-            //       subtitle: 'Entraînement',
-            //       gradient: false,
-            //       onTap: () => Navigator.push(
-            //         context,
-            //         MaterialPageRoute(builder: (_) => const ExercisesScreen()),
-            //       ),
-            //     ),
-            //     _buildModernCard(
-            //       icon: Icons.newspaper_rounded,
-            //       title: 'Actualités',
-            //       subtitle: 'Dernières infos',
-            //       gradient: true,
-            //       onTap: () => Navigator.push(
-            //         context,
-            //         MaterialPageRoute(builder: (_) => const ActualitesScreen()),
-            //       ),
-            //     ),
-            //   ],
-            // ),
+            // Troisième ligne (Visible seulement pour les administrateurs)
+            if (user.role == 'admin')
+              Row(
+                children: [
+                  _buildModernCard(
+                    icon: Icons.admin_panel_settings_rounded,
+                    title: 'Administration',
+                    subtitle: 'Gestion & Notifications',
+                    gradient: true,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const AdminDashboardScreen()),
+                      );
+                    },
+                  ),
+                  const Expanded(child: SizedBox()), // Pour garder l'alignement
+                ],
+              ),
           ],
         ),
       ),

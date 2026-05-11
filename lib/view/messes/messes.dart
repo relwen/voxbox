@@ -6,6 +6,8 @@ import 'package:voxbox/models/messe.dart';
 import 'package:voxbox/services/messe_service.dart';
 import 'package:voxbox/services/toast_service.dart';
 import 'package:voxbox/view/messes/messe_sections.dart';
+import 'package:voxbox/widgets/offline_indicator.dart';
+import 'package:voxbox/widgets/shimmer_loading.dart';
 
 class MessesScreen extends StatefulWidget {
   const MessesScreen({super.key});
@@ -122,94 +124,96 @@ class _MessesScreenState extends State<MessesScreen> {
           ),
         ],
       ),
-      body: loading
-          ? const Center(
-              child: SpinKitFadingCircle(
-                color: Colors.blue,
-                size: 50.0,
-              ),
-            )
-          : messes.isEmpty
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.church,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Aucune messe trouvée',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Appuyez sur le bouton de synchronisation pour charger les messes',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: messes.length,
-                  itemBuilder: (context, index) {
-                    Messe messe = messes[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      elevation: 4,
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Color(int.parse(messe.couleur.replaceAll('#', '0xFF'))),
-                          child: Icon(
-                            _getIconForMesse(messe.nom),
-                            color: Colors.white,
-                          ),
-                        ),
-                        title: Text(
-                          messe.nom,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+      body: Column(
+        children: [
+          const OfflineIndicator(),
+          Expanded(
+            child: loading
+                ? const ShimmerListLoading()
+                : messes.isEmpty
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            if (messe.description != null)
-                              Text(
-                                messe.description!,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            const SizedBox(height: 4),
+                            Icon(
+                              Icons.church,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 16),
                             Text(
-                              '${messe.sections?.length ?? 0} section${(messe.sections?.length ?? 0) > 1 ? 's' : ''}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.blue,
-                                fontWeight: FontWeight.w500,
+                              'Aucune messe trouvée',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Appuyez sur le bouton de synchronisation pour charger les messes',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
                               ),
                             ),
                           ],
                         ),
-                        trailing: const Icon(Icons.arrow_forward_ios),
-                        onTap: () => _openMesse(messe),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: messes.length,
+                        itemBuilder: (context, index) {
+                          Messe messe = messes[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            elevation: 4,
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Color(int.parse(messe.couleur.replaceAll('#', '0xFF'))),
+                                child: Icon(
+                                  _getIconForMesse(messe.nom),
+                                  color: Colors.white,
+                                ),
+                              ),
+                              title: Text(
+                                messe.nom,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (messe.description != null)
+                                    Text(
+                                      messe.description!,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${messe.sections?.length ?? 0} section${(messe.sections?.length ?? 0) > 1 ? 's' : ''}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.blue,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              trailing: const Icon(Icons.arrow_forward_ios),
+                              onTap: () => _openMesse(messe),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _syncMesses,
         backgroundColor: AppConstance.primary,

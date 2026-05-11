@@ -15,6 +15,9 @@ import 'package:voxbox/services/local_file_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'package:voxbox/view/chants/add_files_to_chant_section_screen.dart';
+import 'package:voxbox/widgets/offline_indicator.dart';
+import 'package:voxbox/widgets/shimmer_loading.dart';
 
 class ChantSectionsScreen extends StatefulWidget {
   final ChantSection section;
@@ -30,6 +33,7 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen>
   List<ChantDeMesse> chants = [];
   bool loading = false;
   bool syncing = false;
+  User? user;
   List<ChoralePupitre> _pupitres = [];
   TabController? _tabController;
   int? _choraleId;
@@ -41,9 +45,20 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen>
   @override
   void initState() {
     super.initState();
+    _loadUser();
     _loadChants();
     _loadPupitres();
     _checkFilesStatus();
+  }
+
+  void _loadUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userString = prefs.getString('user');
+    if (userString != null) {
+      setState(() {
+        user = User.fromJson(jsonDecode(userString));
+      });
+    }
   }
 
   Future<void> _checkFilesStatus() async {
@@ -87,15 +102,31 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen>
                   TabController(length: _pupitres.length + 1, vsync: this);
             });
           }
+        } else {
+          // Si choraleId est null, initialiser au moins un tab (Général)
+          setState(() {
+            _pupitres = [];
+            _tabController?.dispose();
+            _tabController = TabController(length: 1, vsync: this);
+          });
         }
+      } else {
+        // Si utilisateur non connecté, initialiser au moins un tab
+        setState(() {
+          _pupitres = [];
+          _tabController?.dispose();
+          _tabController = TabController(length: 1, vsync: this);
+        });
       }
     } catch (e) {
       print('Erreur lors du chargement des pupitres: $e');
-      setState(() {
-        _pupitres = [];
-        _tabController?.dispose();
-        _tabController = TabController(length: 1, vsync: this);
-      });
+      if (mounted) {
+        setState(() {
+          _pupitres = [];
+          _tabController?.dispose();
+          _tabController = TabController(length: 1, vsync: this);
+        });
+      }
     }
   }
 
@@ -161,6 +192,15 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen>
         syncing = false;
       });
     }
+  }
+
+  void _openAddFilesScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddFilesToChantSectionScreen(section: widget.section),
+      ),
+    ).then((_) => _loadChants());
   }
 
   List<String> _getFilesForPupitre(int pupitreId) {
@@ -253,8 +293,13 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen>
           backgroundColor:
               Color(int.parse(widget.section.couleur.replaceAll('#', '0xFF'))),
         ),
-        body: const Center(
-          child: CircularProgressIndicator(),
+        body: Column(
+          children: [
+            const OfflineIndicator(),
+            const Expanded(
+              child: ShimmerListLoading(),
+            ),
+          ],
         ),
       );
     }
@@ -270,6 +315,11 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen>
         backgroundColor:
             Color(int.parse(widget.section.couleur.replaceAll('#', '0xFF'))),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.add, color: Colors.white),
+            onPressed: _openAddFilesScreen,
+            tooltip: 'Ajouter des fichiers',
+          ),
           if (_audioPlayerService.isPlaying)
             IconButton(
               icon: const Icon(Icons.stop, color: Colors.red),
@@ -282,79 +332,92 @@ class _ChantSectionsScreenState extends State<ChantSectionsScreen>
           ),
         ],
       ),
-      body: loading
-          ? const Center(
-              child: SpinKitFadingCircle(
-                color: Colors.blue,
-                size: 50.0,
-              ),
-            )
-          : chants.isEmpty
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.music_note,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Aucune partition trouvée',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : Column(
-                  children: [
-                    // TabBar pour les pupitres
-                    TabBar(
-                      controller: _tabController!,
-                      isScrollable: true,
-                      labelColor: AppConstance.primary,
-                      unselectedLabelColor: Colors.grey,
-                      indicatorColor: AppConstance.primary,
-                      tabs: [
-                        const Tab(
-                            text: 'Général',
-                            icon: Icon(Icons.folder, size: 16)),
-                        ..._pupitres.map((pupitre) => Tab(
-                              text: pupitre.nom,
-                              icon: Icon(
-                                pupitre.icon != null
-                                    ? _getIconFromString(pupitre.icon!)
-                                    : Icons.person,
-                                size: 16,
-                              ),
-                            )),
-                      ],
+      body: Column(
+        children: [
+          const OfflineIndicator(),
+          Expanded(
+            child: loading
+                ? const Center(
+                    child: SpinKitFadingCircle(
+                      color: Colors.blue,
+                      size: 50.0,
                     ),
-                    // Contenu des onglets
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabController!,
+                  )
+                : chants.isEmpty
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.music_note,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'Aucune partition trouvée',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Column(
                         children: [
-                          _buildGeneralTab(),
-                          ..._pupitres.map((pupitre) {
-                            List<String> pupitreFiles =
-                                _getFilesForPupitre(pupitre.id);
-                            Color pupitreColor = pupitre.color != null
-                                ? Color(int.parse(
-                                    pupitre.color!.replaceAll('#', '0xFF')))
-                                : Colors.blue;
-                            return _buildPupitreTab(
-                                pupitre.nom, pupitreFiles, pupitreColor);
-                          }),
+                          // TabBar pour les pupitres
+                          TabBar(
+                            controller: _tabController!,
+                            isScrollable: true,
+                            labelColor: AppConstance.primary,
+                            unselectedLabelColor: Colors.grey,
+                            indicatorColor: AppConstance.primary,
+                            tabs: [
+                              const Tab(
+                                  text: 'Général',
+                                  icon: Icon(Icons.folder, size: 16)),
+                              ..._pupitres.map((pupitre) => Tab(
+                                    text: pupitre.nom,
+                                    icon: Icon(
+                                      pupitre.icon != null
+                                          ? _getIconFromString(pupitre.icon!)
+                                          : Icons.person,
+                                      size: 16,
+                                    ),
+                                  )),
+                            ],
+                          ),
+                          // Contenu des onglets
+                          Expanded(
+                            child: TabBarView(
+                              controller: _tabController!,
+                              children: [
+                                _buildGeneralTab(),
+                                ..._pupitres.map((pupitre) {
+                                  List<String> pupitreFiles =
+                                      _getFilesForPupitre(pupitre.id);
+                                  Color pupitreColor = pupitre.color != null
+                                      ? Color(int.parse(
+                                          pupitre.color!.replaceAll('#', '0xFF')))
+                                      : Colors.blue;
+                                  return _buildPupitreTab(
+                                      pupitre.nom, pupitreFiles, pupitreColor);
+                                }),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _openAddFilesScreen,
+        backgroundColor: AppConstance.primary,
+        child: const Icon(Icons.add, color: Colors.white),
+        tooltip: 'Ajouter des fichiers',
+      ),
     );
   }
 

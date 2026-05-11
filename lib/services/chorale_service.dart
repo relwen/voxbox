@@ -8,6 +8,7 @@ import 'package:voxbox/services/api_response.dart';
 
 class ChoraleService {
   static String get _baseUrl => AppConstance.baseURL;
+  static const String _pupitresKeyPrefix = 'cached_pupitres_';
 
   /// Récupère toutes les chorales depuis le serveur
   /// L'API des chorales est accessible sans authentification
@@ -154,43 +155,60 @@ class ChoraleService {
   /// Récupère les pupitres d'une chorale
   static Future<ApiResponse<List<ChoralePupitre>>> getPupitres(int choraleId) async {
     try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? token = prefs.getString('token');
+      final prefs = await SharedPreferences.getInstance();
       
-      Map<String, String> headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
-      
-      if (token != null) {
-        headers['Authorization'] = 'Bearer $token';
-      }
-      
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/chorales/$choraleId/pupitres'),
-        headers: headers,
-      );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
+      // Tenter de charger depuis le serveur
+      try {
+        Map<String, String> headers = {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        };
         
-        if (data['success'] == true && data['data'] != null) {
-          List<ChoralePupitre> pupitres = (data['data'] as List)
-              .map((json) => ChoralePupitre.fromJson(json))
-              .toList();
-          
-          // Trier par ordre
-          pupitres.sort((a, b) => a.order.compareTo(b.order));
-          
-          return ApiResponse<List<ChoralePupitre>>(data: pupitres);
-        } else {
-          return ApiResponse<List<ChoralePupitre>>(error: data['message'] ?? 'Erreur lors du chargement des pupitres');
+        String? token = prefs.getString('token');
+        if (token != null) {
+          headers['Authorization'] = 'Bearer $token';
         }
-      } else {
-        return ApiResponse<List<ChoralePupitre>>(error: 'Erreur serveur: ${response.statusCode}');
+        
+        final response = await http.get(
+          Uri.parse('$_baseUrl/api/chorales/$choraleId/pupitres'),
+          headers: headers,
+        ).timeout(const Duration(seconds: 5));
+
+        if (response.statusCode == 200) {
+          final Map<String, dynamic> data = json.decode(response.body);
+          
+          if (data['success'] == true && data['data'] != null) {
+            List<ChoralePupitre> pupitres = (data['data'] as List)
+                .map((json) => ChoralePupitre.fromJson(json))
+                .toList();
+            
+            // Trier par ordre
+            pupitres.sort((a, b) => a.order.compareTo(b.order));
+            
+            // Sauvegarder dans le cache
+            await prefs.setString('$_pupitresKeyPrefix$choraleId', json.encode(data['data']));
+            
+            return ApiResponse<List<ChoralePupitre>>(data: pupitres);
+          }
+        }
+      } catch (e) {
+        print('📡 ChoraleService - Erreur réseau ou timeout, utilisation du cache: $e');
       }
+
+      // Si échec réseau, charger depuis le cache
+      final cachedPupitresJson = prefs.getString('$_pupitresKeyPrefix$choraleId');
+      if (cachedPupitresJson != null) {
+        final List<dynamic> decoded = json.decode(cachedPupitresJson);
+        List<ChoralePupitre> pupitres = decoded
+            .map((json) => ChoralePupitre.fromJson(json))
+            .toList();
+        pupitres.sort((a, b) => a.order.compareTo(b.order));
+        return ApiResponse<List<ChoralePupitre>>(data: pupitres);
+      }
+
+      return ApiResponse<List<ChoralePupitre>>(error: 'Impossible de charger les pupitres et aucun cache disponible');
     } catch (e) {
-      return ApiResponse<List<ChoralePupitre>>(error: 'Erreur de connexion: $e');
+      return ApiResponse<List<ChoralePupitre>>(error: 'Erreur: $e');
     }
   }
 

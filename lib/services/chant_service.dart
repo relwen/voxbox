@@ -8,6 +8,7 @@ import 'package:voxbox/models/chant_de_messe.dart';
 import 'package:voxbox/models/chant_section.dart';
 import 'package:voxbox/services/api_response.dart';
 import 'package:voxbox/services/unified_cache_service.dart';
+import 'package:voxbox/services/network_service.dart';
 
 class ChantService {
   static const String _chantsKey = 'local_chants';
@@ -16,6 +17,17 @@ class ChantService {
   /// Récupérer toutes les sections de chants depuis le serveur
   static Future<ApiResponse<List<ChantSection>>> getSectionsFromServer() async {
     try {
+      final isConnected = await NetworkService().isConnected();
+      
+      if (!isConnected) {
+        print('📡 ChantService - Mode Hors-ligne détecté, chargement du cache...');
+        final localSections = await UnifiedCacheService.getChantSections();
+        if (localSections.isNotEmpty) {
+          return ApiResponse<List<ChantSection>>(data: localSections);
+        }
+        return ApiResponse<List<ChantSection>>(error: 'Pas de connexion internet et aucun cache disponible');
+      }
+
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
       
@@ -29,51 +41,37 @@ class ChantService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      );
+      ).timeout(const Duration(seconds: 10));
 
-      print('🌐 ChantService::getSectionsFromServer - Réponse reçue');
-      print('📡 Status Code: ${response.statusCode}');
-      
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('✅ Données décodées: success=${data['success']}, data count=${data['data']?.length ?? 0}');
-        
         if (data['success'] == true) {
-          try {
-            List<dynamic> sectionsData = data['data'] ?? [];
-            print('📦 ${sectionsData.length} section(s) reçue(s) du serveur');
-            
-            List<ChantSection> sections = sectionsData
-                .map((sectionData) {
-                  try {
-                    return ChantSection.fromJson(sectionData);
-                  } catch (e) {
-                    print('❌ Erreur parsing section: $e');
-                    print('📄 Données: $sectionData');
-                    return null;
-                  }
-                })
-                .where((section) => section != null)
-                .cast<ChantSection>()
-                .toList();
-            
-            print('✅ ${sections.length} section(s) récupérée(s)');
-            return ApiResponse<List<ChantSection>>(data: sections);
-          } catch (e, stackTrace) {
-            print('❌ Erreur lors du parsing des sections: $e');
-            print('📚 Stack trace: $stackTrace');
-            return ApiResponse<List<ChantSection>>(error: 'Erreur de parsing: $e');
-          }
+          List<dynamic> sectionsData = data['data'] ?? [];
+          List<ChantSection> sections = sectionsData
+              .map((sectionData) => ChantSection.fromJson(sectionData))
+              .toList();
+          
+          // Sauvegarder localement via UnifiedCacheService
+          await UnifiedCacheService.saveOrUpdateChantSections(sections);
+          
+          return ApiResponse<List<ChantSection>>(data: sections);
         } else {
-          print('❌ Erreur serveur: ${data['message'] ?? 'Erreur inconnue'}');
           return ApiResponse<List<ChantSection>>(error: data['message'] ?? 'Erreur serveur');
         }
       } else {
-        print('❌ Erreur HTTP: ${response.statusCode}');
-        print('📄 Response: ${response.body}');
+        // En cas d'erreur serveur, tenter le cache
+        final localSections = await UnifiedCacheService.getChantSections();
+        if (localSections.isNotEmpty) {
+          return ApiResponse<List<ChantSection>>(data: localSections);
+        }
         return ApiResponse<List<ChantSection>>(error: 'Erreur HTTP: ${response.statusCode}');
       }
     } catch (e) {
+      print('❌ Erreur ChantService: $e');
+      final localSections = await UnifiedCacheService.getChantSections();
+      if (localSections.isNotEmpty) {
+        return ApiResponse<List<ChantSection>>(data: localSections);
+      }
       return ApiResponse<List<ChantSection>>(error: 'Erreur de connexion: $e');
     }
   }
@@ -81,6 +79,16 @@ class ChantService {
   /// Récupérer les chants d'une section depuis le serveur
   static Future<ApiResponse<List<ChantDeMesse>>> getSectionChants(int sectionId) async {
     try {
+      final isConnected = await NetworkService().isConnected();
+      
+      if (!isConnected) {
+        final localSectionChants = await UnifiedCacheService.getChantsBySection(sectionId);
+        if (localSectionChants.isNotEmpty) {
+          return ApiResponse<List<ChantDeMesse>>(data: localSectionChants);
+        }
+        return ApiResponse<List<ChantDeMesse>>(error: 'Pas de connexion et aucun cache pour cette section');
+      }
+
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
       
@@ -94,7 +102,7 @@ class ChantService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -103,80 +111,156 @@ class ChantService {
           List<ChantDeMesse> chants = chantsData
               .map((chantData) => ChantDeMesse.fromJson(chantData))
               .toList();
+          
+          // Mettre à jour le cache local via UnifiedCacheService
+          await UnifiedCacheService.saveOrUpdateChants(chants);
+
           return ApiResponse<List<ChantDeMesse>>(data: chants);
         } else {
           return ApiResponse<List<ChantDeMesse>>(error: data['message'] ?? 'Erreur serveur');
         }
       } else {
+        final localSectionChants = await UnifiedCacheService.getChantsBySection(sectionId);
+        if (localSectionChants.isNotEmpty) {
+          return ApiResponse<List<ChantDeMesse>>(data: localSectionChants);
+        }
         return ApiResponse<List<ChantDeMesse>>(error: 'Erreur HTTP: ${response.statusCode}');
       }
     } catch (e) {
+      final localSectionChants = await UnifiedCacheService.getChantsBySection(sectionId);
+      if (localSectionChants.isNotEmpty) {
+        return ApiResponse<List<ChantDeMesse>>(data: localSectionChants);
+      }
       return ApiResponse<List<ChantDeMesse>>(error: 'Erreur de connexion: $e');
     }
   }
 
   /// Récupérer les sections locales
   static Future<List<ChantSection>> getLocalSections() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final sectionsJson = prefs.getString(_sectionsKey);
-      if (sectionsJson != null) {
-        final List<dynamic> sectionsList = json.decode(sectionsJson);
-        return sectionsList.map((json) => ChantSection.fromJson(json)).toList();
-      }
-      return [];
-    } catch (e) {
-      print('Erreur lors de la récupération des sections locales: $e');
-      return [];
-    }
+    return await UnifiedCacheService.getChantSections();
   }
 
   /// Sauvegarder les sections localement
   static Future<void> saveLocalSections(List<ChantSection> sections) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final sectionsJson = json.encode(sections.map((section) => section.toJson()).toList());
-      await prefs.setString(_sectionsKey, sectionsJson);
-    } catch (e) {
-      print('Erreur lors de la sauvegarde des sections: $e');
-    }
+    await UnifiedCacheService.saveOrUpdateChantSections(sections);
   }
 
   /// Récupérer les chants locaux
   static Future<List<ChantDeMesse>> getLocalChants() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final chantsJson = prefs.getString(_chantsKey);
-      if (chantsJson != null) {
-        final List<dynamic> chantsList = json.decode(chantsJson);
-        return chantsList.map((json) => ChantDeMesse.fromJson(json)).toList();
-      }
-      return [];
-    } catch (e) {
-      print('Erreur lors de la récupération des chants locaux: $e');
-      return [];
-    }
+    return await UnifiedCacheService.getChants();
   }
 
   /// Récupérer un chant local avec fichiers en attente
   static Future<ChantDeMesse?> getLocalChant(int chantId) async {
-    try {
-      // Utiliser le service unifié pour récupérer le chant avec ses fichiers locaux
-      return await UnifiedCacheService.getChant(chantId);
-    } catch (e) {
-      print('Erreur lors de la récupération du chant local: $e');
-      return null;
-    }
+    return await UnifiedCacheService.getChant(chantId);
   }
 
   /// Sauvegarder les chants localement
   static Future<void> saveLocalChants(List<ChantDeMesse> chants) async {
+    await UnifiedCacheService.saveOrUpdateChants(chants);
+  }
+
+
+  /// Créer une nouvelle section de chants
+  static Future<ApiResponse<ChantSection>> createSection(String nom, String? description) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final chantsJson = json.encode(chants.map((chant) => chant.toJson()).toList());
-      await prefs.setString(_chantsKey, chantsJson);
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+      
+      if (token == null) {
+        return ApiResponse<ChantSection>(error: 'Token non disponible');
+      }
+      
+      final response = await http.post(
+        Uri.parse(AppConstance.chantsDeMesseURL),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'nom': nom,
+          'description': description,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          return ApiResponse<ChantSection>(data: ChantSection.fromJson(data['data']));
+        } else {
+          return ApiResponse<ChantSection>(error: data['message'] ?? 'Erreur serveur');
+        }
+      } else {
+        return ApiResponse<ChantSection>(error: 'Erreur HTTP: ${response.statusCode}');
+      }
     } catch (e) {
-      print('Erreur lors de la sauvegarde des chants: $e');
+      return ApiResponse<ChantSection>(error: 'Erreur de connexion: $e');
+    }
+  }
+
+  /// Mettre à jour une section de chants
+  static Future<ApiResponse<ChantSection>> updateSection(int id, String nom, String? description) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+      
+      if (token == null) {
+        return ApiResponse<ChantSection>(error: 'Token non disponible');
+      }
+      
+      final response = await http.put(
+        Uri.parse('${AppConstance.chantsDeMesseURL}/$id'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'nom': nom,
+          'description': description,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          return ApiResponse<ChantSection>(data: ChantSection.fromJson(data['data']));
+        } else {
+          return ApiResponse<ChantSection>(error: data['message'] ?? 'Erreur serveur');
+        }
+      } else {
+        return ApiResponse<ChantSection>(error: 'Erreur HTTP: ${response.statusCode}');
+      }
+    } catch (e) {
+      return ApiResponse<ChantSection>(error: 'Erreur de connexion: $e');
+    }
+  }
+
+  /// Supprimer une section de chants
+  static Future<ApiResponse> deleteSection(int id) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+      
+      if (token == null) {
+        return ApiResponse(error: 'Token non disponible');
+      }
+      
+      final response = await http.delete(
+        Uri.parse('${AppConstance.chantsDeMesseURL}/$id'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return ApiResponse(data: data['message']);
+      } else {
+        return ApiResponse(error: 'Erreur HTTP: ${response.statusCode}');
+      }
+    } catch (e) {
+      return ApiResponse(error: 'Erreur de connexion: $e');
     }
   }
 
@@ -390,6 +474,63 @@ class ChantService {
         return ApiResponse(error: 'Erreur HTTP: ${response.statusCode}');
       }
     } catch (e) {
+      return ApiResponse(error: 'Erreur de connexion: $e');
+    }
+  }
+
+  /// Upload d'un fichier avec métadonnées de pupitre
+  static Future<ApiResponse> uploadFile(int chantId, {
+    required String pupitre,
+    required String fileType,
+    File? audioFile,
+    File? imageFile,
+    File? pdfFile,
+  }) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+      
+      if (token == null) {
+        return ApiResponse(error: 'Token non disponible');
+      }
+
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${AppConstance.baseURL}/api/chants/$chantId/upload-file'),
+      );
+
+      request.headers.addAll({
+        'Authorization': 'Bearer $token',
+      });
+
+      request.fields['pupitre'] = pupitre;
+      request.fields['file_type'] = fileType;
+
+      if (audioFile != null) {
+        request.files.add(await http.MultipartFile.fromPath('audio_file', audioFile.path));
+      }
+      if (imageFile != null) {
+        request.files.add(await http.MultipartFile.fromPath('image_file', imageFile.path));
+      }
+      if (pdfFile != null) {
+        request.files.add(await http.MultipartFile.fromPath('pdf_file', pdfFile.path));
+      }
+
+      var response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final data = json.decode(responseBody);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (data['success'] == true) {
+          return ApiResponse(data: data['data']);
+        } else {
+          return ApiResponse(error: data['message'] ?? 'Erreur serveur');
+        }
+      } else {
+        return ApiResponse(error: data['message'] ?? 'Erreur HTTP: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Erreur lors de l\'upload du fichier: $e');
       return ApiResponse(error: 'Erreur de connexion: $e');
     }
   }

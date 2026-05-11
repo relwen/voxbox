@@ -10,6 +10,7 @@ import 'package:voxbox/models/chant_de_messe.dart';
 import 'package:voxbox/services/api_response.dart';
 import 'package:voxbox/services/unified_cache_service.dart';
 import 'package:voxbox/services/backend_adapter.dart';
+import 'package:voxbox/services/network_service.dart';
 
 class MesseService {
   static const String _messesKey = 'local_messes';
@@ -17,9 +18,20 @@ class MesseService {
   /// Récupérer les messes depuis le serveur
   static Future<ApiResponse<List<Messe>>> getMessessFromServer() async {
     try {
+      final isConnected = await NetworkService().isConnected();
+
+      if (!isConnected) {
+        final localMesses = await UnifiedCacheService.getMesses();
+        if (localMesses.isNotEmpty) {
+          return ApiResponse<List<Messe>>(data: localMesses);
+        }
+        return ApiResponse<List<Messe>>(
+            error: 'Pas de connexion internet et aucun cache disponible');
+      }
+
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
-      
+
       if (token == null) {
         return ApiResponse<List<Messe>>(error: 'Token non disponible');
       }
@@ -29,55 +41,50 @@ class MesseService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
           try {
-            // Utiliser l'adaptateur pour convertir les données backend
-            List<Messe> messes = BackendAdapter.backendDataListToMesses(data['data']);
+            List<Messe> messes =
+                BackendAdapter.backendDataListToMesses(data['data']);
+            // Sauvegarder localement via UnifiedCacheService
+            await UnifiedCacheService.saveOrUpdateMesses(messes);
             return ApiResponse<List<Messe>>(data: messes);
           } catch (e) {
             print('Erreur lors du parsing des messes: $e');
             return ApiResponse<List<Messe>>(error: 'Erreur de parsing: $e');
           }
         } else {
-          return ApiResponse<List<Messe>>(error: data['message'] ?? 'Erreur serveur');
+          return ApiResponse<List<Messe>>(
+              error: data['message'] ?? 'Erreur serveur');
         }
       } else {
-        return ApiResponse<List<Messe>>(error: 'Erreur HTTP: ${response.statusCode}');
+        final localMesses = await UnifiedCacheService.getMesses();
+        if (localMesses.isNotEmpty) {
+          return ApiResponse<List<Messe>>(data: localMesses);
+        }
+        return ApiResponse<List<Messe>>(
+            error: 'Erreur HTTP: ${response.statusCode}');
       }
     } catch (e) {
+      final localMesses = await UnifiedCacheService.getMesses();
+      if (localMesses.isNotEmpty) {
+        return ApiResponse<List<Messe>>(data: localMesses);
+      }
       return ApiResponse<List<Messe>>(error: 'Erreur de connexion: $e');
     }
   }
 
   /// Récupérer les messes locales
   static Future<List<Messe>> getLocalMessess() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final messesJson = prefs.getString(_messesKey);
-      if (messesJson != null) {
-        final List<dynamic> messesList = json.decode(messesJson);
-        return messesList.map((json) => Messe.fromJson(json)).toList();
-      }
-      return [];
-    } catch (e) {
-      print('Erreur lors de la récupération des messes locales: $e');
-      return [];
-    }
+    return await UnifiedCacheService.getMesses();
   }
 
   /// Sauvegarder les messes localement
   static Future<void> saveLocalMessess(List<Messe> messes) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final messesJson = json.encode(messes.map((messe) => messe.toJson()).toList());
-      await prefs.setString(_messesKey, messesJson);
-    } catch (e) {
-      print('Erreur lors de la sauvegarde des messes: $e');
-    }
+    await UnifiedCacheService.saveOrUpdateMesses(messes);
   }
 
   /// Synchroniser les messes
@@ -89,9 +96,9 @@ class MesseService {
         return serverResponse;
       }
 
-      // Sauvegarder localement
-      await saveLocalMessess(serverResponse.data as List<Messe>);
-      
+      // Sauvegarder localement via UnifiedCacheService
+      await UnifiedCacheService.saveOrUpdateMesses(serverResponse.data as List<Messe>);
+
       return serverResponse;
     } catch (e) {
       return ApiResponse<List<Messe>>(error: 'Erreur de synchronisation: $e');
@@ -100,12 +107,26 @@ class MesseService {
 
   /// Récupérer les sections d'une messe
   /// messeId: ID de la messe (RubriqueSection)
-  static Future<ApiResponse<List<MesseSection>>> getMesseSections(int messeId) async {
+  static Future<ApiResponse<List<MesseSection>>> getMesseSections(
+      int messeId) async {
     print('🔄 Récupération des sections pour la messe ID: $messeId');
     try {
+      final isConnected = await NetworkService().isConnected();
+
+      if (!isConnected) {
+        final localSections = await UnifiedCacheService.getSections();
+        final messeSections =
+            localSections.where((s) => s.messeId == messeId).toList();
+        if (messeSections.isNotEmpty) {
+          return ApiResponse<List<MesseSection>>(data: messeSections);
+        }
+        return ApiResponse<List<MesseSection>>(
+            error: 'Pas de connexion et aucun cache pour cette messe');
+      }
+
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
-      
+
       if (token == null) {
         return ApiResponse<List<MesseSection>>(error: 'Token non disponible');
       }
@@ -115,26 +136,40 @@ class MesseService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
-          // Utiliser l'adaptateur pour convertir les références en sections
-          // Passer messeId pour que les sections aient le bon ID de RubriqueSection
-          List<MesseSection> sections = BackendAdapter.referencesToMesseSections(data['data'], messeId: messeId);
-          print('✅ ${sections.length} section(s) trouvée(s) pour la messe $messeId');
-          for (var section in sections) {
-            print('   - ${section.nom} (ID: ${section.id}, messeId: ${section.messeId})');
-          }
+          List<MesseSection> sections =
+              BackendAdapter.referencesToMesseSections(data['data'],
+                  messeId: messeId);
+
+          // Mettre à jour le cache via UnifiedCacheService
+          await UnifiedCacheService.saveOrUpdateSections(sections);
+
           return ApiResponse<List<MesseSection>>(data: sections);
         } else {
-          return ApiResponse<List<MesseSection>>(error: data['message'] ?? 'Erreur serveur');
+          return ApiResponse<List<MesseSection>>(
+              error: data['message'] ?? 'Erreur serveur');
         }
       } else {
-        return ApiResponse<List<MesseSection>>(error: 'Erreur HTTP: ${response.statusCode}');
+        final localSections = await UnifiedCacheService.getSections();
+        final messeSections =
+            localSections.where((s) => s.messeId == messeId).toList();
+        if (messeSections.isNotEmpty) {
+          return ApiResponse<List<MesseSection>>(data: messeSections);
+        }
+        return ApiResponse<List<MesseSection>>(
+            error: 'Erreur HTTP: ${response.statusCode}');
       }
     } catch (e) {
+      final localSections = await UnifiedCacheService.getSections();
+      final messeSections =
+          localSections.where((s) => s.messeId == messeId).toList();
+      if (messeSections.isNotEmpty) {
+        return ApiResponse<List<MesseSection>>(data: messeSections);
+      }
       return ApiResponse<List<MesseSection>>(error: 'Erreur de connexion: $e');
     }
   }
@@ -142,124 +177,118 @@ class MesseService {
   /// Récupérer les chants d'une section
   /// sectionId: ID de la section (référence générée)
   /// messeId: ID réel de la RubriqueSection (messe) - utilisé pour récupérer les partitions
-  /// sectionName: Nom de la section (ex: "Kyrié", "Sanctus") - utilisé pour filtrer par messe_part
-  static Future<ApiResponse<List<ChantDeMesse>>> getSectionChants(int sectionId, {int? messeId, String? sectionName}) async {
+  /// sectionName: Nom de la section (ex: "Kyrié", "Sanctus") - utilisé pour filtrer
+  static Future<ApiResponse<List<ChantDeMesse>>> getSectionChants(int sectionId,
+      {int? messeId, String? sectionName}) async {
     try {
+      final isConnected = await NetworkService().isConnected();
+
+      if (!isConnected) {
+        final cacheChants =
+            await getSectionChantsFromCache(sectionId, messeId: messeId);
+        if (cacheChants.isNotEmpty) {
+          return ApiResponse<List<ChantDeMesse>>(data: cacheChants);
+        }
+        return ApiResponse<List<ChantDeMesse>>(
+            error: 'Pas de connexion et aucun cache pour cette section');
+      }
+
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
-      
+
       if (token == null) {
         return ApiResponse<List<ChantDeMesse>>(error: 'Token non disponible');
       }
-      
-      // Utiliser messeId si fourni, sinon utiliser sectionId (pour compatibilité)
-      // Le backend attend l'ID réel de la RubriqueSection (messeId)
+
       final referenceId = messeId ?? sectionId;
-      
-      print('🔄 Récupération des partitions pour sectionId: $sectionId, messeId: $messeId, referenceId utilisé: $referenceId');
-      
+
       final response = await http.get(
-        Uri.parse('${AppConstance.baseURL}/api/references/$referenceId/partitions'),
+        Uri.parse(
+            '${AppConstance.baseURL}/api/references/$referenceId/partitions'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('📥 Réponse brute du serveur pour partitions: ${response.body}');
-        
+
         if (data['success'] == true) {
-          // Vérifier si data existe et n'est pas null
           if (data['data'] != null && data['data'] is List) {
             final partitionsList = data['data'] as List;
-            print('📦 ${partitionsList.length} partition(s) reçue(s) du serveur');
-            
-            // Filtrer les partitions par messe_part pour éviter le mélange entre différentes messes
-            // Si plusieurs messes ont des sections avec le même rubrique_section_id,
-            // on filtre par le nom de la partie (messe_part['part']) qui doit correspondre au nom de la section
+
             List<dynamic> filteredPartitions = partitionsList;
-            
+
             if (sectionName != null && sectionName.isNotEmpty) {
-              // Filtrer les partitions dont le messe_part['part'] correspond au nom de la section
               filteredPartitions = partitionsList.where((partition) {
-                if (partition['messe_part'] == null) {
-                  // Si pas de messe_part, on garde la partition (pour compatibilité)
-                  return true;
-                }
-                
-                // Parser messe_part (peut être une string JSON ou un objet)
+                if (partition['messe_part'] == null) return true;
+
                 dynamic messePart = partition['messe_part'];
                 Map<String, dynamic>? messePartMap;
-                
+
                 if (messePart is String) {
                   try {
-                    messePartMap = json.decode(messePart) as Map<String, dynamic>?;
+                    messePartMap =
+                        json.decode(messePart) as Map<String, dynamic>?;
                   } catch (e) {
-                    print('⚠️ Erreur parsing messe_part: $e');
-                    return true; // Garder la partition si erreur de parsing
+                    return true;
                   }
                 } else if (messePart is Map) {
                   messePartMap = messePart as Map<String, dynamic>;
                 }
-                
+
                 if (messePartMap != null) {
                   final part = messePartMap['part']?.toString() ?? '';
-                  // Comparer le nom de la partie avec le nom de la section (insensible à la casse)
-                  // Normaliser les noms (enlever accents, espaces multiples, etc.)
-                  final normalizedPart = part.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
-                  final normalizedSectionName = sectionName.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
-                  final matches = normalizedPart == normalizedSectionName;
-                  if (!matches) {
-                    print('🔍 Partition ${partition['id']} ("${partition['title']}") filtrée: messe_part["part"]="$part" != sectionName="$sectionName"');
-                  } else {
-                    print('✅ Partition ${partition['id']} ("${partition['title']}") correspond à la section "$sectionName"');
-                  }
-                  return matches;
+                  final normalizedPart =
+                      part.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
+                  final normalizedSectionName = sectionName
+                      .toLowerCase()
+                      .trim()
+                      .replaceAll(RegExp(r'\s+'), ' ');
+                  return normalizedPart == normalizedSectionName;
                 }
-                
-                return true; // Garder si pas de messe_part valide
+
+                return true;
               }).toList();
-              
-              print('📊 ${partitionsList.length} partition(s) reçue(s) -> ${filteredPartitions.length} après filtrage par section "$sectionName"');
-            } else {
-              print('📊 ${partitionsList.length} partition(s) reçue(s) (pas de filtrage par sectionName)');
             }
-            
-          // Utiliser l'adaptateur pour convertir les partitions en chants
-            // IMPORTANT: Passer sectionId pour que les chants soient correctement associés à leur section
-            // Le sectionId est l'ID de la référence générée, pas le messeId (rubrique_section_id)
-            List<ChantDeMesse> chants = BackendAdapter.partitionsToChantsDeMesse(filteredPartitions, sectionId: sectionId);
-            print('✅ ${chants.length} chant(s) converti(s) depuis les partitions pour la section $sectionId ($sectionName)');
-            
-            // Vérifier que tous les chants ont le bon sectionId
+
+            List<ChantDeMesse> chants =
+                BackendAdapter.partitionsToChantsDeMesse(filteredPartitions,
+                    sectionId: sectionId);
+
             for (var i = 0; i < chants.length; i++) {
               if (chants[i].sectionId != sectionId) {
-                print('⚠️ Correction sectionId pour chant ${chants[i].id}: ${chants[i].sectionId} -> $sectionId');
                 chants[i] = chants[i].copyWith(sectionId: sectionId);
               }
             }
-          
-            // Sauvegarder les chants dans le cache unifié (en mettant à jour les existants)
-            // Utiliser updateChant pour chaque chant pour éviter d'écraser les autres sections
-            for (var chant in chants) {
-              await UnifiedCacheService.updateChant(chant);
-            }
-          
-          return ApiResponse<List<ChantDeMesse>>(data: chants);
+
+            // Mettre à jour le cache local via UnifiedCacheService
+            await UnifiedCacheService.saveOrUpdateChants(chants);
+
+            return ApiResponse<List<ChantDeMesse>>(data: chants);
           } else {
-            print('⚠️ Aucune partition dans la réponse (data est null ou vide)');
             return ApiResponse<List<ChantDeMesse>>(data: []);
           }
         } else {
-          return ApiResponse<List<ChantDeMesse>>(error: data['message'] ?? 'Erreur serveur');
+          return ApiResponse<List<ChantDeMesse>>(
+              error: data['message'] ?? 'Erreur serveur');
         }
       } else {
-        print('❌ Erreur HTTP ${response.statusCode}: ${response.body}');
-        return ApiResponse<List<ChantDeMesse>>(error: 'Erreur HTTP: ${response.statusCode}');
+        final cacheChants =
+            await getSectionChantsFromCache(sectionId, messeId: messeId);
+        if (cacheChants.isNotEmpty) {
+          return ApiResponse<List<ChantDeMesse>>(data: cacheChants);
+        }
+        return ApiResponse<List<ChantDeMesse>>(
+            error: 'Erreur HTTP: ${response.statusCode}');
       }
     } catch (e) {
+      final cacheChants =
+          await getSectionChantsFromCache(sectionId, messeId: messeId);
+      if (cacheChants.isNotEmpty) {
+        return ApiResponse<List<ChantDeMesse>>(data: cacheChants);
+      }
       return ApiResponse<List<ChantDeMesse>>(error: 'Erreur de connexion: $e');
     }
   }
@@ -267,14 +296,17 @@ class MesseService {
   /// Récupérer les chants d'une section depuis le cache local
   /// sectionId: ID de la section (référence générée) - DOIT être utilisé pour filtrer
   /// messeId: ID réel de la RubriqueSection (messe) - utilisé uniquement pour récupérer depuis le serveur
-  static Future<List<ChantDeMesse>> getSectionChantsFromCache(int sectionId, {int? messeId}) async {
+  static Future<List<ChantDeMesse>> getSectionChantsFromCache(int sectionId,
+      {int? messeId}) async {
     try {
       // IMPORTANT: Toujours utiliser sectionId pour filtrer, pas messeId
       // Car plusieurs sections (Kyrié, Sanctus, etc.) peuvent avoir le même messeId
       // mais chaque section a son propre sectionId unique
-      print('🔍 Récupération cache pour sectionId: $sectionId (messeId: $messeId)');
+      print(
+          '🔍 Récupération cache pour sectionId: $sectionId (messeId: $messeId)');
       final chants = await UnifiedCacheService.getChantsBySection(sectionId);
-      print('📦 ${chants.length} chant(s) trouvé(s) dans le cache pour la section $sectionId');
+      print(
+          '📦 ${chants.length} chant(s) trouvé(s) dans le cache pour la section $sectionId');
       return chants;
     } catch (e) {
       print('Erreur lors de la récupération des chants du cache: $e');
@@ -289,12 +321,13 @@ class MesseService {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
-      
+
       if (token == null) {
         return false;
       }
       final response = await http.get(
-        Uri.parse('${AppConstance.baseURL}/api/chants-de-messe/${chant.id}/download-audio'),
+        Uri.parse(
+            '${AppConstance.baseURL}/api/chants-de-messe/${chant.id}/download-audio'),
         headers: {
           'Authorization': 'Bearer $token',
         },
@@ -307,7 +340,8 @@ class MesseService {
           await audioDir.create(recursive: true);
         }
 
-        final fileName = 'chant_${chant.id}_${DateTime.now().millisecondsSinceEpoch}.mp3';
+        final fileName =
+            'chant_${chant.id}_${DateTime.now().millisecondsSinceEpoch}.mp3';
         final file = File('${audioDir.path}/$fileName');
         await file.writeAsBytes(response.bodyBytes);
 
@@ -329,12 +363,13 @@ class MesseService {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
-      
+
       if (token == null) {
         return false;
       }
       final response = await http.get(
-        Uri.parse('${AppConstance.baseURL}/api/chants-de-messe/${chant.id}/download-pdf'),
+        Uri.parse(
+            '${AppConstance.baseURL}/api/chants-de-messe/${chant.id}/download-pdf'),
         headers: {
           'Authorization': 'Bearer $token',
         },
@@ -347,7 +382,8 @@ class MesseService {
           await pdfDir.create(recursive: true);
         }
 
-        final fileName = 'chant_${chant.id}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final fileName =
+            'chant_${chant.id}_${DateTime.now().millisecondsSinceEpoch}.pdf';
         final file = File('${pdfDir.path}/$fileName');
         await file.writeAsBytes(response.bodyBytes);
 
@@ -363,7 +399,8 @@ class MesseService {
   }
 
   /// Mettre à jour le chemin audio local
-  static Future<void> _updateLocalAudioPath(int chantId, String localPath) async {
+  static Future<void> _updateLocalAudioPath(
+      int chantId, String localPath) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('audio_path_$chantId', localPath);
@@ -402,3 +439,4 @@ class MesseService {
     }
   }
 }
+

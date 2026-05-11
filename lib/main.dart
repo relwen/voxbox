@@ -4,6 +4,7 @@ import 'package:voxbox/widgets/app_wrapper.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:voxbox/services/notification_service.dart';
+import 'package:voxbox/services/network_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +18,9 @@ void main() async {
     
     // Initialiser le service de notification
     await NotificationService().initialize();
+    
+    // Initialiser le service réseau
+    await NetworkService().initialize();
   } catch (e) {
     print('Erreur lors de l\'initialisation de Firebase: $e');
     print('Note: Assurez-vous d\'avoir ajouté google-services.json (Android) ou GoogleService-Info.plist (iOS)');

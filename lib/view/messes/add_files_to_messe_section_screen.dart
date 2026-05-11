@@ -14,6 +14,8 @@ import 'package:voxbox/models/messe_section.dart';
 import 'package:voxbox/models/chorale_pupitre.dart';
 import 'package:voxbox/services/chorale_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:voxbox/widgets/offline_indicator.dart';
+import 'package:voxbox/widgets/shimmer_loading.dart';
 
 /// Écran pour ajouter des enregistrements et fichiers aux sections de messe avec organisation par pupitre
 class AddFilesToMesseSectionScreen extends StatefulWidget {
@@ -203,13 +205,15 @@ class _AddFilesToMesseSectionScreenState extends State<AddFilesToMesseSectionScr
           ),
         ],
       ),
-      body: _loadingPupitres
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
-          : _errorMessage != null
-              ? Center(
-                  child: Padding(
+      body: Column(
+        children: [
+          const OfflineIndicator(),
+          Expanded(
+            child: _loadingPupitres
+                ? const ShimmerListLoading()
+                : _errorMessage != null
+                    ? Center(
+                        child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -296,6 +300,9 @@ class _AddFilesToMesseSectionScreenState extends State<AddFilesToMesseSectionScr
             _buildSaveButton(),
           ],
         ),
+      ),
+    ),
+        ],
       ),
     );
   }

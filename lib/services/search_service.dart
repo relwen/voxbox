@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:voxbox/functions/appconstants.dart';
 import 'package:voxbox/models/partition.dart';
 import 'package:voxbox/models/vocalise.dart';
@@ -42,13 +43,16 @@ class SearchService {
 
       debugPrint('🔍 Recherche globale: $searchUrl');
 
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
       final response = await http.get(
         Uri.parse(searchUrl),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          if (AppConstance.token != null)
-            'Authorization': 'Bearer ${AppConstance.token}',
+          if (token != null)
+            'Authorization': 'Bearer $token',
         },
       ).timeout(
         const Duration(seconds: 15),
@@ -144,14 +148,17 @@ class SearchService {
 
       final queryLower = query.toLowerCase();
 
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
       // Rechercher dans les partitions
       try {
         final partitionsResponse = await http.get(
           Uri.parse(AppConstance.partitionsURL),
           headers: {
             'Accept': 'application/json',
-            if (AppConstance.token != null)
-              'Authorization': 'Bearer ${AppConstance.token}',
+            if (token != null)
+              'Authorization': 'Bearer $token',
           },
         );
 
@@ -178,8 +185,8 @@ class SearchService {
           Uri.parse(AppConstance.vocalisesURL),
           headers: {
             'Accept': 'application/json',
-            if (AppConstance.token != null)
-              'Authorization': 'Bearer ${AppConstance.token}',
+            if (token != null)
+              'Authorization': 'Bearer $token',
           },
         );
 
@@ -207,8 +214,8 @@ class SearchService {
           Uri.parse(AppConstance.messesURL),
           headers: {
             'Accept': 'application/json',
-            if (AppConstance.token != null)
-              'Authorization': 'Bearer ${AppConstance.token}',
+            if (token != null)
+              'Authorization': 'Bearer $token',
           },
         );
 
@@ -255,13 +262,16 @@ class SearchService {
   static Future<ApiResponse<List<Partition>>> searchPartitions(String query) async {
     try {
       final searchUrl = '${AppConstance.partitionsURL}?search=$query';
+      
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
 
       final response = await http.get(
         Uri.parse(searchUrl),
         headers: {
           'Accept': 'application/json',
-          if (AppConstance.token != null)
-            'Authorization': 'Bearer ${AppConstance.token}',
+          if (token != null)
+            'Authorization': 'Bearer $token',
         },
       );
 
@@ -295,14 +305,17 @@ class SearchService {
       debugPrint('🔍 Recherche de vocalises: $query');
 
       final searchUrl = '${AppConstance.vocalisesURL}?search=${Uri.encodeComponent(query)}';
+      
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
 
       final response = await http.get(
         Uri.parse(searchUrl),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          if (AppConstance.token != null)
-            'Authorization': 'Bearer ${AppConstance.token}',
+          if (token != null)
+            'Authorization': 'Bearer $token',
         },
       ).timeout(
         const Duration(seconds: 15),
@@ -347,13 +360,16 @@ class SearchService {
   static Future<ApiResponse<List<Messe>>> searchMesses(String query) async {
     try {
       final searchUrl = '${AppConstance.messesURL}?search=$query';
+      
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
 
       final response = await http.get(
         Uri.parse(searchUrl),
         headers: {
           'Accept': 'application/json',
-          if (AppConstance.token != null)
-            'Authorization': 'Bearer ${AppConstance.token}',
+          if (token != null)
+            'Authorization': 'Bearer $token',
         },
       );
 

@@ -85,6 +85,14 @@ class NotificationService {
 
     _isInitialized = true;
     
+    // S'abonner au topic général pour recevoir les notifications globales
+    try {
+      await _firebaseMessaging.subscribeToTopic('all_users');
+      print('✅ Abonné avec succès au topic all_users');
+    } catch (e) {
+      print('❌ Erreur lors de l\'abonnement au topic all_users: $e');
+    }
+
     // Récupérer et envoyer le token au serveur
     await updateTokenOnServer();
   }
